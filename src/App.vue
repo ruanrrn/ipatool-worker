@@ -69,8 +69,6 @@
     </template>
   </div>
 </template>
-  </div>
-</template>
 
 <script setup>
 import { onMounted, onUnmounted, watch, ref } from 'vue'

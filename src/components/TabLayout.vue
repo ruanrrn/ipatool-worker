@@ -1,124 +1,53 @@
 <template>
- <div
- class="tab-layout"
- :class="{ 'mobile-layout': isMobile }"
- >
- <!-- Desktop: Tab Bar -->
- <div
- v-if="!isMobile"
- class="desktop-tab-bar"
- >
- <div class="tab-bar-inner glass-modal">
- <button
- v-for="tab in tabs"
- :key="tab.id"
- :class="['tab-btn', { 'tab-btn-active': appStore.activeTab === tab.id }]"
- :title="tab.label"
- @click="appStore.activeTab = tab.id"
- >
- <span class="tab-indicator" />
- <div class="tab-btn-content">
- <el-badge
- v-if="tab.badge"
- :value="tab.badge"
- :max="99"
- class="tab-badge"
- >
- <svg
- class="tab-svg"
- viewBox="0 0 24 24"
- fill="none"
- stroke="currentColor"
- stroke-width="2"
- stroke-linecap="round"
- stroke-linejoin="round"
- v-html="tab.svgPath"
- />
- </el-badge>
- <svg
- v-else
- class="tab-svg"
- viewBox="0 0 24 24"
- fill="none"
- stroke="currentColor"
- stroke-width="2"
- stroke-linecap="round"
- stroke-linejoin="round"
- v-html="tab.svgPath"
- />
- <span class="tab-label">{{ tab.label }}</span>
- </div>
- </button>
- </div>
- </div>
+  <div class="tab-layout" :class="{ 'mobile-layout': isMobile }">
+    <!-- Desktop tabs -->
+    <div v-if="!isMobile" class="flex gap-1 mb-4">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        :class="['flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200', appStore.activeTab === tab.id ? 'bg-white/10 text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-white/6']"
+        @click="appStore.activeTab = tab.id"
+      >
+        <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+        </el-badge>
+        <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+        <span>{{ tab.label }}</span>
+      </button>
+    </div>
 
- <!-- Content -->
- <div
- class="tab-content"
- :class="{ 'with-mobile-tabs': isMobile }"
- >
- <div class="tab-content-shell">
- <component
- :is="currentTabComponent"
- v-bind="currentTabProps"
- @app-selected="handleAppSelected"
- @download-started="handleDownloadStarted"
- @accounts-updated="handleAccountsUpdated"
- @remove-item="emit('remove-item', $event)"
- @clear-all="emit('clear-queue')"
- @logout="emit('logout')"
- />
- </div>
- </div>
+    <!-- Content -->
+    <div class="tab-content" :class="{ 'with-mobile-tabs': isMobile }">
+      <component
+        :is="currentTabComponent"
+        v-bind="currentTabProps"
+        @app-selected="handleAppSelected"
+        @download-started="handleDownloadStarted"
+        @accounts-updated="handleAccountsUpdated"
+        @remove-item="emit('remove-item', $event)"
+        @clear-all="emit('clear-queue')"
+        @logout="emit('logout')"
+      />
+    </div>
 
- <!-- Mobile: Bottom Tab Bar -->
- <div
- v-if="isMobile"
- class="mobile-tab-wrap"
- >
- <div class="mobile-tab-bar glass-modal pb-safe">
- <button
- v-for="tab in tabs"
- :key="tab.id"
- :class="['mobile-tab-btn', { 'mobile-tab-btn-active': appStore.activeTab === tab.id }]"
- @click="appStore.activeTab = tab.id"
- >
- <span class="tab-indicator mobile-indicator" />
- <div class="mobile-tab-icon">
- <el-badge
- v-if="tab.badge"
- :value="tab.badge"
- :max="99"
- class="tab-badge"
- >
- <svg
- class="tab-svg"
- viewBox="0 0 24 24"
- fill="none"
- stroke="currentColor"
- stroke-width="2"
- stroke-linecap="round"
- stroke-linejoin="round"
- v-html="tab.svgPath"
- />
- </el-badge>
- <svg
- v-else
- class="tab-svg"
- viewBox="0 0 24 24"
- fill="none"
- stroke="currentColor"
- stroke-width="2"
- stroke-linecap="round"
- stroke-linejoin="round"
- v-html="tab.svgPath"
- />
- </div>
- <span class="mobile-tab-label">{{ tab.label }}</span>
- </button>
- </div>
- </div>
- </div>
+    <!-- Mobile bottom tabs -->
+    <div v-if="isMobile" class="fixed inset-x-0 bottom-0 z-50 flex justify-center pb-safe">
+      <div class="flex gap-1 rounded-t-[20px] border-t border-white/8 bg-[var(--bg-primary)]/90 px-2 py-2 backdrop-blur-xl">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          :class="['flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-colors duration-200', appStore.activeTab === tab.id ? 'text-[var(--accent-blue)]' : 'text-[var(--text-secondary)]']"
+          @click="appStore.activeTab = tab.id"
+        >
+          <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+          </el-badge>
+          <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+          <span class="text-[10px] font-medium">{{ tab.label }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
