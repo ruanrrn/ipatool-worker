@@ -57,7 +57,7 @@
  class="tab-content"
  :class="{ 'with-mobile-tabs': isMobile }"
  >
- <div class="tab-content-shell section-shell">
+ <div class="tab-content-shell">
  <component
  :is="currentTabComponent"
  v-bind="currentTabProps"
@@ -211,192 +211,28 @@ onUnmounted(() => {
 
 <style scoped>
 .tab-layout {
- display: flex;
- flex-direction: column;
- gap: 24px;
- min-height: calc(100vh - 164px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 120px);
 }
 
 .tab-content {
- flex: 1;
- min-height: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 .tab-content-shell {
- min-height: 100%;
+  min-height: 100%;
 }
 
 .tab-content.with-mobile-tabs {
- padding-bottom: 112px;
-}
-
-.desktop-tab-bar {
- position: sticky;
- top: 0;
- z-index: 30;
-}
-
-.tab-bar-inner {
- display: inline-flex;
- align-items: center;
- gap: 8px;
- padding: 8px;
- border-radius: 999px;
-}
-
-.tab-btn {
- position: relative;
- min-width: 104px;
- height: 56px;
- padding: 0 18px;
- border: none;
- border-radius: 999px;
- background: transparent;
- color: var(--text-secondary);
- cursor: pointer;
- overflow: hidden;
- transition: var(--transition-default);
-}
-
-.tab-btn:hover,
-.mobile-tab-btn:hover {
- transform: scale(1.02) translateY(-1px);
-}
-
-.tab-btn:active,
-.mobile-tab-btn:active {
- transform: scale(0.98);
- transition-timing-function: var(--spring-in);
-}
-
-.tab-btn-content {
- position: relative;
- z-index: 1;
- display: inline-flex;
- align-items: center;
- justify-content: center;
- gap: 10px;
-}
-
-.tab-svg {
- width: 22px;
- height: 22px;
-}
-
-.tab-label {
- font-size: 13px;
- font-weight: 600;
- letter-spacing: 0.02em;
-}
-
-.tab-indicator {
- position: absolute;
- inset: 4px;
- border-radius: 999px;
- background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
- border: 1px solid transparent;
- opacity: 0;
- transform: scale(0.94);
- transition: var(--transition-default);
-}
-
-.tab-btn-active,
-.mobile-tab-btn-active {
- color: var(--text-primary);
-}
-
-.tab-btn-active .tab-indicator,
-.mobile-tab-btn-active .tab-indicator {
- opacity: 1;
- transform: scale(1);
- border-color: rgba(255,255,255,0.14);
- box-shadow: var(--shadow-2);
-}
-
-.tab-btn-active .tab-svg,
-.mobile-tab-btn-active .tab-svg {
- color: var(--accent-blue);
-}
-
-.tab-badge :deep(.el-badge__content) {
- position: absolute;
- top: -6px;
- right: -10px;
- z-index: 10;
- min-width: 18px;
- height: 18px;
- line-height: 18px;
- padding: 0 5px;
- font-size: 10px;
-}
-
-.mobile-tab-wrap {
- position: fixed;
- inset-inline: 0;
- bottom: 0;
- z-index: 50;
- display: flex;
- justify-content: center;
- pointer-events: none;
-}
-
-.mobile-tab-bar {
- pointer-events: auto;
- display: grid;
- grid-template-columns: repeat(5, minmax(0, 1fr));
- width: min(100% - 24px, 720px);
- margin: 0 12px 12px;
- padding: 10px;
- border-radius: 32px;
-}
-
-.mobile-tab-btn {
- position: relative;
- display: flex;
- flex-direction: column;
- align-items: center;
- justify-content: center;
- gap: 6px;
- min-height: 68px;
- border: none;
- border-radius: 24px;
- background: transparent;
- color: var(--text-secondary);
- cursor: pointer;
- overflow: hidden;
- transition: var(--transition-default);
-}
-
-.mobile-tab-icon,
-.mobile-tab-label {
- position: relative;
- z-index: 1;
-}
-
-.mobile-tab-label {
- font-size: 11px;
- line-height: 1;
- font-weight: 600;
-}
-
-.mobile-indicator {
- inset: 6px;
- border-radius: 22px;
+  padding-bottom: 80px;
 }
 
 @media (max-width: 767px) {
- .tab-layout {
- min-height: auto;
- gap: 16px;
- }
-
- .tab-content.with-mobile-tabs {
- padding-bottom: 124px;
- }
-
- .mobile-tab-bar {
- width: min(100% - 16px, 720px);
- margin-inline: 8px;
- }
+  .tab-content.with-mobile-tabs {
+    padding-bottom: 96px;
+  }
 }
 </style>
