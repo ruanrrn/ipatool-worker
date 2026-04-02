@@ -4,7 +4,7 @@
  <AccountManager @accounts-updated="(v) => emit('accounts-updated', v)"/>
 
  <!-- Admin Account Security -->
- <div class="glass-card rounded-[32px] p-6 sm:p-8">
+ <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
  <div class="mb-6 flex items-center gap-4">
  <div class="hero-icon h-12 w-12 rounded-[20px]">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
@@ -123,7 +123,7 @@
  </div>
 
  <!-- Notification Settings -->
- <div class="glass-card rounded-[32px] p-6 sm:p-8">
+ <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
  <div class="mb-6 flex items-center gap-4">
  <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
@@ -218,7 +218,7 @@
  </div>
  </div>
  </div>
- <div class="glass-card rounded-[32px] p-6 sm:p-8">
+ <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
  <div class="flex items-center space-x-3 mb-4">
  <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#7c8aa5_0%,#4f5d75_100%)]">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">

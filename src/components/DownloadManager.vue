@@ -119,7 +119,7 @@
  </div>
 
  <!-- Search Mode Toggle -->
- <div class="flex items-center space-x-4 p-3 glass-surface mb-3">
+ <div class="flex items-center space-x-4 p-3 bg-white/[0.04] rounded-[16px] mb-3">
  <label class="flex items-center space-x-2 cursor-pointer">
  <input
  v-model="searchMode"
@@ -250,7 +250,7 @@
  版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
  <span
  v-if="selectedApp.isDirectAppId"
- class="ml-2 px-2 py-0.5 glass-pill text-xs"
+ class="ml-2 px-2 py-0.5 bg-white/[0.08] rounded-full text-xs"
  >
  直接输入
  </span>
@@ -271,7 +271,7 @@
  选择账号
  <span
  v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
- class="ml-2 text-xs px-2 py-1 glass-pill"
+ class="ml-2 text-xs px-2 py-1 bg-white/[0.08] rounded-full"
  >
  商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
  </span>

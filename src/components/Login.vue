@@ -1,7 +1,7 @@
 <template>
  <div class="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
  <div class="w-full max-w-lg">
- <div class="glass-modal overflow-hidden rounded-[32px] p-6 sm:p-8">
+ <div class="bg-[#1c1c1e]/95 rounded-[24px] overflow-hidden rounded-[32px] p-6 sm:p-8">
  <div class="mb-8 flex items-start gap-4">
  <div class="hero-icon h-14 w-14 rounded-[24px]">
  <svg class="relative z-10 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@
  <el-button
  type="primary"
  size="large"
- class="glass-button mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
+ class=" mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
  :loading="loginLoading"
  @click="handleLogin"
  >
@@ -149,7 +149,7 @@
  <template #footer>
  <el-button
  type="primary"
- class="glass-button !rounded-[18px]"
+ class=" !rounded-[18px]"
  :loading="pwdLoading"
  @click="handleChangePassword"
  >

@@ -1,6 +1,6 @@
 <template>
  <div class="space-y-6">
- <div class="glass-card flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
+ <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
  <div class="flex items-center space-x-3">
  <div class="hero-icon h-14 w-14 rounded-[24px] bg-[linear-gradient(135deg,#7d7aff_0%,#0a84ff_100%)]">
  <svg class="w-6 h-6 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
@@ -78,7 +78,7 @@
  </div>
  </div>
 
- <div v-else class="glass-card rounded-[32px] py-14 text-center text-[var(--text-secondary)]">
+ <div v-else class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] py-14 text-center text-[var(--text-secondary)]">
  <svg class="mx-auto h-16 w-16 mb-4"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
  </svg>

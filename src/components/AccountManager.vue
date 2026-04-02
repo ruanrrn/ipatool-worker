@@ -69,7 +69,7 @@
  :icon="Refresh"
  circle
  size="small"
- class="refresh-button glass-button"
+ class="refresh-button "
  :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
  :disabled="!account.hasSavedCredentials"
  :loading="refreshingIndex === index"
@@ -80,7 +80,7 @@
  :icon="Delete"
  circle
  size="small"
- class="remove-button glass-button"
+ class="remove-button "
  title="删除账号"
  @click="removeAccount(index)"
  />
@@ -181,7 +181,7 @@
  :loading="logging"
  type="success"
  size="large"
- class="submit-button glass-button"
+ class="submit-button "
  @click="loginAccount"
  >
  <template #icon>

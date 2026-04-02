@@ -117,7 +117,7 @@
  <!-- 空状态 -->
  <div
  v-else
- class="glass-card rounded-[32px] py-12 text-center text-[var(--text-secondary)]"
+ class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] py-12 text-center text-[var(--text-secondary)]"
  >
  <svg
  class="mx-auto h-16 w-16 mb-4"
@@ -255,7 +255,7 @@
  <div
  v-for="item in taskItems"
  :key="item.id"
- class="p-3 glass-surface"
+ class="p-3 bg-white/[0.04] rounded-[16px]"
  >
  <div class="flex items-center justify-between">
  <div>
