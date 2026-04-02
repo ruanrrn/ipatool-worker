@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div class="card rounded-[32px]">
     <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
       <div class="flex items-center space-x-3">
         <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -54,7 +54,7 @@
           v-for="task in tasks"
           :key="task.id"
           shadow="hover"
-          class="task-card"
+          class="task-card rounded-[28px]"
         >
           <div class="flex items-start justify-between">
             <div class="flex-1">
@@ -117,7 +117,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="text-center py-12 text-gray-500 dark:text-gray-400"
+      class="glass-card rounded-[32px] py-12 text-center text-[var(--text-secondary)]"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"
@@ -168,7 +168,7 @@
             <div
               v-for="(item, index) in draftItems"
               :key="`${item.app_id}-${item.version || 'latest'}-${item.account_email}`"
-              class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3"
+              class="inline-panel flex items-start justify-between gap-3 rounded-[20px] p-4"
             >
               <div class="min-w-0 flex-1">
                 <p class="font-medium text-gray-900 dark:text-white truncate">

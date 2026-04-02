@@ -8,7 +8,7 @@
       v-if="!isMobile"
       class="desktop-tab-bar"
     >
-      <div class="tab-bar-inner">
+      <div class="tab-bar-inner glass-modal">
         <button
           v-for="tab in tabs"
           :key="tab.id"
@@ -16,8 +16,75 @@
           :title="tab.label"
           @click="appStore.activeTab = tab.id"
         >
+          <span class="tab-indicator" />
           <div class="tab-btn-content">
-            <!-- badge wrapper -->
+            <el-badge
+              v-if="tab.badge"
+              :value="tab.badge"
+              :max="99"
+              class="tab-badge"
+            >
+              <svg
+                class="tab-svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                v-html="tab.svgPath"
+              />
+            </el-badge>
+            <svg
+              v-else
+              class="tab-svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              v-html="tab.svgPath"
+            />
+            <span class="tab-label">{{ tab.label }}</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div
+      class="tab-content"
+      :class="{ 'with-mobile-tabs': isMobile }"
+    >
+      <div class="tab-content-shell section-shell">
+        <component
+          :is="currentTabComponent"
+          v-bind="currentTabProps"
+          @app-selected="handleAppSelected"
+          @download-started="handleDownloadStarted"
+          @accounts-updated="handleAccountsUpdated"
+          @remove-item="emit('remove-item', $event)"
+          @clear-all="emit('clear-queue')"
+          @logout="emit('logout')"
+        />
+      </div>
+    </div>
+
+    <!-- Mobile: Bottom Tab Bar -->
+    <div
+      v-if="isMobile"
+      class="mobile-tab-wrap"
+    >
+      <div class="mobile-tab-bar glass-modal pb-safe">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          :class="['mobile-tab-btn', { 'mobile-tab-btn-active': appStore.activeTab === tab.id }]"
+          @click="appStore.activeTab = tab.id"
+        >
+          <span class="tab-indicator mobile-indicator" />
+          <div class="mobile-tab-icon">
             <el-badge
               v-if="tab.badge"
               :value="tab.badge"
@@ -47,70 +114,9 @@
               v-html="tab.svgPath"
             />
           </div>
+          <span class="mobile-tab-label">{{ tab.label }}</span>
         </button>
       </div>
-    </div>
-
-    <!-- Content -->
-    <div
-      class="tab-content"
-      :class="{ 'with-mobile-tabs': isMobile }"
-    >
-      <component
-        :is="currentTabComponent"
-        v-bind="currentTabProps"
-        @app-selected="handleAppSelected"
-        @download-started="handleDownloadStarted"
-        @accounts-updated="handleAccountsUpdated"
-        @remove-item="emit('remove-item', $event)"
-        @clear-all="emit('clear-queue')"
-        @logout="emit('logout')"
-      />
-    </div>
-
-    <!-- Mobile: Bottom Tab Bar -->
-    <div
-      v-if="isMobile"
-      class="mobile-tab-bar"
-    >
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        :class="['mobile-tab-btn', { 'mobile-tab-btn-active': appStore.activeTab === tab.id }]"
-        @click="appStore.activeTab = tab.id"
-      >
-        <div class="mobile-tab-icon">
-          <el-badge
-            v-if="tab.badge"
-            :value="tab.badge"
-            :max="99"
-            class="tab-badge"
-          >
-            <svg
-              class="tab-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              v-html="tab.svgPath"
-            />
-          </el-badge>
-          <svg
-            v-else
-            class="tab-svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            v-html="tab.svgPath"
-          />
-        </div>
-        <span class="mobile-tab-label">{{ tab.label }}</span>
-      </button>
     </div>
   </div>
 </template>
@@ -207,99 +213,69 @@ onUnmounted(() => {
 .tab-layout {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 180px);
+  gap: 24px;
+  min-height: calc(100vh - 164px);
 }
 
 .tab-content {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+}
+
+.tab-content-shell {
+  min-height: 100%;
 }
 
 .tab-content.with-mobile-tabs {
-  padding-bottom: 100px;
+  padding-bottom: 112px;
 }
 
-/* ===== Desktop Tab Bar ===== */
 .desktop-tab-bar {
   position: sticky;
   top: 0;
-  z-index: 100;
-  margin: 0 -48px;
-  padding: 12px 0;
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-
-:root.dark .desktop-tab-bar,
-.dark .desktop-tab-bar {
-  background: rgba(17,24,39,0.85);
-  border-bottom-color: rgba(55,65,81,0.5);
+  z-index: 30;
 }
 
 .tab-bar-inner {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  max-width: 320px;
-  margin: 0 auto;
-  padding: 4px;
-  background: rgba(0,0,0,0.04);
-  border-radius: 14px;
-}
-
-.dark .tab-bar-inner {
-  background: rgba(255,255,255,0.06);
+  gap: 8px;
+  padding: 8px;
+  border-radius: 999px;
 }
 
 .tab-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 44px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s ease;
   position: relative;
+  min-width: 104px;
+  height: 56px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  overflow: hidden;
+  transition: var(--transition-default);
 }
 
-.tab-btn:hover {
-  color: #3b82f6;
-  background: rgba(59,130,246,0.08);
+.tab-btn:hover,
+.mobile-tab-btn:hover {
+  transform: scale(1.02) translateY(-1px);
 }
 
-.dark .tab-btn {
-  color: #9ca3af;
-}
-
-.dark .tab-btn:hover {
-  color: #60a5fa;
-  background: rgba(96,165,250,0.12);
-}
-
-.tab-btn-active {
-  color: #3b82f6 !important;
-  background: rgba(255,255,255,0.95) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-
-.dark .tab-btn-active {
-  color: #60a5fa !important;
-  background: rgba(0,0,0,0.25) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+.tab-btn:active,
+.mobile-tab-btn:active {
+  transform: scale(0.98);
+  transition-timing-function: var(--spring-in);
 }
 
 .tab-btn-content {
-  display: flex;
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  gap: 10px;
 }
 
 .tab-svg {
@@ -307,105 +283,120 @@ onUnmounted(() => {
   height: 22px;
 }
 
+.tab-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tab-indicator {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+  border: 1px solid transparent;
+  opacity: 0;
+  transform: scale(0.94);
+  transition: var(--transition-default);
+}
+
+.tab-btn-active,
+.mobile-tab-btn-active {
+  color: var(--text-primary);
+}
+
+.tab-btn-active .tab-indicator,
+.mobile-tab-btn-active .tab-indicator {
+  opacity: 1;
+  transform: scale(1);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: var(--shadow-2);
+}
+
+.tab-btn-active .tab-svg,
+.mobile-tab-btn-active .tab-svg {
+  color: var(--accent-blue);
+}
+
 .tab-badge :deep(.el-badge__content) {
   position: absolute;
   top: -6px;
-  right: -8px;
-  font-size: 10px;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  padding: 0 4px;
+  right: -10px;
   z-index: 10;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
 }
 
-/* ===== Mobile Tab Bar ===== */
-.mobile-tab-bar {
+.mobile-tab-wrap {
   position: fixed;
+  inset-inline: 0;
   bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
+  z-index: 50;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  height: 68px;
-  padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px);
-  background: rgba(255,255,255,0.98);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 -6px 18px rgba(15,23,42,0.08);
+  justify-content: center;
+  pointer-events: none;
 }
 
-.dark .mobile-tab-bar {
-  background: rgba(17,24,39,0.98);
-  border-top-color: rgba(55,65,81,0.6);
-  box-shadow: 0 -6px 18px rgba(0,0,0,0.32);
+.mobile-tab-bar {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(100% - 24px, 720px);
+  margin: 0 12px 12px;
+  padding: 10px;
+  border-radius: 32px;
 }
 
 .mobile-tab-btn {
-  flex: 1;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  height: 100%;
+  gap: 6px;
+  min-height: 68px;
   border: none;
-  border-radius: 14px;
+  border-radius: 24px;
   background: transparent;
-  color: #475569;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  transition: var(--transition-default);
 }
 
-.dark .mobile-tab-btn {
-  color: #cbd5e1;
-}
-
-.mobile-tab-btn-active {
-  color: #2563eb !important;
-  background: rgba(37, 99, 235, 0.10);
-}
-
-.dark .mobile-tab-btn-active {
-  color: #93c5fd !important;
-  background: rgba(59, 130, 246, 0.18);
-}
-
-.mobile-tab-icon {
+.mobile-tab-icon,
+.mobile-tab-label {
   position: relative;
-}
-
-.mobile-tab-icon .tab-svg {
-  width: 22px;
-  height: 22px;
+  z-index: 1;
 }
 
 .mobile-tab-label {
   font-size: 11px;
   line-height: 1;
   font-weight: 600;
-  letter-spacing: 0.01em;
 }
 
-.mobile-tab-btn .tab-badge :deep(.el-badge__content) {
-  position: absolute;
-  top: -6px;
-  right: -10px;
-  font-size: 10px;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  padding: 0 4px;
-  z-index: 10;
+.mobile-indicator {
+  inset: 6px;
+  border-radius: 22px;
 }
 
 @media (max-width: 767px) {
+  .tab-layout {
+    min-height: auto;
+    gap: 16px;
+  }
+
   .tab-content.with-mobile-tabs {
-    padding-bottom: 92px;
+    padding-bottom: 124px;
+  }
+
+  .mobile-tab-bar {
+    width: min(100% - 16px, 720px);
+    margin-inline: 8px;
   }
 }
 </style>

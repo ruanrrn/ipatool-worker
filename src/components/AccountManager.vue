@@ -1,5 +1,5 @@
 <template>
-  <div class="account-manager">
+  <div class="account-manager space-y-6">
     <!-- Header -->
     <div class="account-header">
       <div class="header-icon">
@@ -69,7 +69,7 @@
               :icon="Refresh"
               circle
               size="small"
-              class="refresh-button"
+              class="refresh-button glass-button"
               :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
               :disabled="!account.hasSavedCredentials"
               :loading="refreshingIndex === index"
@@ -80,7 +80,7 @@
               :icon="Delete"
               circle
               size="small"
-              class="remove-button"
+              class="remove-button glass-button"
               title="删除账号"
               @click="removeAccount(index)"
             />
@@ -181,7 +181,7 @@
             :loading="logging"
             type="success"
             size="large"
-            class="submit-button"
+            class="submit-button glass-button"
             @click="loginAccount"
           >
             <template #icon>
@@ -223,7 +223,7 @@
             />
           </svg>
         </div>
-        <h3 class="empty-title\">
+        <h3 class="empty-title">
           暂无登录账号
         </h3>
         <p class="empty-description">

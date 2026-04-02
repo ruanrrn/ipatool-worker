@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="glass-card flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+        <div class="hero-icon h-14 w-14 rounded-[24px] bg-[linear-gradient(135deg,#7d7aff_0%,#0a84ff_100%)]">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 12l-4-4m4 4l4-4M5 20h14" />
           </svg>
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div v-if="artifacts.length > 0" class="space-y-3">
+    <div v-if="artifacts.length > 0" class="space-y-4">
       <div v-for="item in artifacts" :key="item.id" class="artifact-row">
         <div class="artifact-check">
           <el-checkbox :model-value="selectedIds.includes(item.id)" @change="(checked) => toggleArtifact(item.id, checked)" />
@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <div v-else class="text-center py-14 text-gray-500 dark:text-gray-400">
+    <div v-else class="glass-card rounded-[32px] py-14 text-center text-[var(--text-secondary)]">
       <svg class="mx-auto h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
       </svg>
@@ -101,7 +101,7 @@
     >
       <div class="space-y-3 text-sm">
         <p class="text-gray-800 dark:text-gray-100">确定删除这个 IPA 文件吗？</p>
-        <div v-if="pendingDeleteItem" class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300 break-all">
+        <div v-if="pendingDeleteItem" class="inline-panel rounded-[20px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all">
           <div class="font-medium text-gray-900 dark:text-gray-100">{{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}</div>
           <div class="mt-1">{{ pendingDeleteItem.filePath }}</div>
         </div>

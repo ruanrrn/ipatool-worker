@@ -1,9 +1,9 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="glass-card flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+        <div class="hero-icon h-14 w-14 flex-shrink-0 rounded-[24px] bg-[linear-gradient(135deg,#30d158_0%,#64d2ff_100%)]">
           <svg
             class="w-6 h-6 text-white"
             fill="none"
@@ -43,7 +43,7 @@
     <!-- 更新通知 -->
     <div
       v-if="updates.length > 0"
-      class="mb-6"
+      class="glass-card mb-6 rounded-[32px] p-6"
     >
       <div class="flex items-center gap-2 mb-3">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -111,7 +111,7 @@
           v-for="sub in subscriptions"
           :key="sub.id"
           shadow="hover"
-          class="sub-card"
+          class="task-card sub-card rounded-[28px]"
         >
           <div class="flex items-start gap-4">
             <el-image
@@ -149,7 +149,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="text-center py-12 text-gray-500 dark:text-gray-400"
+      class="glass-card text-center rounded-[32px] py-12 text-[var(--text-secondary)]"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"

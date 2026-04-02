@@ -1,14 +1,18 @@
 <template>
-  <div class="w-full flex justify-center">
-    <div class="w-full max-w-md mt-10">
-      <div class="glass-card p-6 border border-gray-200/50 dark:border-gray-700/50">
-        <div class="mb-6">
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-            管理员登录
-          </h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            默认账号：admin / admin
-          </p>
+  <div class="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <div class="w-full max-w-lg">
+      <div class="glass-modal overflow-hidden rounded-[32px] p-6 sm:p-8">
+        <div class="mb-8 flex items-start gap-4">
+          <div class="hero-icon h-14 w-14 rounded-[24px]">
+            <svg class="relative z-10 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v3H6v-3c0-1.657 1.343-3 3-3s3 1.343 3 3zm0 0V8m0-4h.01" />
+            </svg>
+          </div>
+          <div>
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)]">Secure Access</p>
+            <h2 class="text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">管理员登录</h2>
+            <p class="mt-2 text-sm text-[var(--text-secondary)]">默认账号：admin / admin</p>
+          </div>
         </div>
 
         <el-form
@@ -16,6 +20,7 @@
           :model="loginForm"
           :rules="loginRules"
           label-position="top"
+          class="space-y-2"
         >
           <el-form-item
             label="用户名"
@@ -26,6 +31,7 @@
               autocomplete="username"
               placeholder="请输入用户名"
               size="large"
+              class="spring-transition"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
@@ -41,6 +47,7 @@
               autocomplete="current-password"
               placeholder="请输入密码"
               size="large"
+              class="spring-transition"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
@@ -48,7 +55,7 @@
           <el-button
             type="primary"
             size="large"
-            class="w-full"
+            class="glass-button mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
             :loading="loginLoading"
             @click="handleLogin"
           >
@@ -58,7 +65,7 @@
 
         <div
           v-if="appStore.authState.user?.is_default"
-          class="mt-4"
+          class="status-panel warning mt-6 p-4"
         >
           <el-alert
             type="warning"
@@ -83,6 +90,7 @@
           :model="pwdForm"
           :rules="pwdRules"
           label-position="top"
+          class="space-y-1"
         >
           <el-form-item
             label="新用户名"
@@ -141,6 +149,7 @@
         <template #footer>
           <el-button
             type="primary"
+            class="glass-button !rounded-[18px]"
             :loading="pwdLoading"
             @click="handleChangePassword"
           >

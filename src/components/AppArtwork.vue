@@ -1,5 +1,5 @@
 <template>
-  <div class="app-artwork">
+  <div class="app-artwork glass-surface">
     <img
       v-if="imageSrc && !imageFailed"
       :src="imageSrc"

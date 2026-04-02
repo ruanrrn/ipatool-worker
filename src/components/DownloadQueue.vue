@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="glass-card flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+        <div class="hero-icon h-14 w-14 rounded-[24px] bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <line x1="8" y1="6" x2="21" y2="6" />
             <line x1="8" y1="12" x2="21" y2="12" />
@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <section v-if="currentTasks.length > 0" class="space-y-3">
+    <section v-if="currentTasks.length > 0" class="space-y-4">
       <h3 class="text-lg font-semibold text-gray-900 dark:text-white">当前任务</h3>
       <div v-for="task in currentTasks" :key="task.id" class="queue-row">
         <AppArtwork :src="task.artworkUrl" :alt="task.appName" :label="task.appName" />
@@ -56,7 +56,7 @@
       </div>
     </section>
 
-    <section v-if="records.length > 0" class="space-y-3">
+    <section v-if="records.length > 0" class="space-y-4">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">下载记录</h3>
         <el-button size="small" type="danger" plain @click="clearAllRecords">清空记录</el-button>
@@ -98,7 +98,7 @@
       </div>
     </section>
 
-    <div v-if="currentTasks.length === 0 && records.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
+    <div v-if="currentTasks.length === 0 && records.length === 0" class="glass-card rounded-[32px] py-12 text-center text-[var(--text-secondary)]">
       <svg class="mx-auto h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>

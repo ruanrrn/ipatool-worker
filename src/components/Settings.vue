@@ -4,9 +4,9 @@
     <AccountManager @accounts-updated="(v) => emit('accounts-updated', v)" />
 
     <!-- Admin Account Security -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow">
+    <div class="glass-card rounded-[32px] p-6 sm:p-8">
+      <div class="mb-6 flex items-center gap-4">
+        <div class="hero-icon h-12 w-12 rounded-[20px]">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
@@ -22,10 +22,10 @@
       </div>
 
       <!-- Current info -->
-      <div class="mb-5 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+      <div class="inline-panel mb-5 p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <div class="hero-icon h-10 w-10 rounded-full text-sm font-bold text-white">
               {{ (appStore.authState.user?.username || '?')[0].toUpperCase() }}
             </div>
             <div>
@@ -123,9 +123,9 @@
     </div>
 
     <!-- Notification Settings -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center shadow">
+    <div class="glass-card rounded-[32px] p-6 sm:p-8">
+      <div class="mb-6 flex items-center gap-4">
+        <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
@@ -143,7 +143,7 @@
       <!-- Permission -->
       <div
         v-if="notifications.permission.value !== 'granted'"
-        class="mb-5 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl"
+        class="status-panel warning mb-5 p-4"
       >
         <div class="flex items-center justify-between">
           <div>
@@ -165,7 +165,7 @@
       </div>
       <div
         v-else
-        class="mb-5 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl"
+        class="status-panel success mb-5 p-4"
       >
         <p class="text-sm text-green-700 dark:text-green-300">
           ✅ 浏览器通知已授权
@@ -174,7 +174,7 @@
 
       <!-- Toggles -->
       <div class="space-y-3">
-        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <div class="toggle-row flex items-center justify-between p-4">
           <div>
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
               新版本检测
@@ -188,7 +188,7 @@
             @change="(v) => toggleNotification('versionUpdate', v)"
           />
         </div>
-        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <div class="toggle-row flex items-center justify-between p-4">
           <div>
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
               下载完成
@@ -202,7 +202,7 @@
             @change="(v) => toggleNotification('downloadComplete', v)"
           />
         </div>
-        <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+        <div class="toggle-row flex items-center justify-between p-4">
           <div>
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
               下载失败
@@ -218,9 +218,9 @@
         </div>
       </div>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+    <div class="glass-card rounded-[32px] p-6 sm:p-8">
       <div class="flex items-center space-x-3 mb-4">
-        <div class="w-10 h-10 bg-gradient-to-br from-slate-500 to-gray-700 rounded-lg flex items-center justify-center shadow">
+        <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#7c8aa5_0%,#4f5d75_100%)]">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -235,7 +235,7 @@
         </div>
       </div>
 
-      <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+      <div class="inline-panel p-4">
         <p class="text-sm text-gray-500 dark:text-gray-400">
           版本号
         </p>
