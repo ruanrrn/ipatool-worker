@@ -50,9 +50,7 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--text-secondary)]">
-                    iOS 26 Liquid Interface
-                  </p>
+
                   <h1 class="gradient-text text-2xl font-bold tracking-[-0.04em]">
                     ipaTool
                   </h1>

@@ -1,124 +1,124 @@
 <template>
-  <div
-    class="tab-layout"
-    :class="{ 'mobile-layout': isMobile }"
-  >
-    <!-- Desktop: Tab Bar -->
-    <div
-      v-if="!isMobile"
-      class="desktop-tab-bar"
-    >
-      <div class="tab-bar-inner glass-modal">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          :class="['tab-btn', { 'tab-btn-active': appStore.activeTab === tab.id }]"
-          :title="tab.label"
-          @click="appStore.activeTab = tab.id"
-        >
-          <span class="tab-indicator" />
-          <div class="tab-btn-content">
-            <el-badge
-              v-if="tab.badge"
-              :value="tab.badge"
-              :max="99"
-              class="tab-badge"
-            >
-              <svg
-                class="tab-svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                v-html="tab.svgPath"
-              />
-            </el-badge>
-            <svg
-              v-else
-              class="tab-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              v-html="tab.svgPath"
-            />
-            <span class="tab-label">{{ tab.label }}</span>
-          </div>
-        </button>
-      </div>
-    </div>
+ <div
+ class="tab-layout"
+ :class="{ 'mobile-layout': isMobile }"
+ >
+ <!-- Desktop: Tab Bar -->
+ <div
+ v-if="!isMobile"
+ class="desktop-tab-bar"
+ >
+ <div class="tab-bar-inner glass-modal">
+ <button
+ v-for="tab in tabs"
+ :key="tab.id"
+ :class="['tab-btn', { 'tab-btn-active': appStore.activeTab === tab.id }]"
+ :title="tab.label"
+ @click="appStore.activeTab = tab.id"
+ >
+ <span class="tab-indicator" />
+ <div class="tab-btn-content">
+ <el-badge
+ v-if="tab.badge"
+ :value="tab.badge"
+ :max="99"
+ class="tab-badge"
+ >
+ <svg
+ class="tab-svg"
+ viewBox="0 0 24 24"
+ fill="none"
+ stroke="currentColor"
+ stroke-width="2"
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ v-html="tab.svgPath"
+ />
+ </el-badge>
+ <svg
+ v-else
+ class="tab-svg"
+ viewBox="0 0 24 24"
+ fill="none"
+ stroke="currentColor"
+ stroke-width="2"
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ v-html="tab.svgPath"
+ />
+ <span class="tab-label">{{ tab.label }}</span>
+ </div>
+ </button>
+ </div>
+ </div>
 
-    <!-- Content -->
-    <div
-      class="tab-content"
-      :class="{ 'with-mobile-tabs': isMobile }"
-    >
-      <div class="tab-content-shell section-shell">
-        <component
-          :is="currentTabComponent"
-          v-bind="currentTabProps"
-          @app-selected="handleAppSelected"
-          @download-started="handleDownloadStarted"
-          @accounts-updated="handleAccountsUpdated"
-          @remove-item="emit('remove-item', $event)"
-          @clear-all="emit('clear-queue')"
-          @logout="emit('logout')"
-        />
-      </div>
-    </div>
+ <!-- Content -->
+ <div
+ class="tab-content"
+ :class="{ 'with-mobile-tabs': isMobile }"
+ >
+ <div class="tab-content-shell section-shell">
+ <component
+ :is="currentTabComponent"
+ v-bind="currentTabProps"
+ @app-selected="handleAppSelected"
+ @download-started="handleDownloadStarted"
+ @accounts-updated="handleAccountsUpdated"
+ @remove-item="emit('remove-item', $event)"
+ @clear-all="emit('clear-queue')"
+ @logout="emit('logout')"
+ />
+ </div>
+ </div>
 
-    <!-- Mobile: Bottom Tab Bar -->
-    <div
-      v-if="isMobile"
-      class="mobile-tab-wrap"
-    >
-      <div class="mobile-tab-bar glass-modal pb-safe">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          :class="['mobile-tab-btn', { 'mobile-tab-btn-active': appStore.activeTab === tab.id }]"
-          @click="appStore.activeTab = tab.id"
-        >
-          <span class="tab-indicator mobile-indicator" />
-          <div class="mobile-tab-icon">
-            <el-badge
-              v-if="tab.badge"
-              :value="tab.badge"
-              :max="99"
-              class="tab-badge"
-            >
-              <svg
-                class="tab-svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                v-html="tab.svgPath"
-              />
-            </el-badge>
-            <svg
-              v-else
-              class="tab-svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              v-html="tab.svgPath"
-            />
-          </div>
-          <span class="mobile-tab-label">{{ tab.label }}</span>
-        </button>
-      </div>
-    </div>
-  </div>
+ <!-- Mobile: Bottom Tab Bar -->
+ <div
+ v-if="isMobile"
+ class="mobile-tab-wrap"
+ >
+ <div class="mobile-tab-bar glass-modal pb-safe">
+ <button
+ v-for="tab in tabs"
+ :key="tab.id"
+ :class="['mobile-tab-btn', { 'mobile-tab-btn-active': appStore.activeTab === tab.id }]"
+ @click="appStore.activeTab = tab.id"
+ >
+ <span class="tab-indicator mobile-indicator" />
+ <div class="mobile-tab-icon">
+ <el-badge
+ v-if="tab.badge"
+ :value="tab.badge"
+ :max="99"
+ class="tab-badge"
+ >
+ <svg
+ class="tab-svg"
+ viewBox="0 0 24 24"
+ fill="none"
+ stroke="currentColor"
+ stroke-width="2"
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ v-html="tab.svgPath"
+ />
+ </el-badge>
+ <svg
+ v-else
+ class="tab-svg"
+ viewBox="0 0 24 24"
+ fill="none"
+ stroke="currentColor"
+ stroke-width="2"
+ stroke-linecap="round"
+ stroke-linejoin="round"
+ v-html="tab.svgPath"
+ />
+ </div>
+ <span class="mobile-tab-label">{{ tab.label }}</span>
+ </button>
+ </div>
+ </div>
+ </div>
 </template>
 
 <script setup>
@@ -135,7 +135,7 @@ const emit = defineEmits(['app-selected', 'download-started', 'accounts-updated'
 const isMobile = ref(false)
 
 const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
+ isMobile.value = window.innerWidth < 768
 }
 
 const handleAccountsUpdated = (v) => emit('accounts-updated', v)
@@ -146,257 +146,257 @@ const handleDownloadStarted = (task) => emit('download-started', task)
 const activeQueueCount = computed(() => appStore.taskQueue.filter(task => !['completed', 'ready'].includes(task?.status)).length)
 
 const tabs = computed(() => [
-  {
-    id: 'download',
-    label: '下载',
-    svgPath: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-    badge: appStore.downloadState.selectedApp ? '1' : null
-  },
-  {
-    id: 'queue',
-    label: '队列',
-    svgPath: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
-    badge: activeQueueCount.value > 0 ? String(activeQueueCount.value) : null
-  },
-  {
-    id: 'ipa',
-    label: 'IPA',
-    svgPath: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'
-  },
-  {
-    id: 'subscription',
-    label: '订阅',
-    svgPath: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
-  },
-  {
-    id: 'settings',
-    label: '设置',
-    svgPath: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
-  }
+ {
+ id: 'download',
+ label: '下载',
+ svgPath: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+ badge: appStore.downloadState.selectedApp ? '1' : null
+ },
+ {
+ id: 'queue',
+ label: '队列',
+ svgPath: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+ badge: activeQueueCount.value > 0 ? String(activeQueueCount.value) : null
+ },
+ {
+ id: 'ipa',
+ label: 'IPA',
+ svgPath: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'
+ },
+ {
+ id: 'subscription',
+ label: '订阅',
+ svgPath: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'
+ },
+ {
+ id: 'settings',
+ label: '设置',
+ svgPath: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
+ }
 ])
 
 const currentTabComponent = computed(() => {
-  const map = {
-    download: DownloadManager,
-    queue: DownloadQueue,
-    ipa: IpaManager,
-    subscription: AppSubscription,
-    settings: Settings
-  }
-  return map[appStore.activeTab] || DownloadManager
+ const map = {
+ download: DownloadManager,
+ queue: DownloadQueue,
+ ipa: IpaManager,
+ subscription: AppSubscription,
+ settings: Settings
+ }
+ return map[appStore.activeTab] || DownloadManager
 })
 
 const currentTabProps = computed(() => {
-  if (appStore.activeTab === 'download') {
-    return {
-      selectedApp: appStore.downloadState.selectedApp,
-      accountsUpdated: appStore.accountsUpdateCounter
-    }
-  }
-  if (appStore.activeTab === 'queue') {
-    return { queue: appStore.taskQueue }
-  }
-  return {}
+ if (appStore.activeTab === 'download') {
+ return {
+ selectedApp: appStore.downloadState.selectedApp,
+ accountsUpdated: appStore.accountsUpdateCounter
+ }
+ }
+ if (appStore.activeTab === 'queue') {
+ return { queue: appStore.taskQueue }
+ }
+ return {}
 })
 
 onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+ checkMobile()
+ window.addEventListener('resize', checkMobile)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
+ window.removeEventListener('resize', checkMobile)
 })
 </script>
 
 <style scoped>
 .tab-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-height: calc(100vh - 164px);
+ display: flex;
+ flex-direction: column;
+ gap: 24px;
+ min-height: calc(100vh - 164px);
 }
 
 .tab-content {
-  flex: 1;
-  min-height: 0;
+ flex: 1;
+ min-height: 0;
 }
 
 .tab-content-shell {
-  min-height: 100%;
+ min-height: 100%;
 }
 
 .tab-content.with-mobile-tabs {
-  padding-bottom: 112px;
+ padding-bottom: 112px;
 }
 
 .desktop-tab-bar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
+ position: sticky;
+ top: 0;
+ z-index: 30;
 }
 
 .tab-bar-inner {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 999px;
+ display: inline-flex;
+ align-items: center;
+ gap: 8px;
+ padding: 8px;
+ border-radius: 999px;
 }
 
 .tab-btn {
-  position: relative;
-  min-width: 104px;
-  height: 56px;
-  padding: 0 18px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  overflow: hidden;
-  transition: var(--transition-default);
+ position: relative;
+ min-width: 104px;
+ height: 56px;
+ padding: 0 18px;
+ border: none;
+ border-radius: 999px;
+ background: transparent;
+ color: var(--text-secondary);
+ cursor: pointer;
+ overflow: hidden;
+ transition: var(--transition-default);
 }
 
 .tab-btn:hover,
 .mobile-tab-btn:hover {
-  transform: scale(1.02) translateY(-1px);
+ transform: scale(1.02) translateY(-1px);
 }
 
 .tab-btn:active,
 .mobile-tab-btn:active {
-  transform: scale(0.98);
-  transition-timing-function: var(--spring-in);
+ transform: scale(0.98);
+ transition-timing-function: var(--spring-in);
 }
 
 .tab-btn-content {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+ position: relative;
+ z-index: 1;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ gap: 10px;
 }
 
 .tab-svg {
-  width: 22px;
-  height: 22px;
+ width: 22px;
+ height: 22px;
 }
 
 .tab-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+ font-size: 13px;
+ font-weight: 600;
+ letter-spacing: 0.02em;
 }
 
 .tab-indicator {
-  position: absolute;
-  inset: 4px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
-  border: 1px solid transparent;
-  opacity: 0;
-  transform: scale(0.94);
-  transition: var(--transition-default);
+ position: absolute;
+ inset: 4px;
+ border-radius: 999px;
+ background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+ border: 1px solid transparent;
+ opacity: 0;
+ transform: scale(0.94);
+ transition: var(--transition-default);
 }
 
 .tab-btn-active,
 .mobile-tab-btn-active {
-  color: var(--text-primary);
+ color: var(--text-primary);
 }
 
 .tab-btn-active .tab-indicator,
 .mobile-tab-btn-active .tab-indicator {
-  opacity: 1;
-  transform: scale(1);
-  border-color: rgba(255,255,255,0.14);
-  box-shadow: var(--shadow-2);
+ opacity: 1;
+ transform: scale(1);
+ border-color: rgba(255,255,255,0.14);
+ box-shadow: var(--shadow-2);
 }
 
 .tab-btn-active .tab-svg,
 .mobile-tab-btn-active .tab-svg {
-  color: var(--accent-blue);
+ color: var(--accent-blue);
 }
 
 .tab-badge :deep(.el-badge__content) {
-  position: absolute;
-  top: -6px;
-  right: -10px;
-  z-index: 10;
-  min-width: 18px;
-  height: 18px;
-  line-height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
+ position: absolute;
+ top: -6px;
+ right: -10px;
+ z-index: 10;
+ min-width: 18px;
+ height: 18px;
+ line-height: 18px;
+ padding: 0 5px;
+ font-size: 10px;
 }
 
 .mobile-tab-wrap {
-  position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
+ position: fixed;
+ inset-inline: 0;
+ bottom: 0;
+ z-index: 50;
+ display: flex;
+ justify-content: center;
+ pointer-events: none;
 }
 
 .mobile-tab-bar {
-  pointer-events: auto;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  width: min(100% - 24px, 720px);
-  margin: 0 12px 12px;
-  padding: 10px;
-  border-radius: 32px;
+ pointer-events: auto;
+ display: grid;
+ grid-template-columns: repeat(5, minmax(0, 1fr));
+ width: min(100% - 24px, 720px);
+ margin: 0 12px 12px;
+ padding: 10px;
+ border-radius: 32px;
 }
 
 .mobile-tab-btn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 68px;
-  border: none;
-  border-radius: 24px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  overflow: hidden;
-  transition: var(--transition-default);
+ position: relative;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 6px;
+ min-height: 68px;
+ border: none;
+ border-radius: 24px;
+ background: transparent;
+ color: var(--text-secondary);
+ cursor: pointer;
+ overflow: hidden;
+ transition: var(--transition-default);
 }
 
 .mobile-tab-icon,
 .mobile-tab-label {
-  position: relative;
-  z-index: 1;
+ position: relative;
+ z-index: 1;
 }
 
 .mobile-tab-label {
-  font-size: 11px;
-  line-height: 1;
-  font-weight: 600;
+ font-size: 11px;
+ line-height: 1;
+ font-weight: 600;
 }
 
 .mobile-indicator {
-  inset: 6px;
-  border-radius: 22px;
+ inset: 6px;
+ border-radius: 22px;
 }
 
 @media (max-width: 767px) {
-  .tab-layout {
-    min-height: auto;
-    gap: 16px;
-  }
+ .tab-layout {
+ min-height: auto;
+ gap: 16px;
+ }
 
-  .tab-content.with-mobile-tabs {
-    padding-bottom: 124px;
-  }
+ .tab-content.with-mobile-tabs {
+ padding-bottom: 124px;
+ }
 
-  .mobile-tab-bar {
-    width: min(100% - 16px, 720px);
-    margin-inline: 8px;
-  }
+ .mobile-tab-bar {
+ width: min(100% - 16px, 720px);
+ margin-inline: 8px;
+ }
 }
 </style>

@@ -1,164 +1,164 @@
 <template>
-  <div class="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-    <div class="w-full max-w-lg">
-      <div class="glass-modal overflow-hidden rounded-[32px] p-6 sm:p-8">
-        <div class="mb-8 flex items-start gap-4">
-          <div class="hero-icon h-14 w-14 rounded-[24px]">
-            <svg class="relative z-10 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v3H6v-3c0-1.657 1.343-3 3-3s3 1.343 3 3zm0 0V8m0-4h.01" />
-            </svg>
-          </div>
-          <div>
-            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)]">Secure Access</p>
-            <h2 class="text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">管理员登录</h2>
-            <p class="mt-2 text-sm text-[var(--text-secondary)]">默认账号：admin / admin</p>
-          </div>
-        </div>
+ <div class="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+ <div class="w-full max-w-lg">
+ <div class="glass-modal overflow-hidden rounded-[32px] p-6 sm:p-8">
+ <div class="mb-8 flex items-start gap-4">
+ <div class="hero-icon h-14 w-14 rounded-[24px]">
+ <svg class="relative z-10 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v3H6v-3c0-1.657 1.343-3 3-3s3 1.343 3 3zm0 0V8m0-4h.01" />
+ </svg>
+ </div>
+ <div>
+ <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)]">Secure Access</p>
+ <h2 class="text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">管理员登录</h2>
+ <p class="mt-2 text-sm text-[var(--text-secondary)]">默认账号：admin / admin</p>
+ </div>
+ </div>
 
-        <el-form
-          ref="loginFormRef"
-          :model="loginForm"
-          :rules="loginRules"
-          label-position="top"
-          class="space-y-2"
-        >
-          <el-form-item
-            label="用户名"
-            prop="username"
-          >
-            <el-input
-              v-model="loginForm.username"
-              autocomplete="username"
-              placeholder="请输入用户名"
-              size="large"
-              class="spring-transition"
-              @keyup.enter="handleLogin"
-            />
-          </el-form-item>
+ <el-form
+ ref="loginFormRef"
+ :model="loginForm"
+ :rules="loginRules"
+ label-position="top"
+ class="space-y-2"
+ >
+ <el-form-item
+ label="用户名"
+ prop="username"
+ >
+ <el-input
+ v-model="loginForm.username"
+ autocomplete="username"
+ placeholder="请输入用户名"
+ size="large"
+ class="spring-transition"
+ @keyup.enter="handleLogin"
+ />
+ </el-form-item>
 
-          <el-form-item
-            label="密码"
-            prop="password"
-          >
-            <el-input
-              v-model="loginForm.password"
-              type="password"
-              show-password
-              autocomplete="current-password"
-              placeholder="请输入密码"
-              size="large"
-              class="spring-transition"
-              @keyup.enter="handleLogin"
-            />
-          </el-form-item>
+ <el-form-item
+ label="密码"
+ prop="password"
+ >
+ <el-input
+ v-model="loginForm.password"
+ type="password"
+ show-password
+ autocomplete="current-password"
+ placeholder="请输入密码"
+ size="large"
+ class="spring-transition"
+ @keyup.enter="handleLogin"
+ />
+ </el-form-item>
 
-          <el-button
-            type="primary"
-            size="large"
-            class="glass-button mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
-            :loading="loginLoading"
-            @click="handleLogin"
-          >
-            登录
-          </el-button>
-        </el-form>
+ <el-button
+ type="primary"
+ size="large"
+ class="glass-button mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
+ :loading="loginLoading"
+ @click="handleLogin"
+ >
+ 登录
+ </el-button>
+ </el-form>
 
-        <div
-          v-if="appStore.authState.user?.is_default"
-          class="status-panel warning mt-6 p-4"
-        >
-          <el-alert
-            type="warning"
-            show-icon
-            :closable="false"
-            title="检测到仍在使用默认密码，必须先修改密码后才能进入系统"
-          />
-        </div>
-      </div>
+ <div
+ v-if="appStore.authState.user?.is_default"
+ class="status-panel warning mt-6 p-4"
+ >
+ <el-alert
+ type="warning"
+ show-icon
+ :closable="false"
+ title="检测到仍在使用默认密码，必须先修改密码后才能进入系统"
+ />
+ </div>
+ </div>
 
-      <el-dialog
-        v-model="showChangePassword"
-        title="首次登录：请修改用户名和密码"
-        width="420px"
-        :close-on-click-modal="false"
-        :close-on-press-escape="false"
-        :show-close="false"
-        align-center
-      >
-        <el-form
-          ref="pwdFormRef"
-          :model="pwdForm"
-          :rules="pwdRules"
-          label-position="top"
-          class="space-y-1"
-        >
-          <el-form-item
-            label="新用户名"
-            prop="new_username"
-          >
-            <el-input
-              v-model="pwdForm.new_username"
-              autocomplete="off"
-              placeholder="请输入新用户名"
-              @keyup.enter="handleChangePassword"
-            />
-          </el-form-item>
-          <el-form-item
-            label="当前密码"
-            prop="current_password"
-          >
-            <el-input
-              v-model="pwdForm.current_password"
-              type="password"
-              show-password
-              autocomplete="current-password"
-              placeholder="请输入当前密码"
-              @keyup.enter="handleChangePassword"
-            />
-          </el-form-item>
+ <el-dialog
+ v-model="showChangePassword"
+ title="首次登录：请修改用户名和密码"
+ width="420px"
+ :close-on-click-modal="false"
+ :close-on-press-escape="false"
+ :show-close="false"
+ align-center
+ >
+ <el-form
+ ref="pwdFormRef"
+ :model="pwdForm"
+ :rules="pwdRules"
+ label-position="top"
+ class="space-y-1"
+ >
+ <el-form-item
+ label="新用户名"
+ prop="new_username"
+ >
+ <el-input
+ v-model="pwdForm.new_username"
+ autocomplete="off"
+ placeholder="请输入新用户名"
+ @keyup.enter="handleChangePassword"
+ />
+ </el-form-item>
+ <el-form-item
+ label="当前密码"
+ prop="current_password"
+ >
+ <el-input
+ v-model="pwdForm.current_password"
+ type="password"
+ show-password
+ autocomplete="current-password"
+ placeholder="请输入当前密码"
+ @keyup.enter="handleChangePassword"
+ />
+ </el-form-item>
 
-          <el-form-item
-            label="新密码"
-            prop="new_password"
-          >
-            <el-input
-              v-model="pwdForm.new_password"
-              type="password"
-              show-password
-              autocomplete="new-password"
-              placeholder="请输入新密码"
-              @keyup.enter="handleChangePassword"
-            />
-          </el-form-item>
+ <el-form-item
+ label="新密码"
+ prop="new_password"
+ >
+ <el-input
+ v-model="pwdForm.new_password"
+ type="password"
+ show-password
+ autocomplete="new-password"
+ placeholder="请输入新密码"
+ @keyup.enter="handleChangePassword"
+ />
+ </el-form-item>
 
-          <el-form-item
-            label="确认新密码"
-            prop="confirm_password"
-          >
-            <el-input
-              v-model="pwdForm.confirm_password"
-              type="password"
-              show-password
-              autocomplete="new-password"
-              placeholder="请再次输入新密码"
-              @keyup.enter="handleChangePassword"
-            />
-          </el-form-item>
-        </el-form>
+ <el-form-item
+ label="确认新密码"
+ prop="confirm_password"
+ >
+ <el-input
+ v-model="pwdForm.confirm_password"
+ type="password"
+ show-password
+ autocomplete="new-password"
+ placeholder="请再次输入新密码"
+ @keyup.enter="handleChangePassword"
+ />
+ </el-form-item>
+ </el-form>
 
-        <template #footer>
-          <el-button
-            type="primary"
-            class="glass-button !rounded-[18px]"
-            :loading="pwdLoading"
-            @click="handleChangePassword"
-          >
-            修改密码
-          </el-button>
-        </template>
-      </el-dialog>
-    </div>
-  </div>
+ <template #footer>
+ <el-button
+ type="primary"
+ class="glass-button !rounded-[18px]"
+ :loading="pwdLoading"
+ @click="handleChangePassword"
+ >
+ 修改密码
+ </el-button>
+ </template>
+ </el-dialog>
+ </div>
+ </div>
 </template>
 
 <script setup>
@@ -173,13 +173,13 @@ const loginFormRef = ref(null)
 const loginLoading = ref(false)
 
 const loginForm = reactive({
-  username: 'admin',
-  password: ''
+ username: 'admin',
+ password: ''
 })
 
 const loginRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+ username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+ password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
 const showChangePassword = ref(false)
@@ -187,116 +187,116 @@ const pwdFormRef = ref(null)
 const pwdLoading = ref(false)
 
 const pwdForm = reactive({
-  new_username: '',
-  current_password: '',
-  new_password: '',
-  confirm_password: ''
+ new_username: '',
+ current_password: '',
+ new_password: '',
+ confirm_password: ''
 })
 
 const pwdRules = {
-  current_password: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
-  new_password: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
-  confirm_password: [
-    { required: true, message: '请确认新密码', trigger: 'blur' },
-    {
-      validator: (_, value, callback) => {
-        if (value !== pwdForm.new_password) {
-          callback(new Error('两次输入的新密码不一致'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur'
-    }
-  ]
+ current_password: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+ new_password: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+ confirm_password: [
+ { required: true, message: '请确认新密码', trigger: 'blur' },
+ {
+ validator: (_, value, callback) => {
+ if (value !== pwdForm.new_password) {
+ callback(new Error('两次输入的新密码不一致'))
+ } else {
+ callback()
+ }
+ },
+ trigger: 'blur'
+ }
+ ]
 }
 
 watch(
-  () => appStore.authState.user?.is_default,
-  (isDefault) => {
-    if (isDefault) {
-      showChangePassword.value = true
-    }
-  },
-  { immediate: true }
+ () => appStore.authState.user?.is_default,
+ (isDefault) => {
+ if (isDefault) {
+ showChangePassword.value = true
+ }
+ },
+ { immediate: true }
 )
 
 const handleLogin = async () => {
-  if (!loginFormRef.value) return
+ if (!loginFormRef.value) return
 
-  try {
-    await loginFormRef.value.validate()
+ try {
+ await loginFormRef.value.validate()
 
-    loginLoading.value = true
-    const user = await appStore.loginAdmin(loginForm.username, loginForm.password)
+ loginLoading.value = true
+ const user = await appStore.loginAdmin(loginForm.username, loginForm.password)
 
-    if (user?.is_default) {
-      showChangePassword.value = true
-      pwdForm.current_password = loginForm.password
-      pwdForm.new_username = ''
-    } else {
-      ElMessage.success('登录成功')
-      emit('login-success')
-    }
-  } catch (e) {
-    ElMessage.error(e?.message || '登录失败')
-  } finally {
-    loginLoading.value = false
-  }
+ if (user?.is_default) {
+ showChangePassword.value = true
+ pwdForm.current_password = loginForm.password
+ pwdForm.new_username = ''
+ } else {
+ ElMessage.success('登录成功')
+ emit('login-success')
+ }
+ } catch (e) {
+ ElMessage.error(e?.message || '登录失败')
+ } finally {
+ loginLoading.value = false
+ }
 }
 
 const handleChangePassword = async () => {
-  if (!pwdFormRef.value) return
+ if (!pwdFormRef.value) return
 
-  try {
-    await pwdFormRef.value.validate()
+ try {
+ await pwdFormRef.value.validate()
 
-    pwdLoading.value = true
+ pwdLoading.value = true
 
-    const res = await fetch('/api/auth/change-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        current_password: pwdForm.current_password,
-        new_password: pwdForm.new_password,
-        new_username: pwdForm.new_username.trim() || undefined
-      })
-    })
+ const res = await fetch('/api/auth/change-password', {
+ method: 'POST',
+ headers: {
+ 'Content-Type': 'application/json'
+ },
+ credentials: 'include',
+ body: JSON.stringify({
+ current_password: pwdForm.current_password,
+ new_password: pwdForm.new_password,
+ new_username: pwdForm.new_username.trim() || undefined
+ })
+ })
 
-    if (!res.ok) {
-      let msg = '修改密码失败'
-      try {
-        const json = await res.json()
-        msg = json?.error || msg
-      } catch {}
-      throw new Error(msg)
-    }
+ if (!res.ok) {
+ let msg = '修改密码失败'
+ try {
+ const json = await res.json()
+ msg = json?.error || msg
+ } catch {}
+ throw new Error(msg)
+ }
 
-    const json = await res.json()
+ const json = await res.json()
 
-    ElMessage.success('密码修改成功，请使用新密码重新登录')
-    showChangePassword.value = false
+ ElMessage.success('密码修改成功，请使用新密码重新登录')
+ showChangePassword.value = false
 
-    // Clear form
-    pwdForm.new_username = ''
-    pwdForm.current_password = ''
-    pwdForm.new_password = ''
-    pwdForm.confirm_password = ''
+ // Clear form
+ pwdForm.new_username = ''
+ pwdForm.current_password = ''
+ pwdForm.new_password = ''
+ pwdForm.confirm_password = ''
 
-    // Properly logout: clear server session + cookie + local state
-    await appStore.logoutAdmin()
+ // Properly logout: clear server session + cookie + local state
+ await appStore.logoutAdmin()
 
-    // Reload the page to force App.vue to re-check auth state.
-    // Without this, the local authState in App.vue stays stale and
-    // the user sees a blank/broken state instead of the login form.
-    window.location.reload()
-  } catch (e) {
-    ElMessage.error(e?.message || '修改密码失败')
-  } finally {
-    pwdLoading.value = false
-  }
+ // Reload the page to force App.vue to re-check auth state.
+ // Without this, the local authState in App.vue stays stale and
+ // the user sees a blank/broken state instead of the login form.
+ window.location.reload()
+ } catch (e) {
+ ElMessage.error(e?.message || '修改密码失败')
+ } finally {
+ pwdLoading.value = false
+ }
 }
 </script>
