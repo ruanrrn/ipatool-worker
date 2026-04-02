@@ -67,7 +67,7 @@
  <el-button
  type="primary"
  :icon="Refresh"
- circle
+
  size="small"
  class="refresh-button "
  :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
@@ -76,9 +76,9 @@
  @click="refreshAccount(index)"
  />
  <el-button
- type="danger"
+ type="primary"
  :icon="Delete"
- circle
+
  size="small"
  class="remove-button "
  title="删除账号"
@@ -179,7 +179,7 @@
  <el-button
  :disabled="logging || autoLogging || !isFormValid"
  :loading="logging"
- type="success"
+ type="primary"
  size="large"
  class="submit-button "
  @click="loginAccount"
@@ -210,7 +210,7 @@
  >
  <div class="empty-icon">
  <svg
- class="w-16 h-16 text-gray-300 dark:text-gray-600"
+ class="w-16 h-16 text-[var(--text-secondary)]"
  fill="none"
  stroke="currentColor"
  viewBox="0 0 24 24"
@@ -635,561 +635,156 @@ defineExpose({
 
 <style scoped>
 .account-manager {
-	padding: 0;
+ padding: 0;
 }
 
 .account-header {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	margin-bottom: 24px;
-	padding: 20px;
-	background: linear-gradient(
-		135deg,
-		rgba(16, 185, 129, 0.1) 0%,
-		rgba(5, 150, 105, 0.1) 100%
-	);
-	border-radius: 16px;
-	border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.dark .account-header {
-	background: linear-gradient(
-		135deg,
-		rgba(16, 185, 129, 0.15) 0%,
-		rgba(5, 150, 105, 0.15) 100%
-	);
-	border-color: rgba(16, 185, 129, 0.3);
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ margin-bottom: 12px;
 }
 
 .header-icon {
-	width: 48px;
-	height: 48px;
-	background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-	border-radius: 12px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+ width: 40px;
+ height: 40px;
 }
 
-.header-text h2 {
-	font-size: 20px;
-	font-weight: 700;
-	color: #111827;
-	margin: 0;
+.header-text h2,
+.form-title,
+.section-title,
+.empty-title {
+ font-size: 17px;
+ font-weight: 600;
+ color: var(--text-primary);
+ margin: 0;
 }
 
-.dark .header-text h2 {
-	color: #f9fafb;
+.header-text p,
+.form-subtitle,
+.field-label,
+.account-dsid,
+.account-region,
+.empty-description,
+.checkbox-label,
+.mfa-hint,
+.save-password-checkbox :deep(.el-checkbox__label) {
+ font-size: 13px;
+ color: var(--text-secondary);
 }
 
-.header-text p {
-	font-size: 14px;
-	color: #6b7280;
-	margin: 4px 0 0 0;
+.account-content,
+.form-fields,
+.accounts-list {
+ display: flex;
+ flex-direction: column;
+ gap: 12px;
 }
 
-.dark .header-text p {
-	color: #9ca3af;
-}
-
-.account-content {
-	display: flex;
-	flex-direction: column;
-	gap: 24px;
-}
-
-/* 表单区域 */
-.form-section {
-	background: #ffffff;
-	border-radius: 16px;
-	padding: 24px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	border: 1px solid #e5e7eb;
-}
-
-.dark .form-section {
-	background: rgba(31, 41, 55, 0.8);
-	border-color: rgba(55, 65, 81, 0.5);
-}
-
-.form-header {
-	margin-bottom: 20px;
-}
-
-.form-title {
-	font-size: 16px;
-	font-weight: 600;
-	color: #111827;
-	margin: 0 0 4px 0;
-}
-
-.dark .form-title {
-	color: #f9fafb;
-}
-
-.form-subtitle {
-	font-size: 13px;
-	color: #6b7280;
-	margin: 0;
-}
-
-.dark .form-subtitle {
-	color: #9ca3af;
-}
-
-.form-fields {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
+.form-header,
+.section-header {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ margin-bottom: 12px;
 }
 
 .form-field {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.field-label {
-	font-size: 13px;
-	font-weight: 500;
-	color: #374151;
-}
-
-.dark .field-label {
-	color: #d1d5db;
-}
-
-.form-input :deep(.el-input__wrapper) {
-	border-radius: 10px;
-	padding: 8px 12px;
-	transition: all 0.2s ease;
-}
-
-.form-input :deep(.el-input__wrapper:hover) {
-	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-
-.form-input :deep(.el-input__wrapper.is-focus) {
-	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+ display: flex;
+ flex-direction: column;
+ gap: 8px;
 }
 
 .field-icon {
-	color: #9ca3af;
-	font-size: 16px;
+ color: var(--text-secondary);
+ font-size: 16px;
 }
 
 .submit-button {
-	width: 100%;
-	border-radius: 10px;
-	font-weight: 600;
-	height: 44px;
-	margin-top: 8px;
-	transition: all 0.2s ease;
-}
-
-.submit-button:hover:not(:disabled) {
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.submit-button:active:not(:disabled) {
-	transform: translateY(0);
-}
-
-/* 账号列表区域 */
-.accounts-section {
-	margin-bottom: 20px;
-	background: #ffffff;
-	border-radius: 16px;
-	padding: 20px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	border: 1px solid #e5e7eb;
-}
-
-.dark .accounts-section {
-	background: rgba(31, 41, 55, 0.8);
-	border-color: rgba(55, 65, 81, 0.5);
-}
-
-.section-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 16px;
-}
-
-.section-title {
-	font-size: 16px;
-	font-weight: 600;
-	color: #111827;
-	margin: 0;
-}
-
-.dark .section-title {
-	color: #f9fafb;
-}
-
-.section-count {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 24px;
-	height: 24px;
-	padding: 0 8px;
-	background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-	color: #ffffff;
-	font-size: 12px;
-	font-weight: 600;
-	border-radius: 12px;
-}
-
-.accounts-list {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
+ width: 100%;
+ height: 44px;
+ margin-top: 8px;
 }
 
 .account-item {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 16px;
-	background: #f9fafb;
-	border-radius: 12px;
-	border: 1px solid #e5e7eb;
-	transition: all 0.2s ease;
-}
-
-.dark .account-item {
-	background: rgba(17, 24, 39, 0.5);
-	border-color: rgba(55, 65, 81, 0.5);
-}
-
-.account-item:hover {
-	background: #f3f4f6;
-	border-color: #d1d5db;
-	transform: translateX(4px);
-}
-
-.dark .account-item:hover {
-	background: rgba(17, 24, 39, 0.8);
-	border-color: rgba(75, 85, 99, 0.8);
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ padding: 16px;
+ border: 0.5px solid var(--separator);
+ border-radius: 12px;
+ background: var(--card-bg);
 }
 
 .account-avatar {
-	width: 40px;
-	height: 40px;
-	background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-	border-radius: 10px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: #ffffff;
-	font-size: 18px;
-	flex-shrink: 0;
+ width: 40px;
+ height: 40px;
+ flex-shrink: 0;
 }
 
 .account-info {
-	flex: 1;
-	min-width: 0;
+ flex: 1;
+ min-width: 0;
 }
 
 .account-email {
-	font-size: 14px;
-	font-weight: 500;
-	color: #111827;
-	margin: 0 0 2px 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.dark .account-email {
-	color: #f9fafb;
-}
-
-.account-dsid {
-	font-size: 12px;
-	color: #6b7280;
-	margin: 0;
-}
-
-.dark .account-dsid {
-	color: #9ca3af;
-}
-
-.account-region {
-	font-size: 12px;
-	color: #6b7280;
-	margin: 2px 0 0 0;
-}
-
-.dark .account-region {
-	color: #9ca3af;
+ margin: 0 0 2px;
+ font-size: 15px;
+ font-weight: 600;
+ color: var(--text-primary);
+ overflow: hidden;
+ text-overflow: ellipsis;
+ white-space: nowrap;
 }
 
 .region-badge {
-	display: inline-flex;
-	align-items: center;
-	padding: 2px 8px;
-	border-radius: 6px;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.5px;
-}
-
-.region-us {
-	background: linear-gradient(
-		135deg,
-		rgba(59, 130, 246, 0.15) 0%,
-		rgba(37, 99, 235, 0.15) 100%
-	);
-	color: #3b82f6;
-	border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.dark .region-us {
-	background: linear-gradient(
-		135deg,
-		rgba(59, 130, 246, 0.25) 0%,
-		rgba(37, 99, 235, 0.25) 100%
-	);
-	color: #60a5fa;
-	border-color: rgba(59, 130, 246, 0.4);
-}
-
-.region-cn {
-	background: linear-gradient(
-		135deg,
-		rgba(239, 68, 68, 0.15) 0%,
-		rgba(220, 38, 38, 0.15) 100%
-	);
-	color: #ef4444;
-	border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.dark .region-cn {
-	background: linear-gradient(
-		135deg,
-		rgba(239, 68, 68, 0.25) 0%,
-		rgba(220, 38, 38, 0.25) 100%
-	);
-	color: #f87171;
-	border-color: rgba(239, 68, 68, 0.4);
-}
-
-.region-jp {
-	background: linear-gradient(
-		135deg,
-		rgba(16, 185, 129, 0.15) 0%,
-		rgba(5, 150, 105, 0.15) 100%
-	);
-	color: #10b981;
-	border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.dark .region-jp {
-	background: linear-gradient(
-		135deg,
-		rgba(16, 185, 129, 0.25) 0%,
-		rgba(5, 150, 105, 0.25) 100%
-	);
-	color: #34d399;
-	border-color: rgba(16, 185, 129, 0.4);
-}
-
-.region-gb,
-.region-de,
-.region-fr,
-.region-ca,
-.region-au {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.15) 0%,
-		rgba(124, 58, 237, 0.15) 100%
-	);
-	color: #8b5cf6;
-	border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.dark .region-gb,
-.dark .region-de,
-.dark .region-fr,
-.dark .region-ca,
-.dark .region-au {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.25) 0%,
-		rgba(124, 58, 237, 0.25) 100%
-	);
-	color: #a78bfa;
-	border-color: rgba(139, 92, 246, 0.4);
-}
-
-.remove-button {
-	flex-shrink: 0;
-	transition: all 0.2s ease;
-}
-
-.remove-button:hover {
-	transform: scale(1.1);
-}
-
-.refresh-button {
-	margin-right: 8px;
-	flex-shrink: 0;
-	transition: all 0.2s ease;
-}
-
-.refresh-button:hover {
-	transform: scale(1.1);
+ padding: 0 8px;
 }
 
 .account-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+ display: flex;
+ align-items: center;
+ gap: 8px;
 }
 
-/* 空状态 */
 .empty-state {
-	text-align: center;
-	padding: 48px 24px;
-	background: #ffffff;
-	border-radius: 16px;
-	border: 2px dashed #e5e7eb;
-}
-
-.dark .empty-state {
-	background: rgba(31, 41, 55, 0.5);
-	border-color: rgba(55, 65, 81, 0.5);
+ text-align: center;
+ padding: 32px 16px;
+ border-style: solid;
 }
 
 .empty-icon {
-	display: flex;
-	justify-content: center;
-	margin-bottom: 16px;
+ display: flex;
+ justify-content: center;
+ margin-bottom: 12px;
+ color: var(--text-secondary);
 }
 
-.empty-title {
-	font-size: 16px;
-	font-weight: 600;
-	color: #111827;
-	margin: 0 0 8px 0;
-}
-
-.dark .empty-title {
-	color: #f9fafb;
-}
-
-.empty-description {
-	font-size: 14px;
-	color: #6b7280;
-	margin: 0;
-}
-
-.dark .empty-description {
-	color: #9ca3af;
-}
-
-/* 自动登录状态 */
 .auto-login-status {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	padding: 12px;
-	background: linear-gradient(
-		135deg,
-		rgba(59, 130, 246, 0.1) 0%,
-		rgba(37, 99, 235, 0.1) 100%
-	);
-	border: 1px solid rgba(59, 130, 246, 0.2);
-	border-radius: 10px;
-	color: #3b82f6;
-	font-size: 14px;
-	font-weight: 500;
-}
-
-.dark .auto-login-status {
-	background: linear-gradient(
-		135deg,
-		rgba(59, 130, 246, 0.15) 0%,
-		rgba(37, 99, 235, 0.15) 100%
-	);
-	border-color: rgba(59, 130, 246, 0.3);
-	color: #60a5fa;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ gap: 8px;
+ padding: 12px;
+ font-size: 13px;
+ background: rgba(142, 142, 147, 0.08);
+ border: 0.5px solid var(--separator);
+ border-radius: 12px;
+ color: var(--text-secondary);
 }
 
 .auto-login-status .el-icon {
-	font-size: 16px;
-	animation: spin 1s linear infinite;
+ font-size: 16px;
 }
 
-@keyframes spin {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
-}
-
-/* 保存密码复选框 */
-.save-password-checkbox {
-	margin-top: 4px;
-}
-
-.save-password-checkbox :deep(.el-checkbox__label) {
-	font-size: 13px;
-	color: #6b7280;
-}
-
-.dark .save-password-checkbox :deep(.el-checkbox__label) {
-	color: #9ca3af;
-}
-
-.checkbox-label {
-	font-size: 13px;
-	color: #6b7280;
-}
-
-.dark .checkbox-label {
-	color: #9ca3af;
-}
-
-/* MFA 高亮提示 */
 .mfa-highlight :deep(.el-input__wrapper) {
-	box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3) !important;
-	border-color: #f59e0b !important;
+ border-color: rgba(10, 132, 255, 0.45) !important;
 }
 
-.mfa-hint {
-	font-size: 12px;
-	color: #f59e0b;
-	margin: 4px 0 0 0;
-	font-weight: 500;
-}
-
-.dark .mfa-hint {
-	color: #fbbf24;
-}
-
-/* 响应式设计 */
 @media (max-width: 640px) {
-	.account-header {
-		padding: 16px;
-	}
-
-	.form-section,
-	.accounts-section {
-		padding: 16px;
-	}
-
-	.account-item {
-		padding: 12px;
-	}
+ .account-item {
+  align-items: flex-start;
+ }
 }
 </style>
+

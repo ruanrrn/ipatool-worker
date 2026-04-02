@@ -4,9 +4,9 @@
  <AccountManager @accounts-updated="(v) => emit('accounts-updated', v)"/>
 
  <!-- Admin Account Security -->
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
+ <div class="card">
  <div class="mb-6 flex items-center gap-4">
- <div class="hero-icon h-12 w-12 rounded-[20px]">
+ <div class="hero-icon h-10 w-10">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
  </svg>
@@ -25,7 +25,7 @@
  <div class="inline-panel mb-5 p-4">
  <div class="flex items-center justify-between">
  <div class="flex items-center space-x-3">
- <div class="hero-icon h-10 w-10 rounded-full text-sm font-bold text-white">
+ <div class="hero-icon h-10 w-10 text-sm font-bold text-white">
  {{ (appStore.authState.user?.username || '?')[0].toUpperCase() }}
  </div>
  <div>
@@ -123,9 +123,9 @@
  </div>
 
  <!-- Notification Settings -->
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
+ <div class="card">
  <div class="mb-6 flex items-center gap-4">
- <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
+ <div class="hero-icon h-10 w-10 bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
  </svg>
@@ -143,19 +143,19 @@
  <!-- Permission -->
  <div
  v-if="notifications.permission.value !== 'granted'"
- class="status-panel warning mb-5 p-4"
+ class="status-panel mb-5 p-4"
  >
  <div class="flex items-center justify-between">
  <div>
- <p class="text-sm font-medium text-[var(--accent-orange)]">
+ <p class="text-sm font-medium text-[var(--text-secondary)]">
  浏览器通知未授权
  </p>
- <p class="text-xs text-[var(--accent-orange)] mt-1">
+ <p class="text-xs text-[var(--text-secondary)] mt-1">
  需要授权后才能接收通知
  </p>
  </div>
  <el-button
- type="warning"
+ type="primary"
  size="small"
  @click="handleRequestPermission"
  >
@@ -165,9 +165,9 @@
  </div>
  <div
  v-else
- class="status-panel success mb-5 p-4"
+ class="status-panel mb-5 p-4"
  >
- <p class="text-sm text-[var(--accent-green)]">
+ <p class="text-sm text-[var(--text-secondary)]">
  ✅ 浏览器通知已授权
  </p>
  </div>
@@ -218,9 +218,9 @@
  </div>
  </div>
  </div>
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] p-6 sm:p-8">
+ <div class="card">
  <div class="flex items-center space-x-3 mb-4">
- <div class="hero-icon h-12 w-12 rounded-[20px] bg-[linear-gradient(135deg,#7c8aa5_0%,#4f5d75_100%)]">
+ <div class="hero-icon h-10 w-10 bg-[linear-gradient(135deg,#7c8aa5_0%,#4f5d75_100%)]">
  <svg class="w-5 h-5 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
  </svg>

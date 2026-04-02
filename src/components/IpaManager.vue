@@ -1,8 +1,8 @@
 <template>
  <div class="space-y-6">
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
+ <div class="card flex flex-wrap items-center justify-between gap-3">
  <div class="flex items-center space-x-3">
- <div class="hero-icon h-14 w-14 rounded-[24px] bg-[linear-gradient(135deg,#7d7aff_0%,#0a84ff_100%)]">
+ <div class="hero-icon h-12 w-12">
  <svg class="w-6 h-6 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M12 16V4m0 12l-4-4m4 4l4-4M5 20h14"/>
  </svg>
@@ -16,7 +16,7 @@
  <el-checkbox :model-value="allSelected":indeterminate="selectedCount > 0 && !allSelected"@change="toggleSelectAll">
  全选
  </el-checkbox>
- <el-button size="small"type="danger"plain :disabled="selectedCount === 0"@click="removeSelectedArtifacts">
+ <el-button size="small"type="primary"plain :disabled="selectedCount === 0"@click="removeSelectedArtifacts">
  批量清理{{ selectedCount > 0 ? `（${selectedCount}）` : '' }}
  </el-button>
  <el-upload
@@ -57,28 +57,28 @@
  <span>{{ formatFileSize(item.fileSize) }}</span>
  </div>
  </div>
- <el-tag size="small"type="info">{{ formatDate(item.modifiedAt) }}</el-tag>
+ <el-tag size="small"type="primary">{{ formatDate(item.modifiedAt) }}</el-tag>
  </div>
  <div class="artifact-path">{{ item.filePath }}</div>
  <div class="artifact-actions">
  <el-button type="primary"size="small"@click="download(item.downloadUrl)">下载</el-button>
 
- <el-button v-if="item.otaInstallable && item.installUrl"type="success"size="small"@click="install(item.installUrl)">安装</el-button>
+ <el-button v-if="item.otaInstallable && item.installUrl"type="primary"size="small"@click="install(item.installUrl)">安装</el-button>
  <el-tooltip v-else-if="item.installMethod === 'download_only' && item.inspection":content="item.inspection.summary"placement="top">
  <span>
- <el-tag size="small"type="info">仅下载</el-tag>
+ <el-tag size="small"type="primary">仅下载</el-tag>
  </span>
  </el-tooltip>
- <el-tag v-else-if="item.installMethod === 'download_only'"size="small"type="info">仅下载</el-tag>
- <el-button v-else type="success"size="small"disabled>安装</el-button>
+ <el-tag v-else-if="item.installMethod === 'download_only'"size="small"type="primary">仅下载</el-tag>
+ <el-button v-else type="primary"size="small"disabled>安装</el-button>
 
- <el-button type="danger"size="small"plain @click="removeArtifact(item)">删除</el-button>
+ <el-button type="primary"size="small"plain @click="removeArtifact(item)">删除</el-button>
  </div>
  </div>
  </div>
  </div>
 
- <div v-else class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] py-14 text-center text-[var(--text-secondary)]">
+ <div v-else class="empty-state py-14 text-center text-[var(--text-secondary)]">
  <svg class="mx-auto h-16 w-16 mb-4"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
  </svg>
@@ -101,7 +101,7 @@
  >
  <div class="space-y-3 text-sm">
  <p class="text-[var(--text-primary)]">确定删除这个 IPA 文件吗？</p>
- <div v-if="pendingDeleteItem"class="inline-panel rounded-[20px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all">
+ <div v-if="pendingDeleteItem"class="inline-panel rounded-[12px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all">
  <div class="font-medium text-gray-900 dark:text-gray-100">{{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}</div>
  <div class="mt-1">{{ pendingDeleteItem.filePath }}</div>
  </div>
@@ -110,7 +110,7 @@
  <template #footer>
  <div class="flex justify-end gap-2">
  <el-button :disabled="deletingArtifact"@click="closeDeleteDialog">取消</el-button>
- <el-button type="danger":loading="deletingArtifact"@click="confirmDeleteArtifact">删除</el-button>
+ <el-button type="primary":loading="deletingArtifact"@click="confirmDeleteArtifact">删除</el-button>
  </div>
  </template>
  </el-dialog>
@@ -365,16 +365,11 @@ onMounted(loadArtifacts)
 .artifact-row {
  display: flex;
  align-items: flex-start;
- gap: 14px;
+ gap: 12px;
  padding: 16px;
- border-radius: 16px;
- border: 1px solid rgba(148, 163, 184, 0.18);
- background: rgba(255, 255, 255, 0.88);
-}
-
-.dark .artifact-row {
- background: rgba(17, 24, 39, 0.72);
- border-color: rgba(71, 85, 105, 0.45);
+ border-radius: 12px;
+ border: 0.5px solid var(--separator);
+ background: var(--card-bg);
 }
 
 .artifact-main {
@@ -395,36 +390,23 @@ onMounted(loadArtifacts)
 .artifact-title {
  font-size: 15px;
  font-weight: 600;
- color: #111827;
+ color: var(--text-primary);
  white-space: nowrap;
  overflow: hidden;
  text-overflow: ellipsis;
 }
 
-.dark .artifact-title {
- color: #f9fafb;
-}
-
-.artifact-meta {
+.artifact-meta,
+.artifact-path {
  display: flex;
  flex-wrap: wrap;
  gap: 8px 14px;
- font-size: 12px;
- color: #6b7280;
-}
-
-.dark .artifact-meta {
- color: #9ca3af;
+ font-size: 13px;
+ color: var(--text-secondary);
 }
 
 .artifact-path {
- font-size: 12px;
- color: #64748b;
  word-break: break-all;
-}
-
-.dark .artifact-path {
- color: #94a3b8;
 }
 
 .artifact-check {
@@ -445,13 +427,10 @@ onMounted(loadArtifacts)
 }
 
 @media (max-width: 767px) {
- .artifact-row {
- padding: 14px;
- }
-
  .artifact-top {
- flex-direction: column;
- align-items: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
  }
 }
 </style>
+

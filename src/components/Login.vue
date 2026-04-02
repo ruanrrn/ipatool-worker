@@ -1,163 +1,110 @@
 <template>
- <div class="relative z-10 flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
- <div class="w-full max-w-lg">
- <div class="bg-[#1c1c1e]/95 rounded-[24px] overflow-hidden rounded-[32px] p-6 sm:p-8">
- <div class="mb-8 flex items-start gap-4">
- <div class="hero-icon h-14 w-14 rounded-[24px]">
- <svg class="relative z-10 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
- <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v3H6v-3c0-1.657 1.343-3 3-3s3 1.343 3 3zm0 0V8m0-4h.01" />
- </svg>
- </div>
- <div>
- <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--text-secondary)]">Secure Access</p>
- <h2 class="text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">管理员登录</h2>
- <p class="mt-2 text-sm text-[var(--text-secondary)]">默认账号：admin / admin</p>
- </div>
- </div>
+ <div class="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+  <div class="w-full max-w-[420px]">
+   <div class="card overflow-hidden">
+    <div class="mb-6 flex items-start gap-4">
+     <div class="hero-icon h-12 w-12">
+      <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v3H6v-3c0-1.657 1.343-3 3-3s3 1.343 3 3zm0 0V8m0-4h.01" />
+      </svg>
+     </div>
+     <div>
+      <p class="mb-1 text-[13px] text-[var(--text-secondary)]">Secure Access</p>
+      <h2 class="text-[17px] font-semibold text-[var(--text-primary)]">管理员登录</h2>
+      <p class="mt-2 text-[13px] text-[var(--text-secondary)]">默认账号：admin / admin</p>
+     </div>
+    </div>
 
- <el-form
- ref="loginFormRef"
- :model="loginForm"
- :rules="loginRules"
- label-position="top"
- class="space-y-2"
- >
- <el-form-item
- label="用户名"
- prop="username"
- >
- <el-input
- v-model="loginForm.username"
- autocomplete="username"
- placeholder="请输入用户名"
- size="large"
- class="spring-transition"
- @keyup.enter="handleLogin"
- />
- </el-form-item>
+    <el-form
+     ref="loginFormRef"
+     :model="loginForm"
+     :rules="loginRules"
+     label-position="top"
+     class="space-y-2"
+    >
+     <el-form-item label="用户名" prop="username">
+      <el-input
+       v-model="loginForm.username"
+       autocomplete="username"
+       placeholder="请输入用户名"
+       size="large"
+       @keyup.enter="handleLogin"
+      />
+     </el-form-item>
 
- <el-form-item
- label="密码"
- prop="password"
- >
- <el-input
- v-model="loginForm.password"
- type="password"
- show-password
- autocomplete="current-password"
- placeholder="请输入密码"
- size="large"
- class="spring-transition"
- @keyup.enter="handleLogin"
- />
- </el-form-item>
+     <el-form-item label="密码" prop="password">
+      <el-input
+       v-model="loginForm.password"
+       type="password"
+       show-password
+       autocomplete="current-password"
+       placeholder="请输入密码"
+       size="large"
+       @keyup.enter="handleLogin"
+      />
+     </el-form-item>
 
- <el-button
- type="primary"
- size="large"
- class=" mt-4 !h-14 w-full !rounded-[20px] bg-[linear-gradient(135deg,#0a84ff_0%,#30d158_100%)] !text-white"
- :loading="loginLoading"
- @click="handleLogin"
- >
- 登录
- </el-button>
- </el-form>
+     <el-button
+      type="primary"
+      size="large"
+      class="mt-4 !h-11 w-full !rounded-[10px] !bg-[var(--accent-blue)] !text-white"
+      :loading="loginLoading"
+      @click="handleLogin"
+     >
+      登录
+     </el-button>
+    </el-form>
 
- <div
- v-if="appStore.authState.user?.is_default"
- class="status-panel warning mt-6 p-4"
- >
- <el-alert
- type="warning"
- show-icon
- :closable="false"
- title="检测到仍在使用默认密码，必须先修改密码后才能进入系统"
- />
- </div>
- </div>
+    <div
+     v-if="appStore.authState.user?.is_default"
+     class="status-panel warning mt-6 p-4"
+    >
+     <el-alert
+      type="warning"
+      show-icon
+      :closable="false"
+      title="检测到仍在使用默认密码，必须先修改密码后才能进入系统"
+     />
+    </div>
+   </div>
 
- <el-dialog
- v-model="showChangePassword"
- title="首次登录：请修改用户名和密码"
- width="420px"
- :close-on-click-modal="false"
- :close-on-press-escape="false"
- :show-close="false"
- align-center
- >
- <el-form
- ref="pwdFormRef"
- :model="pwdForm"
- :rules="pwdRules"
- label-position="top"
- class="space-y-1"
- >
- <el-form-item
- label="新用户名"
- prop="new_username"
- >
- <el-input
- v-model="pwdForm.new_username"
- autocomplete="off"
- placeholder="请输入新用户名"
- @keyup.enter="handleChangePassword"
- />
- </el-form-item>
- <el-form-item
- label="当前密码"
- prop="current_password"
- >
- <el-input
- v-model="pwdForm.current_password"
- type="password"
- show-password
- autocomplete="current-password"
- placeholder="请输入当前密码"
- @keyup.enter="handleChangePassword"
- />
- </el-form-item>
+   <el-dialog
+    v-model="showChangePassword"
+    title="首次登录：请修改用户名和密码"
+    width="420px"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :show-close="false"
+    align-center
+   >
+    <el-form
+     ref="pwdFormRef"
+     :model="pwdForm"
+     :rules="pwdRules"
+     label-position="top"
+     class="space-y-1"
+    >
+     <el-form-item label="新用户名" prop="new_username">
+      <el-input v-model="pwdForm.new_username" autocomplete="off" placeholder="请输入新用户名" @keyup.enter="handleChangePassword" />
+     </el-form-item>
+     <el-form-item label="当前密码" prop="current_password">
+      <el-input v-model="pwdForm.current_password" type="password" show-password autocomplete="current-password" placeholder="请输入当前密码" @keyup.enter="handleChangePassword" />
+     </el-form-item>
+     <el-form-item label="新密码" prop="new_password">
+      <el-input v-model="pwdForm.new_password" type="password" show-password autocomplete="new-password" placeholder="请输入新密码" @keyup.enter="handleChangePassword" />
+     </el-form-item>
+     <el-form-item label="确认新密码" prop="confirm_password">
+      <el-input v-model="pwdForm.confirm_password" type="password" show-password autocomplete="new-password" placeholder="请再次输入新密码" @keyup.enter="handleChangePassword" />
+     </el-form-item>
+    </el-form>
 
- <el-form-item
- label="新密码"
- prop="new_password"
- >
- <el-input
- v-model="pwdForm.new_password"
- type="password"
- show-password
- autocomplete="new-password"
- placeholder="请输入新密码"
- @keyup.enter="handleChangePassword"
- />
- </el-form-item>
-
- <el-form-item
- label="确认新密码"
- prop="confirm_password"
- >
- <el-input
- v-model="pwdForm.confirm_password"
- type="password"
- show-password
- autocomplete="new-password"
- placeholder="请再次输入新密码"
- @keyup.enter="handleChangePassword"
- />
- </el-form-item>
- </el-form>
-
- <template #footer>
- <el-button
- type="primary"
- class=" !rounded-[18px]"
- :loading="pwdLoading"
- @click="handleChangePassword"
- >
- 修改密码
- </el-button>
- </template>
- </el-dialog>
- </div>
+    <template #footer>
+     <el-button type="primary" class="!rounded-[10px]" :loading="pwdLoading" @click="handleChangePassword">
+      修改密码
+     </el-button>
+    </template>
+   </el-dialog>
+  </div>
  </div>
 </template>
 

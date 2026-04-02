@@ -1,8 +1,8 @@
 <template>
- <div class="card rounded-[32px]">
+ <div class="card">
  <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
  <div class="flex items-center space-x-3">
- <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-[20px] flex items-center justify-center shadow-lg flex-shrink-0">
+ <div class="hero-icon h-12 w-12 flex-shrink-0">
  <svg
  class="w-6 h-6 text-white"
  fill="none"
@@ -53,8 +53,8 @@
  <el-card
  v-for="task in tasks"
  :key="task.id"
- shadow="hover"
- class="task-card rounded-[28px]"
+ shadow="never"
+ class="task-card"
  >
  <div class="flex items-start justify-between">
  <div class="flex-1">
@@ -99,7 +99,7 @@
  查看详情
  </el-button>
  <el-button
- type="danger"
+ type="primary"
  size="small"
  :icon="Delete"
  plain
@@ -117,7 +117,7 @@
  <!-- 空状态 -->
  <div
  v-else
- class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] py-12 text-center text-[var(--text-secondary)]"
+ class="empty-state py-12 text-center text-[var(--text-secondary)]"
  >
  <svg
  class="mx-auto h-16 w-16 mb-4"
@@ -168,7 +168,7 @@
  <div
  v-for="(item, index) in draftItems"
  :key="`${item.app_id}-${item.version || 'latest'}-${item.account_email}`"
- class="inline-panel flex items-start justify-between gap-3 rounded-[20px] p-4"
+ class="inline-panel flex items-start justify-between gap-3 rounded-[12px] p-4"
  >
  <div class="min-w-0 flex-1">
  <p class="font-medium text-[var(--text-primary)] truncate">
@@ -184,7 +184,7 @@
  </p>
  </div>
  <el-button
- type="danger"
+ type="primary"
  size="small"
  plain
  @click="removeDraftItem(index)"
@@ -255,7 +255,7 @@
  <div
  v-for="item in taskItems"
  :key="item.id"
- class="p-3 bg-white/[0.04] rounded-[16px]"
+ class="inline-panel rounded-[12px] p-3"
  >
  <div class="flex items-center justify-between">
  <div>
@@ -455,24 +455,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.card {
- background: white;
- border-radius: 16px;
- padding: 24px;
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.dark .card {
- background: #1f2937;
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
+.card,
 .task-card {
- transition: all 0.2s ease;
-}
-
-.task-card:hover {
- transform: translateY(-2px);
- box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+ border-radius: 12px;
+ background: var(--card-bg);
+ border: 0.5px solid var(--separator);
+ box-shadow: none;
 }
 </style>
+

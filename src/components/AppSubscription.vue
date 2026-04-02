@@ -1,9 +1,9 @@
 <template>
  <div class="space-y-6">
  <!-- Header -->
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
+ <div class="card flex flex-wrap items-center justify-between gap-3">
  <div class="flex items-center space-x-3">
- <div class="hero-icon h-14 w-14 flex-shrink-0 rounded-[24px] bg-[linear-gradient(135deg,#30d158_0%,#64d2ff_100%)]">
+ <div class="hero-icon h-12 w-12 flex-shrink-0">
  <svg
  class="w-6 h-6 text-white"
  fill="none"
@@ -43,7 +43,7 @@
  <!-- 更新通知 -->
  <div
  v-if="updates.length > 0"
- class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] mb-6 rounded-[32px] p-6"
+ class="card mb-6"
  >
  <div class="flex items-center gap-2 mb-3">
  <h3 class="text-lg font-semibold text-[var(--text-primary)]">
@@ -51,7 +51,7 @@
  </h3>
  <el-badge
  :value="updates.length"
- type="danger"
+ type="primary"
  />
  </div>
  <el-space
@@ -62,7 +62,7 @@
  <el-alert
  v-for="update in updates"
  :key="update.app_id"
- type="success"
+ type="primary"
  :closable="false"
  show-icon
  class="update-alert"
@@ -78,7 +78,7 @@
  <p class="font-medium text-[var(--text-primary)]">
  {{ update.app_name }}
  </p>
- <p class="text-sm text-gray-500">
+ <p class="text-sm text-[var(--text-secondary)]">
  {{ update.current_version }} → {{ update.latest_version }}
  </p>
  </div>
@@ -110,8 +110,8 @@
  <el-card
  v-for="sub in subscriptions"
  :key="sub.id"
- shadow="hover"
- class="task-card sub-card rounded-[28px]"
+ shadow="never"
+ class="task-card sub-card"
  >
  <div class="flex items-start gap-4">
  <el-image
@@ -125,11 +125,10 @@
  {{ sub.app_name }}
  </h3>
  <el-button
- type="danger"
+ type="primary"
  size="small"
  :icon="Delete"
  plain
- circle
  @click="removeSubscription(sub)"
  />
  </div>
@@ -149,7 +148,7 @@
  <!-- 空状态 -->
  <div
  v-else
- class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] text-center rounded-[32px] py-12 text-[var(--text-secondary)]"
+ class="empty-state py-12 text-center text-[var(--text-secondary)]"
  >
  <svg
  class="mx-auto h-16 w-16 mb-4"

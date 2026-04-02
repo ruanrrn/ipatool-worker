@@ -1,52 +1,49 @@
 <template>
  <div class="tab-layout" :class="{ 'mobile-layout': isMobile }">
- <!-- Desktop tabs -->
- <div v-if="!isMobile" class="flex gap-1 mb-4">
- <button
- v-for="tab in tabs"
- :key="tab.id"
- :class="['flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200', appStore.activeTab === tab.id ? 'bg-white/10 text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-white/6']"
- @click="appStore.activeTab = tab.id"
- >
- <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
- <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
- </el-badge>
- <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
- <span>{{ tab.label }}</span>
- </button>
- </div>
+  <div v-if="!isMobile" class="desktop-tabs">
+   <button
+    v-for="tab in tabs"
+    :key="tab.id"
+    :class="['desktop-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
+    @click="appStore.activeTab = tab.id"
+   >
+    <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
+     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+    </el-badge>
+    <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+    <span>{{ tab.label }}</span>
+   </button>
+  </div>
 
- <!-- Content -->
- <div class="tab-content" :class="{ 'with-mobile-tabs': isMobile }">
- <component
- :is="currentTabComponent"
- v-bind="currentTabProps"
- @app-selected="handleAppSelected"
- @download-started="handleDownloadStarted"
- @accounts-updated="handleAccountsUpdated"
- @remove-item="emit('remove-item', $event)"
- @clear-all="emit('clear-queue')"
- @logout="emit('logout')"
- />
- </div>
+  <div class="tab-content" :class="{ 'with-mobile-tabs': isMobile }">
+   <component
+    :is="currentTabComponent"
+    v-bind="currentTabProps"
+    @app-selected="handleAppSelected"
+    @download-started="handleDownloadStarted"
+    @accounts-updated="handleAccountsUpdated"
+    @remove-item="emit('remove-item', $event)"
+    @clear-all="emit('clear-queue')"
+    @logout="emit('logout')"
+   />
+  </div>
 
- <!-- Mobile bottom tabs -->
- <div v-if="isMobile" class="fixed inset-x-0 bottom-0 z-50 flex justify-center pb-safe">
- <div class="flex gap-1 rounded-t-[20px] border-t border-white/8 bg-[var(--bg-primary)]/90 px-2 py-2 backdrop-blur-xl">
- <button
- v-for="tab in tabs"
- :key="tab.id"
- :class="['flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-2 transition-colors duration-200', appStore.activeTab === tab.id ? 'text-[var(--accent-blue)]' : 'text-[var(--text-secondary)]']"
- @click="appStore.activeTab = tab.id"
- >
- <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
- <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
- </el-badge>
- <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
- <span class="text-[10px] font-medium">{{ tab.label }}</span>
- </button>
- </div>
- </div>
+  <div v-if="isMobile" class="mobile-tabs-wrap">
+   <div class="mobile-tabs">
+    <button
+     v-for="tab in tabs"
+     :key="tab.id"
+     :class="['mobile-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
+     @click="appStore.activeTab = tab.id"
+    >
+     <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+     </el-badge>
+     <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+     <span>{{ tab.label }}</span>
+    </button>
+   </div>
+  </div>
  </div>
 </template>
 
@@ -142,8 +139,48 @@ onUnmounted(() => {
 .tab-layout {
  display: flex;
  flex-direction: column;
- gap: 16px;
- min-height: calc(100vh - 120px);
+ gap: 12px;
+ min-height: calc(100vh - 72px);
+}
+
+.desktop-tabs {
+ display: flex;
+ gap: 12px;
+ border-bottom: 0.5px solid var(--separator);
+}
+
+.desktop-tab {
+ position: relative;
+ display: inline-flex;
+ align-items: center;
+ gap: 8px;
+ height: 38px;
+ padding: 0 4px;
+ border: 0;
+ border-radius: 0;
+ background: transparent;
+ color: var(--text-secondary);
+ font-size: 13px;
+ font-weight: 500;
+}
+
+.desktop-tab::after {
+ content: '';
+ position: absolute;
+ left: 0;
+ right: 0;
+ bottom: -0.5px;
+ height: 2px;
+ border-radius: 999px;
+ background: transparent;
+}
+
+.desktop-tab.is-active {
+ color: var(--accent-blue);
+}
+
+.desktop-tab.is-active::after {
+ background: var(--accent-blue);
 }
 
 .tab-content {
@@ -151,17 +188,41 @@ onUnmounted(() => {
  min-height: 0;
 }
 
-.tab-content-shell {
- min-height: 100%;
+.mobile-tabs-wrap {
+ position: fixed;
+ inset-inline: 0;
+ bottom: 0;
+ z-index: 50;
+}
+
+.mobile-tabs {
+ display: grid;
+ grid-template-columns: repeat(5, minmax(0, 1fr));
+ height: 49px;
+ padding-bottom: env(safe-area-inset-bottom);
+ border-top: 0.5px solid var(--separator);
+ background: var(--card-bg);
+}
+
+.mobile-tab {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 2px;
+ border: 0;
+ background: transparent;
+ color: var(--text-secondary);
+ font-size: 10px;
+ font-weight: 500;
+}
+
+.mobile-tab.is-active {
+ color: var(--accent-blue);
 }
 
 .tab-content.with-mobile-tabs {
- padding-bottom: 80px;
-}
-
-@media (max-width: 767px) {
- .tab-content.with-mobile-tabs {
- padding-bottom: 96px;
- }
+ padding-bottom: calc(49px + env(safe-area-inset-bottom) + 12px);
 }
 </style>
+

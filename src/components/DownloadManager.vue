@@ -1,7 +1,7 @@
 <template>
  <div class="card">
  <div class="flex items-center space-x-3 mb-6">
- <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-[20px] flex items-center justify-center shadow-lg">
+ <div class="hero-icon h-12 w-12">
  <svg
  class="w-6 h-6 text-white"
  fill="none"
@@ -31,11 +31,11 @@
  <!-- 账号选择提示 -->
  <div
  v-if="accounts.length === 0"
- class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-[20px] p-4"
+ class="status-panel p-4"
  >
  <div class="flex items-start space-x-3">
  <svg
- class="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5"
+ class="w-5 h-5 text-[var(--text-secondary)] mt-0.5"
  fill="none"
  stroke="currentColor"
  viewBox="0 0 24 24"
@@ -48,14 +48,14 @@
  />
  </svg>
  <div class="flex-1">
- <h4 class="font-semibold text-orange-900 dark:text-orange-300">
+ <h4 class="font-semibold text-[var(--text-primary)]">
  需要先登录账号
  </h4>
- <p class="text-sm text-orange-700 dark:text-orange-400 mt-1">
+ <p class="text-sm text-[var(--text-secondary)] mt-1">
  请先在"账号"标签页登录 Apple ID 账号，然后才能搜索应用。
  </p>
  <el-button 
- type="warning"
+ type="primary"
  size="small"
  class="mt-2"
  plain
@@ -70,12 +70,12 @@
  <!-- 账号选择区域 -->
  <div
  v-else
- class="status-panel info p-4"
+ class="status-panel p-4"
  >
  <div class="flex items-center justify-between">
  <div class="flex items-center space-x-2 flex-1">
  <svg
- class="w-4 h-4 text-blue-600 dark:text-blue-400"
+ class="w-4 h-4 text-[var(--accent-blue)]"
  fill="none"
  stroke="currentColor"
  viewBox="0 0 24 24"
@@ -87,7 +87,7 @@
  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
  />
  </svg>
- <span class="text-sm text-blue-700 dark:text-blue-400">
+ <span class="text-sm text-[var(--text-secondary)]">
  搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
  </span>
  </div>
@@ -119,7 +119,7 @@
  </div>
 
  <!-- Search Mode Toggle -->
- <div class="flex items-center space-x-4 p-3 bg-white/[0.04] rounded-[16px] mb-3">
+ <div class="inline-panel mb-3 flex items-center space-x-4 rounded-[12px] p-3">
  <label class="flex items-center space-x-2 cursor-pointer">
  <input
  v-model="searchMode"
@@ -156,13 +156,13 @@
  <!-- Direct App ID Confirm Button -->
  <div
  v-if="searchMode === 'appid' && searchQuery && /^\d+$/.test(searchQuery.trim()) && !searching"
- class="flex items-center justify-between p-4 status-panel warning mt-3"
+ class="status-panel mt-3 flex items-center justify-between p-4"
  >
  <div class="flex-1">
- <p class="text-sm font-medium text-[var(--accent-orange)]">
+ <p class="text-sm font-medium text-[var(--text-secondary)]">
  App ID: <span class="font-bold">{{ searchQuery.trim() }}</span>
  </p>
- <p class="text-xs text-[var(--accent-orange)] mt-1">
+ <p class="text-xs text-[var(--text-secondary)] mt-1">
  即使未找到应用信息，也可以继续查询版本号
  </p>
  </div>
@@ -184,7 +184,7 @@
  <div
  v-for="app in searchResults"
  :key="app.trackId"
- class="search-result-item flex items-center space-x-4 p-3 rounded-[20px] hover:bg-white/10 cursor-pointer transition-all duration-200"
+ class="search-result-item flex cursor-pointer items-center space-x-4 rounded-[12px] p-3 transition-all duration-200"
  @click="selectApp(app)"
  >
  <img 
@@ -213,7 +213,7 @@
  class="space-y-4"
  >
  <!-- Selected App Info -->
- <div class="selected-app-card bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-[20px] p-4 border border-[var(--accent-blue)]/20">
+ <div class="selected-app-card selected-app-card p-4">
  <div class="flex items-center space-x-4">
  <img 
  v-if="!selectedApp.isDirectAppId"
@@ -223,7 +223,7 @@
  >
  <div 
  v-else
- class="w-16 h-16 rounded-[20px] object-cover bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center"
+ class="w-16 h-16 rounded-[10px] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
  >
  <svg
  class="w-8 h-8 text-white"
@@ -250,7 +250,7 @@
  版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
  <span
  v-if="selectedApp.isDirectAppId"
- class="ml-2 px-2 py-0.5 bg-white/[0.08] rounded-full text-xs"
+ class="ml-2 px-2 py-0.5 inline-panel rounded-[10px] text-xs"
  >
  直接输入
  </span>
@@ -271,7 +271,7 @@
  选择账号
  <span
  v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
- class="ml-2 text-xs px-2 py-1 bg-white/[0.08] rounded-full"
+ class="ml-2 text-xs px-2 py-1 inline-panel rounded-[10px]"
  >
  商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
  </span>
@@ -302,7 +302,7 @@
  </el-select>
  <p
  v-if="accounts.length === 0"
- class="text-xs text-orange-600 dark:text-orange-400 mt-1"
+ class="text-xs text-[var(--text-secondary)] mt-1"
  >
  ⚠️ 请先登录账号
  </p>
@@ -361,7 +361,7 @@
  <el-button
  :disabled="!appid || fetchingVersions"
  :loading="fetchingVersions"
- type="info"
+ type="primary"
  class="w-full action-button"
  @click="fetchVersions"
  >
@@ -376,7 +376,7 @@
  :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
  :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
  :title="downloadBlockedReason"
- type="info"
+ type="primary"
  class="w-full action-button"
  @click="directLinkDownload"
  >
@@ -409,7 +409,7 @@
  <el-button
  v-if="purchaseRequired"
  :disabled="!selectedAccount && selectedAccount !== 0"
- type="warning"
+ type="primary"
  class="w-full action-button"
  @click="buyOrClaimSelectedApp"
  >
@@ -430,7 +430,7 @@
  >
  <div class="flex justify-between items-center mb-2">
  <span class="text-sm font-medium text-[var(--text-primary)]">{{ progressStage }}</span>
- <span class="text-sm font-bold text-blue-600 dark:text-blue-400">{{ progressPercent }}%</span>
+ <span class="text-sm font-bold text-[var(--accent-blue)]">{{ progressPercent }}%</span>
  </div>
  <el-progress 
  :percentage="progressPercent"
@@ -438,7 +438,7 @@
  class="mb-3"
  />
  <el-scrollbar max-height="160px">
- <pre class="bg-black rounded-lg p-3 text-green-400 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
+ <pre class="log-container rounded-[12px] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
  </el-scrollbar>
  
  <div
@@ -448,11 +448,11 @@
  <!-- Environment Warning -->
  <div
  v-if="!isHttps && currentProtocol !== 'http:'"
- class="mb-3 p-3 status-panel warning"
+ class="status-panel mb-3 p-3"
  >
  <div class="flex items-start space-x-2">
  <svg
- class="w-5 h-5 text-[var(--accent-orange)] mt-0.5 flex-shrink-0"
+ class="w-5 h-5 text-[var(--text-secondary)] mt-0.5 flex-shrink-0"
  fill="none"
  stroke="currentColor"
  viewBox="0 0 24 24"
@@ -465,7 +465,7 @@
  />
  </svg>
  <div class="flex-1">
- <p class="text-sm text-[var(--accent-orange)] font-medium">
+ <p class="text-sm text-[var(--text-secondary)] font-medium">
  环境检测
  </p>
  <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
@@ -494,7 +494,7 @@
  class="block w-full"
  >
  <el-button
- type="success"
+ type="primary"
  size="large"
  class="w-full"
  >
@@ -506,7 +506,7 @@
  </a>
  <el-button
  v-else-if="downloadOtaInstallable && downloadInstallUrl"
- type="success"
+ type="primary"
  size="large"
  class="w-full"
  @click="installDownloadedIpa"
@@ -518,17 +518,17 @@
  </el-button>
  <el-tooltip v-else-if="downloadInstallMethod === 'download_only' && downloadInspection && downloadInspection.summary":content="downloadInspection.summary"placement="top">
  <span class="block w-full">
- <el-tag size="large"type="info"class="w-full text-center">仅下载</el-tag>
+ <el-tag size="large"type="primary"class="w-full text-center">仅下载</el-tag>
  </span>
  </el-tooltip>
- <el-tag v-else-if="downloadInstallMethod === 'download_only'"size="large"type="info"class="w-full text-center">仅下载</el-tag>
+ <el-tag v-else-if="downloadInstallMethod === 'download_only'"size="large"type="primary"class="w-full text-center">仅下载</el-tag>
  </div>
  <p class="text-xs text-[var(--text-secondary)] text-center">
  下载和安装已分离，请按需手动操作
  </p>
  <p
  v-if="downloadInstallUrl && !isHttps"
- class="text-xs text-orange-600 dark:text-orange-400 mt-1 text-center"
+ class="text-xs text-[var(--text-secondary)] mt-1 text-center"
  >
  ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
  </p>
@@ -1792,22 +1792,16 @@ onMounted(() => {
 .download-disabled-hint {
  padding: 10px 12px;
  border-radius: 12px;
- font-size: 12px;
+ font-size: 13px;
  line-height: 1.4;
- color: #92400e;
- background: rgba(254, 243, 199, 0.85);
- border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
-.dark .download-disabled-hint {
- color: #fcd34d;
- background: rgba(120, 53, 15, 0.35);
- border-color: rgba(245, 158, 11, 0.35);
+ border: 0.5px solid var(--separator);
+ background: rgba(142, 142, 147, 0.08);
+ color: var(--text-secondary);
 }
 
 .purchase-blocked-btn.is-disabled {
  opacity: 0.62 !important;
- filter: grayscale(0.15);
+ filter: none;
  box-shadow: none !important;
 }
 
@@ -1823,67 +1817,31 @@ onMounted(() => {
  gap: 8px;
 }
 
-.selected-app-badge {
+.selected-app-badge,
+.region-badge,
+.region-badge-mini {
  display: inline-flex;
  align-items: center;
- padding: 4px 10px;
- border-radius: 9999px;
- font-size: 12px;
+ padding: 4px 8px;
+ border-radius: 10px;
+ border: 0.5px solid var(--separator);
+ font-size: 13px;
  line-height: 1;
- color: #1d4ed8;
- background: rgba(219, 234, 254, 0.9);
-}
-
-.dark .selected-app-badge {
- color: #bfdbfe;
- background: rgba(30, 58, 138, 0.5);
+ color: var(--text-secondary);
+ background: transparent;
 }
 
 .search-input :deep(.el-input__wrapper) {
- border-radius: 12px;
- padding: 8px 16px;
+ padding: 8px 12px;
 }
 
 .search-input :deep(.el-input__inner) {
  font-size: 15px;
 }
 
-/* 快速账号选择器样式 */
 .account-quick-select {
  width: 320px;
  max-width: 100%;
-}
-
-.account-quick-select :deep(.el-select__wrapper) {
- border-radius: 10px;
- font-size: 13px;
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
- transition: all 0.2s ease;
-}
-
-.account-quick-select :deep(.el-select__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.dark .account-quick-select :deep(.el-select__wrapper) {
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.dark .account-quick-select :deep(.el-select__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.account-quick-select :deep(.el-select__placeholder) {
- font-size: 12px;
- color: #9ca3af;
-}
-
-.account-quick-select :deep(.el-select__input) {
- font-size: 13px;
-}
-
-.account-quick-select :deep(.el-select-dropdown__item) {
- overflow: hidden;
 }
 
 .account-option-row {
@@ -1902,287 +1860,59 @@ onMounted(() => {
  white-space: nowrap;
 }
 
-/* 迷你区域徽章 */
-.region-badge-mini {
- display: inline-flex;
- flex-shrink: 0;
- max-width: 110px;
- height: 20px;
- line-height: 1;
- align-items: center;
- padding: 1px 6px;
- border-radius: 4px;
- font-size: 10px;
- font-weight: 600;
- letter-spacing: 0.3px;
- white-space: nowrap;
-}
-
-.form-select :deep(.el-select__wrapper) {
- border-radius: 12px;
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
- transition: all 0.2s ease;
-}
-
-.form-select :deep(.el-select__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.dark .form-select :deep(.el-select__wrapper) {
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.dark .form-select :deep(.el-select__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.form-input :deep(.el-input__wrapper) {
- border-radius: 12px;
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
- transition: all 0.2s ease;
-}
-
-.form-input :deep(.el-input__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.dark .form-input :deep(.el-input__wrapper) {
- box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.dark .form-input :deep(.el-input__wrapper:hover) {
- box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
 .action-button {
- border-radius: 12px;
+ border-radius: 10px;
  font-weight: 500;
  height: 44px;
- box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
- transition: all 0.2s ease;
-}
-
-.action-button:hover {
- transform: translateY(-1px);
- box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.action-button:active {
- transform: translateY(0);
- box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.action-button :deep(.el-icon) {
- font-size: 18px;
 }
 
 .log-container {
- background-color: rgba(0, 0, 0, 0.03);
- border-radius: 12px;
  padding: 16px;
- font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+ font-family: 'SFMono-Regular', Consolas, monospace;
  font-size: 13px;
  line-height: 1.6;
  max-height: 300px;
  overflow-y: auto;
-}
-
-.dark .log-container {
- background-color: rgba(0, 0, 0, 0.3);
+ background: rgba(142, 142, 147, 0.08);
+ border: 0.5px solid var(--separator);
 }
 
 .log-entry {
  padding: 4px 0;
- border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.dark .log-entry {
- border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+ border-bottom: 0.5px solid var(--separator);
 }
 
 .log-entry:last-child {
  border-bottom: none;
 }
 
-.log-time {
- color: #9ca3af;
- font-size: 12px;
-}
-
-.dark .log-time {
- color: #6b7280;
-}
-
-.log-content {
- color: #374151;
-}
-
-.dark .log-content {
- color: #d1d5db;
-}
-
-.log-success {
- color: #059669;
-}
-
-.dark .log-success {
- color: #34d399;
-}
-
-.log-error {
- color: #dc2626;
-}
-
-.dark .log-error {
- color: #f87171;
-}
-
-/* 区域徽章样式 */
-.region-badge {
- display: inline-flex;
- align-items: center;
- padding: 3px 10px;
- border-radius: 8px;
- font-size: 11px;
- font-weight: 600;
- letter-spacing: 0.5px;
- box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.region-us {
- background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
- color: #3b82f6;
- border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.dark .region-us {
- background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.25) 100%);
- color: #60a5fa;
- border-color: rgba(59, 130, 246, 0.4);
-}
-
-.region-cn {
- background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
- color: #ef4444;
- border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.dark .region-cn {
- background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%);
- color: #f87171;
- border-color: rgba(239, 68, 68, 0.4);
-}
-
-.region-jp {
- background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
- color: #10b981;
- border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.dark .region-jp {
- background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%);
- color: #34d399;
- border-color: rgba(16, 185, 129, 0.4);
-}
-
-.region-gb,
-.region-de,
-.region-fr,
-.region-ca,
-.region-au {
- background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
- color: #8b5cf6;
- border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.dark .region-gb,
-.dark .region-de,
-.dark .region-fr,
-.dark .region-ca,
-.dark .region-au {
- background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(124, 58, 237, 0.25) 100%);
- color: #a78bfa;
- border-color: rgba(139, 92, 246, 0.4);
-}
-
+.log-time,
+.log-content,
+.log-success,
+.log-error,
 .log-info {
- color: #2563eb;
+ color: var(--text-secondary);
 }
 
-.dark .log-info {
- color: #60a5fa;
-}
-
-/* 移动端响应式样式 */
 @media (max-width: 767px) {
- .card {
- padding: 12px;
- }
- 
  .action-button {
- height: 48px;
- font-size: 15px;
+  height: 44px;
  }
- 
- /* 移动端账号选择器 */
+
  .account-quick-select {
- width: 100%;
- margin-top: 12px;
+  width: 100%;
+  margin-top: 12px;
  }
- 
- /* 移动端搜索区域提示 */
- .status-panel.info {
- flex-direction: column;
- align-items: flex-start !important;
- }
- 
- .status-panel.info .flex {
- flex-direction: column;
- width: 100%;
- }
- 
- /* 搜索结果卡片自适应 */
+
  .search-result-item {
- display: flex;
- align-items: center;
- gap: 8px;
- padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
  }
- 
- .search-result-item img {
- width: 48px !important;
- height: 48px !important;
- }
- 
- .search-result-item h3 {
- font-size: 13px !important;
- max-width: calc(100vw - 140px);
- }
- 
- /* 选中应用信息卡片 */
+
  .selected-app-card {
- padding: 12px !important;
- }
- 
- .selected-app-card img {
- width: 48px !important;
- height: 48px !important;
- }
- 
- .selected-app-card h3 {
- font-size: 14px !important;
- word-break: break-word;
- overflow-wrap: break-word;
- }
- 
- /* 上传区域 */
- .upload-demo :deep(.el-upload-dragger) {
- padding: 20px !important;
- }
- 
- /* 进度卡片 */
- .el-card {
- margin-top: 12px !important;
+  padding: 12px !important;
  }
 }
 </style>
+

@@ -1,8 +1,8 @@
 <template>
  <div class="space-y-6">
- <div class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] flex flex-wrap items-center justify-between gap-4 rounded-[32px] p-6">
+ <div class="card flex flex-wrap items-center justify-between gap-3">
  <div class="flex items-center space-x-3">
- <div class="hero-icon h-14 w-14 rounded-[24px] bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
+ <div class="hero-icon h-12 w-12">
  <svg class="w-6 h-6 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <line x1="8"y1="6"x2="21"y2="6"/>
  <line x1="8"y1="12"x2="21"y2="12"/>
@@ -19,7 +19,7 @@
  </div>
  <div class="flex gap-2">
  <el-button size="small"plain @click="loadRecords">刷新</el-button>
- <el-button size="small"type="warning"plain @click="cleanupServerFiles">清理服务器文件</el-button>
+ <el-button size="small"type="primary"plain @click="cleanupServerFiles">清理服务器文件</el-button>
  </div>
  </div>
 
@@ -48,9 +48,9 @@
  <div v-if="task.error"class="row-error">{{ task.error }}</div>
  <div class="row-actions">
  <el-button v-if="task.status === 'completed' && task.downloadUrl"type="primary"size="small"@click="download(task.downloadUrl)">下载</el-button>
- <el-button v-if="task.status === 'completed' && task.otaInstallable && task.installUrl"type="success"size="small"@click="install(task.installUrl)">安装</el-button>
- <el-tag v-else-if="task.status === 'completed' && task.installMethod === 'download_only'"size="small"type="info">仅下载</el-tag>
- <el-button size="small"type="danger"plain @click="removeTask(task.id)">{{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}</el-button>
+ <el-button v-if="task.status === 'completed' && task.otaInstallable && task.installUrl"type="primary"size="small"@click="install(task.installUrl)">安装</el-button>
+ <el-tag v-else-if="task.status === 'completed' && task.installMethod === 'download_only'"size="small"type="primary">仅下载</el-tag>
+ <el-button size="small"type="primary"plain @click="removeTask(task.id)">{{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}</el-button>
  </div>
  </div>
  </div>
@@ -59,7 +59,7 @@
  <section v-if="records.length > 0"class="space-y-4">
  <div class="flex items-center justify-between gap-3">
  <h3 class="text-lg font-semibold text-[var(--text-primary)]">下载记录</h3>
- <el-button size="small"type="danger"plain @click="clearAllRecords">清空记录</el-button>
+ <el-button size="small"type="primary"plain @click="clearAllRecords">清空记录</el-button>
  </div>
  <div v-for="record in records":key="record.id"class="queue-row">
  <AppArtwork :src="record.artworkUrl":alt="record.appName":label="record.appName || 'IPA'"/>
@@ -84,21 +84,21 @@
  <div class="row-actions">
  <el-button v-if="record.downloadUrl && record.fileExists"type="primary"size="small"@click="download(record.downloadUrl)">下载</el-button>
 
- <el-button v-if="record.fileExists && record.otaInstallable && record.installUrl"type="success"size="small"@click="install(record.installUrl)">安装</el-button>
+ <el-button v-if="record.fileExists && record.otaInstallable && record.installUrl"type="primary"size="small"@click="install(record.installUrl)">安装</el-button>
  <el-tooltip v-else-if="record.fileExists && record.installMethod === 'download_only'":content="record.inspection?.summary || ''":disabled="!record.inspection?.summary"placement="top">
  <span>
- <el-tag size="small"type="info">仅下载</el-tag>
+ <el-tag size="small"type="primary">仅下载</el-tag>
  </span>
  </el-tooltip>
 
- <el-button v-if="record.fileExists"size="small"type="warning"plain @click="cleanupRecordFile(record)">清理安装包</el-button>
- <el-button size="small"type="danger"plain @click="removeRecord(record.id)">删除记录</el-button>
+ <el-button v-if="record.fileExists"size="small"type="primary"plain @click="cleanupRecordFile(record)">清理安装包</el-button>
+ <el-button size="small"type="primary"plain @click="removeRecord(record.id)">删除记录</el-button>
  </div>
  </div>
  </div>
  </section>
 
- <div v-if="currentTasks.length === 0 && records.length === 0"class="bg-white/[0.06] border border-white/[0.08] rounded-[20px] rounded-[32px] py-12 text-center text-[var(--text-secondary)]">
+ <div v-if="currentTasks.length === 0 && records.length === 0"class="empty-state py-12 text-center text-[var(--text-secondary)]">
  <svg class="mx-auto h-16 w-16 mb-4"fill="none"stroke="currentColor"viewBox="0 0 24 24">
  <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
  </svg>
@@ -437,16 +437,11 @@ onBeforeUnmount(() => {
 .queue-row {
  display: flex;
  align-items: flex-start;
- gap: 14px;
+ gap: 12px;
  padding: 16px;
- border-radius: 16px;
- border: 1px solid rgba(148, 163, 184, 0.18);
- background: rgba(255, 255, 255, 0.88);
-}
-
-.dark .queue-row {
- background: rgba(17, 24, 39, 0.72);
- border-color: rgba(71, 85, 105, 0.45);
+ border-radius: 12px;
+ border: 0.5px solid var(--separator);
+ background: var(--card-bg);
 }
 
 .row-main {
@@ -467,14 +462,10 @@ onBeforeUnmount(() => {
 .row-title {
  font-size: 15px;
  font-weight: 600;
- color: #111827;
+ color: var(--text-primary);
  white-space: nowrap;
  overflow: hidden;
  text-overflow: ellipsis;
-}
-
-.dark .row-title {
- color: #f9fafb;
 }
 
 .row-meta,
@@ -482,13 +473,8 @@ onBeforeUnmount(() => {
  display: flex;
  flex-wrap: wrap;
  gap: 8px 14px;
- font-size: 12px;
- color: #6b7280;
-}
-
-.dark .row-meta,
-.dark .row-info {
- color: #9ca3af;
+ font-size: 13px;
+ color: var(--text-secondary);
 }
 
 .row-actions {
@@ -503,18 +489,15 @@ onBeforeUnmount(() => {
 }
 
 .row-error {
- font-size: 12px;
- color: #dc2626;
+ font-size: 13px;
+ color: var(--text-secondary);
 }
 
 @media (max-width: 767px) {
- .queue-row {
- padding: 14px;
- }
-
  .row-top {
- flex-direction: column;
- align-items: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
  }
 }
 </style>
+
