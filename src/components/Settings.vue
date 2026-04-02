@@ -1,5 +1,5 @@
 <template>
- <div class="space-y-6">
+ <div class="space-y-4">
  <!-- Account Management (Apple accounts) -->
  <AccountManager @accounts-updated="(v) => emit('accounts-updated', v)"/>
 

@@ -70,7 +70,7 @@
  </el-tag>
  </div>
 
- <div class="flex items-center gap-6 text-sm text-[var(--text-secondary)] mb-3">
+ <div class="flex items-center gap-4 text-sm text-[var(--text-secondary)] mb-3">
  <span>总数: {{ task.total_count }}</span>
  <span>完成: {{ task.completed_count }}</span>
  <span>失败: {{ task.failed_count }}</span>

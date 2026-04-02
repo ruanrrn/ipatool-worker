@@ -8,9 +8,9 @@
     @click="appStore.activeTab = tab.id"
    >
     <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
-     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+     <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
     </el-badge>
-    <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+    <svg v-else class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
     <span>{{ tab.label }}</span>
    </button>
   </div>
@@ -37,9 +37,9 @@
      @click="appStore.activeTab = tab.id"
     >
      <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
-      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+      <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
      </el-badge>
-     <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
+     <svg v-else class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
      <span>{{ tab.label }}</span>
     </button>
    </div>
@@ -139,13 +139,13 @@ onUnmounted(() => {
 .tab-layout {
  display: flex;
  flex-direction: column;
- gap: 12px;
+ gap: 8px;
  min-height: calc(100vh - 72px);
 }
 
 .desktop-tabs {
  display: flex;
- gap: 12px;
+ gap: 8px;
  border-bottom: 0.5px solid var(--separator);
 }
 
@@ -155,7 +155,7 @@ onUnmounted(() => {
  align-items: center;
  gap: 8px;
  height: 38px;
- padding: 0 4px;
+ padding: 0 12px;
  border: 0;
  border-radius: 0;
  background: transparent;
@@ -198,7 +198,7 @@ onUnmounted(() => {
 .mobile-tabs {
  display: grid;
  grid-template-columns: repeat(5, minmax(0, 1fr));
- height: 49px;
+ height: 50px;
  padding-bottom: env(safe-area-inset-bottom);
  border-top: 0.5px solid var(--separator);
  background: var(--card-bg);

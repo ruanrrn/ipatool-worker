@@ -1,5 +1,5 @@
 <template>
- <div class="account-manager space-y-6">
+ <div class="account-manager space-y-4">
  <!-- Header -->
  <div class="account-header">
  <div class="header-icon">

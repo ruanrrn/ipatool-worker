@@ -72,10 +72,10 @@
  v-else
  class="status-panel p-4"
  >
- <div class="flex items-center justify-between">
- <div class="flex items-center space-x-2 flex-1">
+ <div class="flex items-center justify-between gap-2">
+ <div class="flex items-center space-x-2 min-w-0">
  <svg
- class="w-4 h-4 text-[var(--accent-blue)]"
+ class="w-4 h-4 flex-shrink-0 text-[var(--accent-blue)]"
  fill="none"
  stroke="currentColor"
  viewBox="0 0 24 24"
@@ -87,7 +87,7 @@
  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
  />
  </svg>
- <span class="text-sm text-[var(--text-secondary)]">
+ <span class="text-[13px] text-[var(--text-secondary)] whitespace-nowrap">
  搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
  </span>
  </div>
