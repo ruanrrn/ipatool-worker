@@ -206,24 +206,64 @@
             placeholder="选择区域"
           >
             <el-option
-              label="美国"
+              label="🇺🇸 美国"
               value="US"
             />
             <el-option
-              label="中国"
+              label="🇨🇳 中国"
               value="CN"
             />
             <el-option
-              label="日本"
+              label="🇯🇵 日本"
               value="JP"
             />
             <el-option
-              label="英国"
+              label="🇬🇧 英国"
               value="GB"
             />
             <el-option
-              label="德国"
+              label="🇩🇪 德国"
               value="DE"
+            />
+            <el-option
+              label="🇫🇷 法国"
+              value="FR"
+            />
+            <el-option
+              label="🇰🇷 韩国"
+              value="KR"
+            />
+            <el-option
+              label="🇦🇺 澳大利亚"
+              value="AU"
+            />
+            <el-option
+              label="🇨🇦 加拿大"
+              value="CA"
+            />
+            <el-option
+              label="🇮🇳 印度"
+              value="IN"
+            />
+            <el-option
+              label="🇧🇷 巴西"
+              value="BR"
+            />
+            <el-option
+              label="🇷🇺 俄罗斯"
+              value="RU"
+            />
+            <el-option
+              label="🇸🇬 新加坡"
+              value="SG"
+            />
+            <el-option
+              label="🇭🇰 中国香港"
+              value="HK"
+            />
+            <el-option
+              label="🇹🇼 中国台湾"
+              value="TW"
             />
           </el-select>
         </el-form-item>
