@@ -236,9 +236,12 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Delete } from '@element-plus/icons-vue'
 import { useNotifications } from '../composables/useNotifications'
+import { useAppStore } from '../stores/app'
 import { REGION_MAP } from '../utils/region.js'
 
 const notifications = useNotifications()
+const appStore = useAppStore()
+const emit = defineEmits(['download-started'])
 
 const API_BASE = '/api'
 
@@ -377,10 +380,67 @@ const removeSubscription = async (sub) => {
  }
 }
 
-// 下载更新
-const downloadUpdate = (update) => {
- ElMessage.info(`开始下载 ${update.app_name} 的更新...`)
- // 这里可以触发下载逻辑
+// 下载更新 — 复用后端 start-download-direct 接口
+const downloadUpdate = async (update) => {
+  // 找到匹配账号的 token
+  const saved = localStorage.getItem('ipa_accounts')
+  let accounts = []
+  if (saved) {
+    try { accounts = JSON.parse(saved) } catch {}
+  }
+
+  const matchAccount = accounts.find(
+    (a) => a.email === update.account_email
+  ) || accounts[0]
+
+  if (!matchAccount?.token) {
+    ElMessage.warning('未找到匹配的账号，请先登录 Apple ID')
+    return
+  }
+
+  try {
+    ElMessage.info(`正在创建下载任务：${update.app_name} ${update.latest_version}`)
+
+    const response = await fetch(`${API_BASE}/start-download-direct`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: matchAccount.token,
+        appid: String(update.app_id),
+        appName: update.app_name,
+        artworkUrl: update.artwork_url || undefined,
+      })
+    })
+
+    const data = await response.json()
+
+    if (!data.ok) {
+      ElMessage.error(`下载失败：${data.error || '未知错误'}`)
+      return
+    }
+
+    const { jobId } = data
+    const queueItem = {
+      id: jobId,
+      appName: update.app_name,
+      artworkUrl: update.artwork_url || '',
+      artistName: update.artist_name || '',
+      version: update.latest_version || '',
+      account: matchAccount,
+      accountEmail: matchAccount.email || '',
+      status: 'downloading',
+      progress: 0,
+      timestamp: new Date().toISOString(),
+    }
+
+    appStore.addToQueue(queueItem)
+    appStore.activeTab = 'queue'
+    emit('download-started', queueItem)
+    ElMessage.success('下载任务已创建，可在"队列"标签页查看进度')
+  } catch (error) {
+    ElMessage.error(`创建下载任务失败：${error.message}`)
+  }
 }
 
 // 格式化日期
