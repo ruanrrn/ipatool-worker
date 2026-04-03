@@ -611,17 +611,7 @@ const emit = defineEmits(['download-started', 'app-selected'])
 
 // 获取区域标签
 const getRegionLabel = (region) => {
- const regionMap = {
- 'US': '🇺🇸 US',
- 'CN': '🇨🇳 CN',
- 'JP': '🇯🇵 JP',
- 'GB': '🇬🇧 GB',
- 'DE': '🇩🇪 DE',
- 'FR': '🇫🇷 FR',
- 'CA': '🇨🇦 CA',
- 'AU': '🇦🇺 AU'
- }
- return regionMap[region] || region
+	return formatRegion(region)
 }
 
 // 处理账号选择变化
@@ -965,11 +955,6 @@ watch(() => props.selectedApp, (newApp) => {
  appid.value = String(newApp.trackId)
  }
 }, { immediate: true })
-
-// Watch for accounts changes to auto-select first account
-watch(accounts, () => {
- autoSelectFirstAccount()
-}, { deep: true, immediate: true })
 
 // Watch for account and appid changes to auto-fetch versions
 watch([selectedAccount, appid], ([newAccount, newAppid]) => {
