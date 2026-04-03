@@ -90,7 +90,12 @@ async function checkAuth() {
  try {
  const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'same-origin' })
  const data = await res.json()
- authState.value = (data.ok && data.data) ? 'authenticated' : 'unauthenticated'
+ if (data.ok && data.data) {
+ authState.value = 'authenticated'
+ appStore.setAuthUser(data.data)
+ } else {
+ authState.value = 'unauthenticated'
+ }
  } catch {
  authState.value = 'unauthenticated'
  }
@@ -98,12 +103,11 @@ async function checkAuth() {
 
 function onLoginSuccess() {
  authState.value = 'authenticated'
+ appStore.checkAuth()
 }
 
 async function handleLogout() {
- try {
- await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'same-origin' })
- } catch { /* ignore */ }
+ await appStore.logoutAdmin()
  authState.value = 'unauthenticated'
  ElMessage.success('已退出登录')
 }
