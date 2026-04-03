@@ -236,7 +236,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
 	User,
 	Lock,
@@ -456,28 +456,42 @@ const loginAccount = async () => {
 }
 
 const removeAccount = async (index) => {
-	if (confirm('确定要删除这个账号吗？')) {
-		const account = accounts.value[index]
+	const account = accounts.value[index]
+	if (!account) return
 
-		// 从服务器删除账号（会同时删除保存的凭证）
-		try {
-			const response = await fetch(`${API_BASE}/accounts/${account.token}`, {
-				credentials: 'include',
-				method: 'DELETE',
-			})
-
-			if (response.ok) {
-				accounts.value.splice(index, 1)
-				saveAccounts()
-				// 更新保存的凭证列表
-				await loadSavedCredentials()
-			} else {
-				ElMessage.warning('删除失败')
+	try {
+		await ElMessageBox.confirm(
+			'确定要删除这个账号吗？',
+			'确认删除',
+			{
+				type: 'warning',
+				confirmButtonText: '删除',
+				cancelButtonText: '取消',
 			}
-		} catch (error) {
-			console.error('Failed to remove account:', error)
+		)
+	} catch {
+		// user canceled
+		return
+	}
+
+	// 从服务器删除账号（会同时删除保存的凭证）
+	try {
+		const response = await fetch(`${API_BASE}/accounts/${account.token}`, {
+			credentials: 'include',
+			method: 'DELETE',
+		})
+
+		if (response.ok) {
+			accounts.value.splice(index, 1)
+			saveAccounts()
+			// 更新保存的凭证列表
+			await loadSavedCredentials()
+		} else {
 			ElMessage.warning('删除失败')
 		}
+	} catch (error) {
+		console.error('Failed to remove account:', error)
+		ElMessage.warning('删除失败')
 	}
 }
 
