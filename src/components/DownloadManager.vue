@@ -372,6 +372,29 @@
           </el-button>
 
           <el-button
+            :disabled="(!selectedAccount && selectedAccount !== 0) || !appid"
+            type="primary"
+            plain
+            class="w-full action-button"
+            @click="addToBatchDraft"
+          >
+            <template #icon>
+              <el-icon><Plus /></el-icon>
+            </template>
+            添加到批量下载
+          </el-button>
+
+          <el-button
+            v-if="appStore.batchDraftItems.length > 0"
+            type="primary"
+            plain
+            class="w-full action-button"
+            @click="goToBatchTab"
+          >
+            查看批量任务（草稿 {{ appStore.batchDraftItems.length }}）
+          </el-button>
+
+          <el-button
             v-if="!claimRequired"
             :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
             :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
@@ -587,7 +610,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { useAppStore } from '../stores/app'
 import { useNotifications } from '../composables/useNotifications'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, ArrowRight, Download } from '@element-plus/icons-vue'
+import { Search, ArrowRight, Download, Plus } from '@element-plus/icons-vue'
 import { formatRegion } from '../utils/region.js'
 import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 
@@ -851,6 +874,47 @@ const addLog = (message) => {
 const goToAccountTab = () => {
  const appStore = useAppStore()
  appStore.activeTab = 'settings'
+}
+
+// 跳转到批量下载标签页
+const goToBatchTab = () => {
+ appStore.activeTab = 'batch'
+}
+
+// 添加当前选择到批量下载草稿
+const addToBatchDraft = () => {
+ const account = accounts.value[selectedAccount.value]
+ if (!account?.email) {
+ ElMessage.warning('请先选择已登录账号')
+ return
+ }
+ if (!appid.value) {
+ ElMessage.warning('请先填写 APPID')
+ return
+ }
+
+ const app = props.selectedApp || {}
+ const appName = app.trackName || appid.value
+
+ const verObj = versions.value.find(v => v.external_identifier === selectedVersion.value)
+ const versionLabel = selectedVersion.value
+ ? (verObj ? `${verObj.bundle_version} | ${verObj.created_at}` : String(selectedVersion.value))
+ : '最新版本'
+
+ const result = appStore.addBatchDraftItem({
+ app_id: String(appid.value).trim(),
+ app_name: appName,
+ version: selectedVersion.value || null,
+ version_label: versionLabel,
+ account_email: account.email,
+ account_region: account.region || 'US',
+ })
+
+ if (result.updated) {
+ ElMessage.success('已更新批量草稿项')
+ } else if (result.added) {
+ ElMessage.success('已添加到批量下载草稿')
+ }
 }
 
 // Search functionality - 使用所选账号的区域
