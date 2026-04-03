@@ -1,16 +1,19 @@
 <template>
- <div class="app-artwork bg-[var(--card-bg)] rounded-[10px]">
- <img
- v-if="imageSrc && !imageFailed"
- :src="imageSrc"
- :alt="altText"
- class="app-artwork-image"
- @error="imageFailed = true"
- >
- <div v-else class="app-artwork-fallback">
- {{ fallbackText }}
- </div>
- </div>
+  <div class="app-artwork bg-[var(--card-bg)] rounded-[10px]">
+    <img
+      v-if="imageSrc && !imageFailed"
+      :src="imageSrc"
+      :alt="altText"
+      class="app-artwork-image"
+      @error="imageFailed = true"
+    >
+    <div
+      v-else
+      class="app-artwork-fallback"
+    >
+      {{ fallbackText }}
+    </div>
+  </div>
 </template>
 
 <script setup>

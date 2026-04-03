@@ -1,111 +1,305 @@
 <template>
- <div class="space-y-4">
- <div class="card flex flex-wrap items-center justify-between gap-3">
- <div class="flex items-center space-x-3">
- <div class="hero-icon h-12 w-12">
- <svg class="w-6 h-6 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
- <line x1="8"y1="6"x2="21"y2="6"/>
- <line x1="8"y1="12"x2="21"y2="12"/>
- <line x1="8"y1="18"x2="21"y2="18"/>
- <line x1="3"y1="6"x2="3.01"y2="6"/>
- <line x1="3"y1="12"x2="3.01"y2="12"/>
- <line x1="3"y1="18"x2="3.01"y2="18"/>
- </svg>
- </div>
- <div>
- <h2 class="text-xl font-bold text-[var(--text-primary)]">下载队列</h2>
- <p class="text-sm text-[var(--text-secondary)]">{{ currentTasks.length }} 个当前任务 · {{ records.length }} 条记录 · 已占用 {{ formatStorageM(totalStorageBytes) }}</p>
- </div>
- </div>
- <div class="flex gap-2">
- <el-button size="small"plain @click="loadRecords">刷新</el-button>
- <el-button size="small"type="primary"plain @click="cleanupServerFiles">清理服务器文件</el-button>
- </div>
- </div>
+  <div class="space-y-4">
+    <div class="card flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="hero-icon h-12 w-12">
+          <svg
+            class="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <line
+              x1="8"
+              y1="6"
+              x2="21"
+              y2="6"
+            />
+            <line
+              x1="8"
+              y1="12"
+              x2="21"
+              y2="12"
+            />
+            <line
+              x1="8"
+              y1="18"
+              x2="21"
+              y2="18"
+            />
+            <line
+              x1="3"
+              y1="6"
+              x2="3.01"
+              y2="6"
+            />
+            <line
+              x1="3"
+              y1="12"
+              x2="3.01"
+              y2="12"
+            />
+            <line
+              x1="3"
+              y1="18"
+              x2="3.01"
+              y2="18"
+            />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+            下载队列
+          </h2>
+          <p class="text-sm text-[var(--text-secondary)]">
+            {{ currentTasks.length }} 个当前任务 · {{ records.length }} 条记录 · 已占用 {{ formatStorageM(totalStorageBytes) }}
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <el-button
+          size="small"
+          plain
+          @click="loadRecords"
+        >
+          刷新
+        </el-button>
+        <el-button
+          size="small"
+          type="primary"
+          plain
+          @click="cleanupServerFiles"
+        >
+          清理服务器文件
+        </el-button>
+      </div>
+    </div>
 
- <section v-if="currentTasks.length > 0"class="space-y-4">
- <h3 class="text-lg font-semibold text-[var(--text-primary)]">当前任务</h3>
- <div v-for="task in currentTasks":key="task.id"class="queue-row">
- <AppArtwork :src="task.artworkUrl":alt="task.appName":label="task.appName"/>
- <div class="row-main">
- <div class="row-top">
- <div class="min-w-0">
- <div class="row-title">{{ task.appName }}</div>
- <div class="row-meta">
- <span>{{ task.artistName || '未知开发者' }}</span>
- <span>版本 {{ task.version || '未知' }}</span>
- <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
- </div>
- </div>
- <el-tag :type="statusTagType(task.status)"size="small">{{ statusLabel(task.status) }}</el-tag>
- </div>
- <div class="row-info">
- <span v-if="task.fileSize">大小 {{ formatFileSize(task.fileSize) }}</span>
- <span v-if="task.progress !== undefined">进度 {{ task.progress }}%</span>
- <span v-if="task.stage">阶段 {{ task.stage }}</span>
- </div>
- <el-progress v-if="task.status !== 'completed' && task.status !== 'failed' && task.progress !== undefined":percentage="task.progress":stroke-width="6"/>
- <div v-if="task.error"class="row-error">{{ task.error }}</div>
- <div class="row-actions">
- <el-button v-if="task.status === 'completed' && task.downloadUrl"type="primary"size="small"@click="download(task.downloadUrl)">下载</el-button>
- <el-button v-if="task.status === 'completed' && task.otaInstallable && task.installUrl"type="primary"size="small"@click="install(task.installUrl)">安装</el-button>
- <el-tag v-else-if="task.status === 'completed' && task.installMethod === 'download_only'"size="small"type="primary">仅下载</el-tag>
- <el-button size="small"type="primary"plain @click="removeTask(task.id)">{{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}</el-button>
- </div>
- </div>
- </div>
- </section>
+    <section
+      v-if="currentTasks.length > 0"
+      class="space-y-4"
+    >
+      <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+        当前任务
+      </h3>
+      <div
+        v-for="task in currentTasks"
+        :key="task.id"
+        class="queue-row"
+      >
+        <AppArtwork
+          :src="task.artworkUrl"
+          :alt="task.appName"
+          :label="task.appName"
+        />
+        <div class="row-main">
+          <div class="row-top">
+            <div class="min-w-0">
+              <div class="row-title">
+                {{ task.appName }}
+              </div>
+              <div class="row-meta">
+                <span>{{ task.artistName || '未知开发者' }}</span>
+                <span>版本 {{ task.version || '未知' }}</span>
+                <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
+              </div>
+            </div>
+            <el-tag
+              :type="statusTagType(task.status)"
+              size="small"
+            >
+              {{ statusLabel(task.status) }}
+            </el-tag>
+          </div>
+          <div class="row-info">
+            <span v-if="task.fileSize">大小 {{ formatFileSize(task.fileSize) }}</span>
+            <span v-if="task.progress !== undefined">进度 {{ task.progress }}%</span>
+            <span v-if="task.stage">阶段 {{ task.stage }}</span>
+          </div>
+          <el-progress
+            v-if="task.status !== 'completed' && task.status !== 'failed' && task.progress !== undefined"
+            :percentage="task.progress"
+            :stroke-width="6"
+          />
+          <div
+            v-if="task.error"
+            class="row-error"
+          >
+            {{ task.error }}
+          </div>
+          <div class="row-actions">
+            <el-button
+              v-if="task.status === 'completed' && task.downloadUrl"
+              type="primary"
+              size="small"
+              @click="download(task.downloadUrl)"
+            >
+              下载
+            </el-button>
+            <el-button
+              v-if="task.status === 'completed' && task.otaInstallable && task.installUrl"
+              type="primary"
+              size="small"
+              @click="install(task.installUrl)"
+            >
+              安装
+            </el-button>
+            <el-tag
+              v-else-if="task.status === 'completed' && task.installMethod === 'download_only'"
+              size="small"
+              type="primary"
+            >
+              仅下载
+            </el-tag>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              @click="removeTask(task.id)"
+            >
+              {{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </section>
 
- <section v-if="records.length > 0"class="space-y-4">
- <div class="flex items-center justify-between gap-3">
- <h3 class="text-lg font-semibold text-[var(--text-primary)]">下载记录</h3>
- <el-button size="small"type="primary"plain @click="clearAllRecords">清空记录</el-button>
- </div>
- <div v-for="record in records":key="record.id"class="queue-row">
- <AppArtwork :src="record.artworkUrl":alt="record.appName":label="record.appName || 'IPA'"/>
- <div class="row-main">
- <div class="row-top">
- <div class="min-w-0">
- <div class="row-title">{{ record.appName || '未命名 IPA' }}</div>
- <div class="row-meta">
- <span>{{ record.artistName || '未知开发者' }}</span>
- <span>版本 {{ record.version || '未知' }}</span>
- <span>账号 {{ record.accountEmail || '未知账号' }}</span>
- </div>
- </div>
- <el-tag :type="statusTagType(record.status)"size="small">{{ statusLabel(record.status) }}</el-tag>
- </div>
- <div class="row-info">
- <span v-if="record.fileSize">大小 {{ formatFileSize(record.fileSize) }}</span>
- <span>{{ formatDate(record.downloadDate || record.createdAt) }}</span>
- <span>{{ record.fileExists ? '文件在服务器' : '文件缺失' }}</span>
- </div>
- <div v-if="record.error"class="row-error">{{ record.error }}</div>
- <div class="row-actions">
- <el-button v-if="record.downloadUrl && record.fileExists"type="primary"size="small"@click="download(record.downloadUrl)">下载</el-button>
+    <section
+      v-if="records.length > 0"
+      class="space-y-4"
+    >
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+          下载记录
+        </h3>
+        <el-button
+          size="small"
+          type="primary"
+          plain
+          @click="clearAllRecords"
+        >
+          清空记录
+        </el-button>
+      </div>
+      <div
+        v-for="record in records"
+        :key="record.id"
+        class="queue-row"
+      >
+        <AppArtwork
+          :src="record.artworkUrl"
+          :alt="record.appName"
+          :label="record.appName || 'IPA'"
+        />
+        <div class="row-main">
+          <div class="row-top">
+            <div class="min-w-0">
+              <div class="row-title">
+                {{ record.appName || '未命名 IPA' }}
+              </div>
+              <div class="row-meta">
+                <span>{{ record.artistName || '未知开发者' }}</span>
+                <span>版本 {{ record.version || '未知' }}</span>
+                <span>账号 {{ record.accountEmail || '未知账号' }}</span>
+              </div>
+            </div>
+            <el-tag
+              :type="statusTagType(record.status)"
+              size="small"
+            >
+              {{ statusLabel(record.status) }}
+            </el-tag>
+          </div>
+          <div class="row-info">
+            <span v-if="record.fileSize">大小 {{ formatFileSize(record.fileSize) }}</span>
+            <span>{{ formatDate(record.downloadDate || record.createdAt) }}</span>
+            <span>{{ record.fileExists ? '文件在服务器' : '文件缺失' }}</span>
+          </div>
+          <div
+            v-if="record.error"
+            class="row-error"
+          >
+            {{ record.error }}
+          </div>
+          <div class="row-actions">
+            <el-button
+              v-if="record.downloadUrl && record.fileExists"
+              type="primary"
+              size="small"
+              @click="download(record.downloadUrl)"
+            >
+              下载
+            </el-button>
 
- <el-button v-if="record.fileExists && record.otaInstallable && record.installUrl"type="primary"size="small"@click="install(record.installUrl)">安装</el-button>
- <el-tooltip v-else-if="record.fileExists && record.installMethod === 'download_only'":content="record.inspection?.summary || ''":disabled="!record.inspection?.summary"placement="top">
- <span>
- <el-tag size="small"type="primary">仅下载</el-tag>
- </span>
- </el-tooltip>
+            <el-button
+              v-if="record.fileExists && record.otaInstallable && record.installUrl"
+              type="primary"
+              size="small"
+              @click="install(record.installUrl)"
+            >
+              安装
+            </el-button>
+            <el-tooltip
+              v-else-if="record.fileExists && record.installMethod === 'download_only'"
+              :content="record.inspection?.summary || ''"
+              :disabled="!record.inspection?.summary"
+              placement="top"
+            >
+              <span>
+                <el-tag
+                  size="small"
+                  type="primary"
+                >仅下载</el-tag>
+              </span>
+            </el-tooltip>
 
- <el-button v-if="record.fileExists"size="small"type="primary"plain @click="cleanupRecordFile(record)">清理安装包</el-button>
- <el-button size="small"type="primary"plain @click="removeRecord(record.id)">删除记录</el-button>
- </div>
- </div>
- </div>
- </section>
+            <el-button
+              v-if="record.fileExists"
+              size="small"
+              type="primary"
+              plain
+              @click="cleanupRecordFile(record)"
+            >
+              清理安装包
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              @click="removeRecord(record.id)"
+            >
+              删除记录
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </section>
 
- <div v-if="currentTasks.length === 0 && records.length === 0"class="empty-state py-12 text-center text-[var(--text-secondary)]">
- <svg class="mx-auto h-16 w-16 mb-4"fill="none"stroke="currentColor"viewBox="0 0 24 24">
- <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
- </svg>
- <p class="text-lg font-medium">暂无下载任务和记录</p>
- <p class="text-sm mt-2">完成后可在这里查看状态与操作</p>
- </div>
- </div>
+    <div
+      v-if="currentTasks.length === 0 && records.length === 0"
+      class="empty-state py-12 text-center text-[var(--text-secondary)]"
+    >
+      <svg
+        class="mx-auto h-16 w-16 mb-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+      <p class="text-lg font-medium">
+        暂无下载任务和记录
+      </p>
+      <p class="text-sm mt-2">
+        完成后可在这里查看状态与操作
+      </p>
+    </div>
+  </div>
 </template>
 
 <script setup>

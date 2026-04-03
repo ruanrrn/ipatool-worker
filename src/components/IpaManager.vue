@@ -1,120 +1,261 @@
 <template>
- <div class="space-y-4">
- <div class="card flex flex-wrap items-center justify-between gap-3">
- <div class="flex items-center space-x-3">
- <div class="hero-icon h-12 w-12">
- <svg class="w-6 h-6 text-white"fill="none"stroke="currentColor"viewBox="0 0 24 24">
- <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M12 16V4m0 12l-4-4m4 4l4-4M5 20h14"/>
- </svg>
- </div>
- <div>
- <h2 class="text-xl font-bold text-[var(--text-primary)]">IPA 管理</h2>
- <p class="text-sm text-[var(--text-secondary)]">管理服务器上的 IPA 文件 · 已占用 {{ formatStorageM(totalStorageBytes) }}</p>
- </div>
- </div>
- <div class="flex items-center gap-2 flex-wrap">
- <el-checkbox :model-value="allSelected":indeterminate="selectedCount > 0 && !allSelected"@change="toggleSelectAll">
- 全选
- </el-checkbox>
- <el-button size="small"type="primary"plain :disabled="selectedCount === 0"@click="removeSelectedArtifacts">
- 批量清理{{ selectedCount > 0 ? `（${selectedCount}）` : '' }}
- </el-button>
- <el-upload
- :action="uploadUrl"
- :show-file-list="false"
- accept=".ipa"
- :auto-upload="true"
- :on-success="handleUploadSuccess"
- :on-error="handleUploadError"
- :on-progress="handleUploadProgress"
- :before-upload="beforeUpload"
- >
- <el-button :loading="uploading"plain>
- <template #icon>
- <el-icon><UploadFilled /></el-icon>
- </template>
- {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
- </el-button>
- </el-upload>
- <el-button :loading="loading"plain @click="loadArtifacts">刷新</el-button>
- </div>
- </div>
+  <div class="space-y-4">
+    <div class="card flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="hero-icon h-12 w-12">
+          <svg
+            class="w-6 h-6 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 16V4m0 12l-4-4m4 4l4-4M5 20h14"
+            />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+            IPA 管理
+          </h2>
+          <p class="text-sm text-[var(--text-secondary)]">
+            管理服务器上的 IPA 文件 · 已占用 {{ formatStorageM(totalStorageBytes) }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <el-checkbox
+          :model-value="allSelected"
+          :indeterminate="selectedCount > 0 && !allSelected"
+          @change="toggleSelectAll"
+        >
+          全选
+        </el-checkbox>
+        <el-button
+          size="small"
+          type="primary"
+          plain
+          :disabled="selectedCount === 0"
+          @click="removeSelectedArtifacts"
+        >
+          批量清理{{ selectedCount > 0 ? `（${selectedCount}）` : '' }}
+        </el-button>
+        <el-upload
+          :action="uploadUrl"
+          :show-file-list="false"
+          accept=".ipa"
+          :auto-upload="true"
+          :on-success="handleUploadSuccess"
+          :on-error="handleUploadError"
+          :on-progress="handleUploadProgress"
+          :before-upload="beforeUpload"
+        >
+          <el-button
+            :loading="uploading"
+            plain
+          >
+            <template #icon>
+              <el-icon><UploadFilled /></el-icon>
+            </template>
+            {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
+          </el-button>
+        </el-upload>
+        <el-button
+          :loading="loading"
+          plain
+          @click="loadArtifacts"
+        >
+          刷新
+        </el-button>
+      </div>
+    </div>
 
- <div v-if="artifacts.length > 0"class="space-y-4">
- <div v-for="item in artifacts":key="item.id"class="artifact-row">
- <div class="artifact-check">
- <el-checkbox :model-value="selectedIds.includes(item.id)"@change="(checked) => toggleArtifact(item.id, checked)"/>
- </div>
- <AppArtwork :src="item.artworkUrl":alt="item.appName":label="item.appName || item.fileName"/>
- <div class="artifact-main">
- <div class="artifact-top">
- <div class="min-w-0">
- <div class="artifact-title">{{ item.appName || item.fileName }}</div>
- <div class="artifact-meta">
- <span>{{ item.artistName || '未知开发者' }}</span>
- <span>版本 {{ item.version || '未知' }}</span>
- <span>账号 {{ item.accountEmail || '未知账号' }}</span>
- <span>{{ formatFileSize(item.fileSize) }}</span>
- </div>
- </div>
- <el-tag size="small"type="primary">{{ formatDate(item.modifiedAt) }}</el-tag>
- </div>
- <div class="artifact-path">{{ item.filePath }}</div>
- <div class="artifact-actions">
- <el-button type="primary"size="small"@click="download(item.downloadUrl)">下载</el-button>
+    <div
+      v-if="artifacts.length > 0"
+      class="space-y-4"
+    >
+      <div
+        v-for="item in artifacts"
+        :key="item.id"
+        class="artifact-row"
+      >
+        <div class="artifact-check">
+          <el-checkbox
+            :model-value="selectedIds.includes(item.id)"
+            @change="(checked) => toggleArtifact(item.id, checked)"
+          />
+        </div>
+        <AppArtwork
+          :src="item.artworkUrl"
+          :alt="item.appName"
+          :label="item.appName || item.fileName"
+        />
+        <div class="artifact-main">
+          <div class="artifact-top">
+            <div class="min-w-0">
+              <div class="artifact-title">
+                {{ item.appName || item.fileName }}
+              </div>
+              <div class="artifact-meta">
+                <span>{{ item.artistName || '未知开发者' }}</span>
+                <span>版本 {{ item.version || '未知' }}</span>
+                <span>账号 {{ item.accountEmail || '未知账号' }}</span>
+                <span>{{ formatFileSize(item.fileSize) }}</span>
+              </div>
+            </div>
+            <el-tag
+              size="small"
+              type="primary"
+            >
+              {{ formatDate(item.modifiedAt) }}
+            </el-tag>
+          </div>
+          <div class="artifact-path">
+            {{ item.filePath }}
+          </div>
+          <div class="artifact-actions">
+            <el-button
+              type="primary"
+              size="small"
+              @click="download(item.downloadUrl)"
+            >
+              下载
+            </el-button>
 
- <el-button v-if="item.otaInstallable && item.installUrl"type="primary"size="small"@click="install(item.installUrl)">安装</el-button>
- <el-tooltip v-else-if="item.installMethod === 'download_only' && item.inspection":content="item.inspection.summary"placement="top">
- <span>
- <el-tag size="small"type="primary">仅下载</el-tag>
- </span>
- </el-tooltip>
- <el-tag v-else-if="item.installMethod === 'download_only'"size="small"type="primary">仅下载</el-tag>
- <el-button v-else type="primary"size="small"disabled>安装</el-button>
+            <el-button
+              v-if="item.otaInstallable && item.installUrl"
+              type="primary"
+              size="small"
+              @click="install(item.installUrl)"
+            >
+              安装
+            </el-button>
+            <el-tooltip
+              v-else-if="item.installMethod === 'download_only' && item.inspection"
+              :content="item.inspection.summary"
+              placement="top"
+            >
+              <span>
+                <el-tag
+                  size="small"
+                  type="primary"
+                >仅下载</el-tag>
+              </span>
+            </el-tooltip>
+            <el-tag
+              v-else-if="item.installMethod === 'download_only'"
+              size="small"
+              type="primary"
+            >
+              仅下载
+            </el-tag>
+            <el-button
+              v-else
+              type="primary"
+              size="small"
+              disabled
+            >
+              安装
+            </el-button>
 
- <el-button type="primary"size="small"plain @click="removeArtifact(item)">删除</el-button>
- </div>
- </div>
- </div>
- </div>
+            <el-button
+              type="primary"
+              size="small"
+              plain
+              @click="removeArtifact(item)"
+            >
+              删除
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
 
- <div v-else class="empty-state py-14 text-center text-[var(--text-secondary)]">
- <svg class="mx-auto h-16 w-16 mb-4"fill="none"stroke="currentColor"viewBox="0 0 24 24">
- <path stroke-linecap="round"stroke-linejoin="round"stroke-width="2"d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
- </svg>
- <p class="text-lg font-medium">暂无 IPA 文件</p>
- <p class="text-sm mt-2">下载完成后会出现在这里</p>
- </div>
+    <div
+      v-else
+      class="empty-state py-14 text-center text-[var(--text-secondary)]"
+    >
+      <svg
+        class="mx-auto h-16 w-16 mb-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+        />
+      </svg>
+      <p class="text-lg font-medium">
+        暂无 IPA 文件
+      </p>
+      <p class="text-sm mt-2">
+        下载完成后会出现在这里
+      </p>
+    </div>
 
- <div v-if="uploading"class="-mt-2">
- <el-progress :percentage="uploadProgress":stroke-width="8"/>
- </div>
+    <div
+      v-if="uploading"
+      class="-mt-2"
+    >
+      <el-progress
+        :percentage="uploadProgress"
+        :stroke-width="8"
+      />
+    </div>
 
- <el-dialog
- v-model="deleteDialogVisible"
- title="确认删除 IPA"
- width="min(92vw, 420px)"
- :close-on-click-modal="false"
- :close-on-press-escape="!deletingArtifact"
- :show-close="!deletingArtifact"
- destroy-on-close
- >
- <div class="space-y-3 text-sm">
- <p class="text-[var(--text-primary)]">确定删除这个 IPA 文件吗？</p>
- <div v-if="pendingDeleteItem"class="inline-panel rounded-[12px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all">
- <div class="font-medium text-gray-900 dark:text-gray-100">{{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}</div>
- <div class="mt-1">{{ pendingDeleteItem.filePath }}</div>
- </div>
- <p class="text-xs text-[var(--text-secondary)]">只删除服务器上的这个 IPA 文件，不清数据库。</p>
- </div>
- <template #footer>
- <div class="flex justify-end gap-2">
- <el-button :disabled="deletingArtifact"@click="closeDeleteDialog">取消</el-button>
- <el-button type="primary":loading="deletingArtifact"@click="confirmDeleteArtifact">删除</el-button>
- </div>
- </template>
- </el-dialog>
- </div>
+    <el-dialog
+      v-model="deleteDialogVisible"
+      title="确认删除 IPA"
+      width="min(92vw, 420px)"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!deletingArtifact"
+      :show-close="!deletingArtifact"
+      destroy-on-close
+    >
+      <div class="space-y-3 text-sm">
+        <p class="text-[var(--text-primary)]">
+          确定删除这个 IPA 文件吗？
+        </p>
+        <div
+          v-if="pendingDeleteItem"
+          class="inline-panel rounded-[12px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all"
+        >
+          <div class="font-medium text-gray-900 dark:text-gray-100">
+            {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
+          </div>
+          <div class="mt-1">
+            {{ pendingDeleteItem.filePath }}
+          </div>
+        </div>
+        <p class="text-xs text-[var(--text-secondary)]">
+          只删除服务器上的这个 IPA 文件，不清数据库。
+        </p>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <el-button
+            :disabled="deletingArtifact"
+            @click="closeDeleteDialog"
+          >
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="deletingArtifact"
+            @click="confirmDeleteArtifact"
+          >
+            删除
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>

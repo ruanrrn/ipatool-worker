@@ -1,567 +1,584 @@
 <template>
- <div class="card">
- <div class="flex items-center space-x-3 mb-6">
- <div class="hero-icon h-12 w-12">
- <svg
- class="w-6 h-6 text-white"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
- />
- </svg>
- </div>
- <div>
- <h2 class="text-xl font-bold text-[var(--text-primary)]">
- 下载与签名
- </h2>
- <p class="text-sm text-[var(--text-secondary)]">
- 搜索应用、查询版本并下载IPA文件
- </p>
- </div>
- </div>
+  <div class="card">
+    <div class="flex items-center space-x-3 mb-6">
+      <div class="hero-icon h-12 w-12">
+        <svg
+          class="w-6 h-6 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+          />
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-[var(--text-primary)]">
+          下载与签名
+        </h2>
+        <p class="text-sm text-[var(--text-secondary)]">
+          搜索应用、查询版本并下载IPA文件
+        </p>
+      </div>
+    </div>
 
- <!-- Search Section -->
- <div class="space-y-4 mb-6">
- <!-- 账号选择提示 -->
- <div
- v-if="accounts.length === 0"
- class="status-panel p-4"
- >
- <div class="flex items-start space-x-3">
- <svg
- class="w-5 h-5 text-[var(--text-secondary)] mt-0.5"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
- />
- </svg>
- <div class="flex-1">
- <h4 class="font-semibold text-[var(--text-primary)]">
- 需要先登录账号
- </h4>
- <p class="text-sm text-[var(--text-secondary)] mt-1">
- 请先在"账号"标签页登录 Apple ID 账号，然后才能搜索应用。
- </p>
- <el-button 
- type="primary"
- size="small"
- class="mt-2"
- plain
- @click="goToAccountTab"
- >
- 前往登录
- </el-button>
- </div>
- </div>
- </div>
+    <!-- Search Section -->
+    <div class="space-y-4 mb-6">
+      <!-- 账号选择提示 -->
+      <div
+        v-if="accounts.length === 0"
+        class="status-panel p-4"
+      >
+        <div class="flex items-start space-x-3">
+          <svg
+            class="w-5 h-5 text-[var(--text-secondary)] mt-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <div class="flex-1">
+            <h4 class="font-semibold text-[var(--text-primary)]">
+              需要先登录账号
+            </h4>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">
+              请先在"账号"标签页登录 Apple ID 账号，然后才能搜索应用。
+            </p>
+            <el-button 
+              type="primary"
+              size="small"
+              class="mt-2"
+              plain
+              @click="goToAccountTab"
+            >
+              前往登录
+            </el-button>
+          </div>
+        </div>
+      </div>
 
- <!-- 账号选择区域 -->
- <div
- v-else
- class="status-panel p-4"
- >
- <div class="flex items-center justify-between gap-2">
- <div class="flex items-center space-x-2 min-w-0">
- <svg
- class="w-4 h-4 flex-shrink-0 text-[var(--accent-blue)]"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
- />
- </svg>
- <span class="text-[13px] text-[var(--text-secondary)] whitespace-nowrap">
- 搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
- </span>
- </div>
- <el-select 
- v-model="selectedAccount"
- placeholder="选择账号"
- class="account-quick-select"
- size="small"
- @change="handleAccountChange"
- >
- <el-option
- v-for="(account, index) in accounts"
- :key="index"
- :label="account.email"
- :value="index"
- >
- <div class="account-option-row">
- <span class="account-option-email">{{ account.email }}</span>
- <span
- class="region-badge-mini"
- :class="`region-${(account.region || 'US').toLowerCase()}`"
- >
- {{ getRegionLabel(account.region || 'US') }}
- </span>
- </div>
- </el-option>
- </el-select>
- </div>
- </div>
+      <!-- 账号选择区域 -->
+      <div
+        v-else
+        class="status-panel p-4"
+      >
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center space-x-2 min-w-0">
+            <svg
+              class="w-4 h-4 flex-shrink-0 text-[var(--accent-blue)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span class="text-[13px] text-[var(--text-secondary)] whitespace-nowrap">
+              搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
+            </span>
+          </div>
+          <el-select 
+            v-model="selectedAccount"
+            placeholder="选择账号"
+            class="account-quick-select"
+            size="small"
+            @change="handleAccountChange"
+          >
+            <el-option
+              v-for="(account, index) in accounts"
+              :key="index"
+              :label="account.email"
+              :value="index"
+            >
+              <div class="account-option-row">
+                <span class="account-option-email">{{ account.email }}</span>
+                <span
+                  class="region-badge-mini"
+                  :class="`region-${(account.region || 'US').toLowerCase()}`"
+                >
+                  {{ getRegionLabel(account.region || 'US') }}
+                </span>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
+      </div>
 
- <!-- Search Mode Toggle -->
- <div class="inline-panel mb-3 flex items-center space-x-4 rounded-[12px] p-3">
- <label class="flex items-center space-x-2 cursor-pointer">
- <input
- v-model="searchMode"
- type="radio"
- value="search"
- class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
- >
- <span class="text-sm font-medium text-[var(--text-primary)]">搜索应用</span>
- </label>
- <label class="flex items-center space-x-2 cursor-pointer">
- <input
- v-model="searchMode"
- type="radio"
- value="appid"
- class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
- >
- <span class="text-sm font-medium text-[var(--text-primary)]">直接输入 App ID</span>
- </label>
- </div>
+      <!-- Search Mode Toggle -->
+      <div class="inline-panel mb-3 flex items-center space-x-4 rounded-[12px] p-3">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            v-model="searchMode"
+            type="radio"
+            value="search"
+            class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
+          >
+          <span class="text-sm font-medium text-[var(--text-primary)]">搜索应用</span>
+        </label>
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            v-model="searchMode"
+            type="radio"
+            value="appid"
+            class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
+          >
+          <span class="text-sm font-medium text-[var(--text-primary)]">直接输入 App ID</span>
+        </label>
+      </div>
 
- <el-input
- v-model="searchQuery"
- :placeholder="searchMode === 'search' ? '搜索应用名称、Bundle ID 或 App ID...' : '输入 App ID（纯数字）...'"
- :prefix-icon="Search"
- :loading="searching"
- :disabled="accounts.length === 0"
- clearable
- size="large"
- class="search-input"
- @input="handleSearch"
- @keyup.enter="handleSearch"
- />
+      <el-input
+        v-model="searchQuery"
+        :placeholder="searchMode === 'search' ? '搜索应用名称、Bundle ID 或 App ID...' : '输入 App ID（纯数字）...'"
+        :prefix-icon="Search"
+        :loading="searching"
+        :disabled="accounts.length === 0"
+        clearable
+        size="large"
+        class="search-input"
+        @input="handleSearch"
+        @keyup.enter="handleSearch"
+      />
 
- <!-- Direct App ID Confirm Button -->
- <div
- v-if="searchMode === 'appid' && searchQuery && /^\d+$/.test(searchQuery.trim()) && !searching"
- class="status-panel mt-3 flex items-center justify-between p-4"
- >
- <div class="flex-1">
- <p class="text-sm font-medium text-[var(--text-secondary)]">
- App ID: <span class="font-bold">{{ searchQuery.trim() }}</span>
- </p>
- <p class="text-xs text-[var(--text-secondary)] mt-1">
- 即使未找到应用信息，也可以继续查询版本号
- </p>
- </div>
- <el-button
- type="primary"
- size="default"
- @click="confirmDirectAppId"
- >
- 确认并继续
- </el-button>
- </div>
+      <!-- Direct App ID Confirm Button -->
+      <div
+        v-if="searchMode === 'appid' && searchQuery && /^\d+$/.test(searchQuery.trim()) && !searching"
+        class="status-panel mt-3 flex items-center justify-between p-4"
+      >
+        <div class="flex-1">
+          <p class="text-sm font-medium text-[var(--text-secondary)]">
+            App ID: <span class="font-bold">{{ searchQuery.trim() }}</span>
+          </p>
+          <p class="text-xs text-[var(--text-secondary)] mt-1">
+            即使未找到应用信息，也可以继续查询版本号
+          </p>
+        </div>
+        <el-button
+          type="primary"
+          size="default"
+          @click="confirmDirectAppId"
+        >
+          确认并继续
+        </el-button>
+      </div>
 
- <!-- Search Results -->
- <el-scrollbar
- v-if="searchResults.length > 0"
- max-height="256px"
- >
- <div class="space-y-2">
- <div
- v-for="app in searchResults"
- :key="app.trackId"
- class="search-result-item flex cursor-pointer items-center space-x-4 rounded-[12px] p-3 transition-all duration-200"
- @click="selectApp(app)"
- >
- <img 
- :src="app.artworkUrl100 || app.artworkUrl60"
- :alt="app.trackName"
- class="w-12 h-12 rounded-lg object-cover"
- >
- <div class="flex-1 min-w-0">
- <h3 class="font-semibold text-[var(--text-primary)] truncate text-sm">
- {{ app.trackName }}
- </h3>
- <p class="text-xs text-[var(--text-secondary)]">
- {{ app.artistName }}
- </p>
- </div>
- <el-icon class="w-5 h-5 text-gray-400 flex-shrink-0">
- <ArrowRight />
- </el-icon>
- </div>
- </div>
- </el-scrollbar>
- </div>
+      <!-- Search Results -->
+      <el-scrollbar
+        v-if="searchResults.length > 0"
+        max-height="256px"
+      >
+        <div class="space-y-2">
+          <div
+            v-for="app in searchResults"
+            :key="app.trackId"
+            class="search-result-item flex cursor-pointer items-center space-x-4 rounded-[12px] p-3 transition-all duration-200"
+            @click="selectApp(app)"
+          >
+            <img 
+              :src="app.artworkUrl100 || app.artworkUrl60"
+              :alt="app.trackName"
+              class="w-12 h-12 rounded-lg object-cover"
+            >
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold text-[var(--text-primary)] truncate text-sm">
+                {{ app.trackName }}
+              </h3>
+              <p class="text-xs text-[var(--text-secondary)]">
+                {{ app.artistName }}
+              </p>
+            </div>
+            <el-icon class="w-5 h-5 text-gray-400 flex-shrink-0">
+              <ArrowRight />
+            </el-icon>
+          </div>
+        </div>
+      </el-scrollbar>
+    </div>
 
- <div
- v-if="selectedApp"
- class="space-y-4"
- >
- <!-- Selected App Info -->
- <div class="selected-app-card selected-app-card p-4">
- <div class="flex items-center space-x-4">
- <img 
- v-if="!selectedApp.isDirectAppId"
- :src="selectedApp.artworkUrl100 || selectedApp.artworkUrl60"
- :alt="selectedApp.trackName"
- class="w-16 h-16 rounded-[20px] object-cover"
- >
- <div 
- v-else
- class="w-16 h-16 rounded-[10px] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
- >
- <svg
- class="w-8 h-8 text-white"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
- />
- </svg>
- </div>
- <div class="flex-1">
- <h3 class="font-semibold text-[var(--text-primary)]">
- {{ selectedApp.trackName }}
- </h3>
- <p class="text-sm text-[var(--text-secondary)]">
- {{ selectedApp.artistName }}
- </p>
- <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
- 版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
- <span
- v-if="selectedApp.isDirectAppId"
- class="ml-2 px-2 py-0.5 inline-panel rounded-[10px] text-xs"
- >
- 直接输入
- </span>
- </p>
- <div class="selected-app-badges mt-2">
- <span class="selected-app-badge">价格：{{ getSelectedAppPriceLabel() }}</span>
- <span class="selected-app-badge">大小：{{ getSelectedAppSizeLabel() }}</span>
- <span class="selected-app-badge">购买状态：{{ getPurchaseBehaviorLabel() }}</span>
- </div>
- </div>
- </div>
- </div>
+    <div
+      v-if="selectedApp"
+      class="space-y-4"
+    >
+      <!-- Selected App Info -->
+      <div class="selected-app-card selected-app-card p-4">
+        <div class="flex items-center space-x-4">
+          <img 
+            v-if="!selectedApp.isDirectAppId"
+            :src="selectedApp.artworkUrl100 || selectedApp.artworkUrl60"
+            :alt="selectedApp.trackName"
+            class="w-16 h-16 rounded-[20px] object-cover"
+          >
+          <div 
+            v-else
+            class="w-16 h-16 rounded-[10px] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
+          >
+            <svg
+              class="w-8 h-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-semibold text-[var(--text-primary)]">
+              {{ selectedApp.trackName }}
+            </h3>
+            <p class="text-sm text-[var(--text-secondary)]">
+              {{ selectedApp.artistName }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
+              <span
+                v-if="selectedApp.isDirectAppId"
+                class="ml-2 px-2 py-0.5 inline-panel rounded-[10px] text-xs"
+              >
+                直接输入
+              </span>
+            </p>
+            <div class="selected-app-badges mt-2">
+              <span class="selected-app-badge">价格：{{ getSelectedAppPriceLabel() }}</span>
+              <span class="selected-app-badge">大小：{{ getSelectedAppSizeLabel() }}</span>
+              <span class="selected-app-badge">购买状态：{{ getPurchaseBehaviorLabel() }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
- <!-- Download Options -->
- <div class="space-y-3">
- <div>
- <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
- 选择账号
- <span
- v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
- class="ml-2 text-xs px-2 py-1 inline-panel rounded-[10px]"
- >
- 商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
- </span>
- </label>
- <el-select 
- v-model="selectedAccount"
- placeholder="请先登录账号"
- class="w-full form-select"
- :disabled="accounts.length === 0"
- @change="handleAccountChange"
- >
- <el-option
- v-for="(account, index) in accounts"
- :key="index"
- :label="account.email"
- :value="index"
- >
- <div class="flex items-center justify-between w-full">
- <span class="flex-1 truncate">{{ account.email }}</span>
- <span
- class="region-badge ml-2"
- :class="`region-${(account.region || 'US').toLowerCase()}`"
- >
- {{ getRegionLabel(account.region || 'US') }}
- </span>
- </div>
- </el-option>
- </el-select>
- <p
- v-if="accounts.length === 0"
- class="text-xs text-[var(--text-secondary)] mt-1"
- >
- ⚠️ 请先登录账号
- </p>
- <p
- v-else
- class="text-xs text-[var(--text-secondary)] mt-1"
- >
- ✅ 搜索和下载将使用此账号的 {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }} 商店
- </p>
- </div>
+      <!-- Download Options -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
+            选择账号
+            <span
+              v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
+              class="ml-2 text-xs px-2 py-1 inline-panel rounded-[10px]"
+            >
+              商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
+            </span>
+          </label>
+          <el-select 
+            v-model="selectedAccount"
+            placeholder="请先登录账号"
+            class="w-full form-select"
+            :disabled="accounts.length === 0"
+            @change="handleAccountChange"
+          >
+            <el-option
+              v-for="(account, index) in accounts"
+              :key="index"
+              :label="account.email"
+              :value="index"
+            >
+              <div class="flex items-center justify-between w-full">
+                <span class="flex-1 truncate">{{ account.email }}</span>
+                <span
+                  class="region-badge ml-2"
+                  :class="`region-${(account.region || 'US').toLowerCase()}`"
+                >
+                  {{ getRegionLabel(account.region || 'US') }}
+                </span>
+              </div>
+            </el-option>
+          </el-select>
+          <p
+            v-if="accounts.length === 0"
+            class="text-xs text-[var(--text-secondary)] mt-1"
+          >
+            ⚠️ 请先登录账号
+          </p>
+          <p
+            v-else
+            class="text-xs text-[var(--text-secondary)] mt-1"
+          >
+            ✅ 搜索和下载将使用此账号的 {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }} 商店
+          </p>
+        </div>
 
- <div>
- <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">APPID</label>
- <el-input
- v-model="appid"
- placeholder="例如：1160172628"
- class="form-input"
- />
- </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">APPID</label>
+          <el-input
+            v-model="appid"
+            placeholder="例如：1160172628"
+            class="form-input"
+          />
+        </div>
 
- <div>
- <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">版本（历史版本下拉）</label>
- <el-select 
- v-model="selectedVersion"
- placeholder="请先查询版本"
- class="w-full form-select"
- :disabled="!versionsFetched"
- :loading="fetchingVersions"
- @change="handleVersionChange"
- >
- <el-option
- v-for="version in versions"
- :key="version.external_identifier"
- :label="`${version.bundle_version} | ${version.created_at}`"
- :value="version.external_identifier"
- />
- </el-select>
- </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">版本（历史版本下拉）</label>
+          <el-select 
+            v-model="selectedVersion"
+            placeholder="请先查询版本"
+            class="w-full form-select"
+            :disabled="!versionsFetched"
+            :loading="fetchingVersions"
+            @change="handleVersionChange"
+          >
+            <el-option
+              v-for="version in versions"
+              :key="version.external_identifier"
+              :label="`${version.bundle_version} | ${version.created_at}`"
+              :value="version.external_identifier"
+            />
+          </el-select>
+        </div>
 
- <div>
- <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">appVerId（自动填充）</label>
- <el-input
- v-model="appVerId"
- placeholder="external_identifier"
- readonly
- class="form-input"
- />
- </div>
+        <div>
+          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">appVerId（自动填充）</label>
+          <el-input
+            v-model="appVerId"
+            placeholder="external_identifier"
+            readonly
+            class="form-input"
+          />
+        </div>
 
- <el-space
- direction="vertical"
- :size="12"
- fill
- style="width: 100%"
- >
- <el-button
- :disabled="!appid || fetchingVersions"
- :loading="fetchingVersions"
- type="primary"
- class="w-full action-button"
- @click="fetchVersions"
- >
- <template #icon>
- <el-icon><Search /></el-icon>
- </template>
- 查询版本
- </el-button>
+        <el-space
+          direction="vertical"
+          :size="12"
+          fill
+          style="width: 100%"
+        >
+          <el-button
+            :disabled="!appid || fetchingVersions"
+            :loading="fetchingVersions"
+            type="primary"
+            class="w-full action-button"
+            @click="fetchVersions"
+          >
+            <template #icon>
+              <el-icon><Search /></el-icon>
+            </template>
+            查询版本
+          </el-button>
 
- <el-button
- v-if="!claimRequired"
- :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
- :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
- :title="downloadBlockedReason"
- type="primary"
- class="w-full action-button"
- @click="directLinkDownload"
- >
- <template #icon>
- <el-icon><Download /></el-icon>
- </template>
- 直链下载（仅下载文件）
- </el-button>
+          <el-button
+            v-if="!claimRequired"
+            :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+            :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
+            :title="downloadBlockedReason"
+            type="primary"
+            class="w-full action-button"
+            @click="directLinkDownload"
+          >
+            <template #icon>
+              <el-icon><Download /></el-icon>
+            </template>
+            直链下载（仅下载文件）
+          </el-button>
 
- <el-button
- v-if="!claimRequired"
- :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
- :loading="downloading"
- :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
- :title="downloadBlockedReason"
- type="primary"
- class="w-full action-button"
- @click="startDownloadWithProgress"
- >
- <template #icon>
- <el-icon><Download /></el-icon>
- </template>
- {{ downloading ? '处理中...' : '下载到服务器' }}
- </el-button>
+          <el-button
+            v-if="!claimRequired"
+            :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+            :loading="downloading"
+            :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
+            :title="downloadBlockedReason"
+            type="primary"
+            class="w-full action-button"
+            @click="startDownloadWithProgress"
+          >
+            <template #icon>
+              <el-icon><Download /></el-icon>
+            </template>
+            {{ downloading ? '处理中...' : '下载到服务器' }}
+          </el-button>
 
- <div v-if="purchaseRequired"class="download-disabled-hint">
- ⚠️ {{ downloadBlockedReason }}
- </div>
+          <div
+            v-if="purchaseRequired"
+            class="download-disabled-hint"
+          >
+            ⚠️ {{ downloadBlockedReason }}
+          </div>
 
- <el-button
- v-if="purchaseRequired"
- :disabled="!selectedAccount && selectedAccount !== 0"
- type="primary"
- class="w-full action-button"
- @click="buyOrClaimSelectedApp"
- >
- <template #icon>
- <el-icon><ArrowRight /></el-icon>
- </template>
- {{ purchaseActionLabel }}
- </el-button>
+          <el-button
+            v-if="purchaseRequired"
+            :disabled="!selectedAccount && selectedAccount !== 0"
+            type="primary"
+            class="w-full action-button"
+            @click="buyOrClaimSelectedApp"
+          >
+            <template #icon>
+              <el-icon><ArrowRight /></el-icon>
+            </template>
+            {{ purchaseActionLabel }}
+          </el-button>
+        </el-space>
+      </div>
 
- </el-space>
- </div>
-
- <!-- Progress Box -->
- <el-card
- v-if="showProgress"
- class="mt-4"
- shadow="never"
- >
- <div class="flex justify-between items-center mb-2">
- <span class="text-sm font-medium text-[var(--text-primary)]">{{ progressStage }}</span>
- <span class="text-sm font-bold text-[var(--accent-blue)]">{{ progressPercent }}%</span>
- </div>
- <el-progress 
- :percentage="progressPercent"
- :stroke-width="10"
- class="mb-3"
- />
- <el-scrollbar max-height="160px">
- <pre class="log-container rounded-[12px] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
- </el-scrollbar>
+      <!-- Progress Box -->
+      <el-card
+        v-if="showProgress"
+        class="mt-4"
+        shadow="never"
+      >
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-medium text-[var(--text-primary)]">{{ progressStage }}</span>
+          <span class="text-sm font-bold text-[var(--accent-blue)]">{{ progressPercent }}%</span>
+        </div>
+        <el-progress 
+          :percentage="progressPercent"
+          :stroke-width="10"
+          class="mb-3"
+        />
+        <el-scrollbar max-height="160px">
+          <pre class="log-container rounded-[12px] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
+        </el-scrollbar>
  
- <div
- v-if="showActionButtons && (downloadReadyUrl || downloadInstallUrl)"
- class="mt-4 space-y-3"
- >
- <!-- Environment Warning -->
- <div
- v-if="!isHttps && currentProtocol !== 'http:'"
- class="status-panel mb-3 p-3"
- >
- <div class="flex items-start space-x-2">
- <svg
- class="w-5 h-5 text-[var(--text-secondary)] mt-0.5 flex-shrink-0"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
- />
- </svg>
- <div class="flex-1">
- <p class="text-sm text-[var(--text-secondary)] font-medium">
- 环境检测
- </p>
- <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
- 当前协议: {{ currentProtocol || '未知' }} | iOS 安装需要 HTTPS 环境
- </p>
- </div>
- </div>
- </div>
+        <div
+          v-if="showActionButtons && (downloadReadyUrl || downloadInstallUrl)"
+          class="mt-4 space-y-3"
+        >
+          <!-- Environment Warning -->
+          <div
+            v-if="!isHttps && currentProtocol !== 'http:'"
+            class="status-panel mb-3 p-3"
+          >
+            <div class="flex items-start space-x-2">
+              <svg
+                class="w-5 h-5 text-[var(--text-secondary)] mt-0.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <div class="flex-1">
+                <p class="text-sm text-[var(--text-secondary)] font-medium">
+                  环境检测
+                </p>
+                <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                  当前协议: {{ currentProtocol || '未知' }} | iOS 安装需要 HTTPS 环境
+                </p>
+              </div>
+            </div>
+          </div>
  
- <div class="grid gap-3 sm:grid-cols-2">
- <el-button
- v-if="downloadReadyUrl"
- type="primary"
- size="large"
- class="w-full"
- @click="downloadCompletedIpa"
- >
- <template #icon>
- <el-icon><Download /></el-icon>
- </template>
- 下载 IPA{{ downloadReadyFileSize ? `（${formatFileSize(downloadReadyFileSize)}）` : '' }}
- </el-button>
- <a
- v-if="downloadOtaInstallable && downloadInstallUrl && isHttps"
- :href="downloadInstallUrl"
- class="block w-full"
- >
- <el-button
- type="primary"
- size="large"
- class="w-full"
- >
- <template #icon>
- <el-icon><Download /></el-icon>
- </template>
- 安装到设备
- </el-button>
- </a>
- <el-button
- v-else-if="downloadOtaInstallable && downloadInstallUrl"
- type="primary"
- size="large"
- class="w-full"
- @click="installDownloadedIpa"
- >
- <template #icon>
- <el-icon><Download /></el-icon>
- </template>
- 安装到设备
- </el-button>
- <el-tooltip v-else-if="downloadInstallMethod === 'download_only' && downloadInspection && downloadInspection.summary":content="downloadInspection.summary"placement="top">
- <span class="block w-full">
- <el-tag size="large"type="primary"class="w-full text-center">仅下载</el-tag>
- </span>
- </el-tooltip>
- <el-tag v-else-if="downloadInstallMethod === 'download_only'"size="large"type="primary"class="w-full text-center">仅下载</el-tag>
- </div>
- <p class="text-xs text-[var(--text-secondary)] text-center">
- 下载和安装已分离，请按需手动操作
- </p>
- <p
- v-if="downloadInstallUrl && !isHttps"
- class="text-xs text-[var(--text-secondary)] mt-1 text-center"
- >
- ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
- </p>
- </div>
- </el-card>
- </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <el-button
+              v-if="downloadReadyUrl"
+              type="primary"
+              size="large"
+              class="w-full"
+              @click="downloadCompletedIpa"
+            >
+              <template #icon>
+                <el-icon><Download /></el-icon>
+              </template>
+              下载 IPA{{ downloadReadyFileSize ? `（${formatFileSize(downloadReadyFileSize)}）` : '' }}
+            </el-button>
+            <a
+              v-if="downloadOtaInstallable && downloadInstallUrl && isHttps"
+              :href="downloadInstallUrl"
+              class="block w-full"
+            >
+              <el-button
+                type="primary"
+                size="large"
+                class="w-full"
+              >
+                <template #icon>
+                  <el-icon><Download /></el-icon>
+                </template>
+                安装到设备
+              </el-button>
+            </a>
+            <el-button
+              v-else-if="downloadOtaInstallable && downloadInstallUrl"
+              type="primary"
+              size="large"
+              class="w-full"
+              @click="installDownloadedIpa"
+            >
+              <template #icon>
+                <el-icon><Download /></el-icon>
+              </template>
+              安装到设备
+            </el-button>
+            <el-tooltip
+              v-else-if="downloadInstallMethod === 'download_only' && downloadInspection && downloadInspection.summary"
+              :content="downloadInspection.summary"
+              placement="top"
+            >
+              <span class="block w-full">
+                <el-tag
+                  size="large"
+                  type="primary"
+                  class="w-full text-center"
+                >仅下载</el-tag>
+              </span>
+            </el-tooltip>
+            <el-tag
+              v-else-if="downloadInstallMethod === 'download_only'"
+              size="large"
+              type="primary"
+              class="w-full text-center"
+            >
+              仅下载
+            </el-tag>
+          </div>
+          <p class="text-xs text-[var(--text-secondary)] text-center">
+            下载和安装已分离，请按需手动操作
+          </p>
+          <p
+            v-if="downloadInstallUrl && !isHttps"
+            class="text-xs text-[var(--text-secondary)] mt-1 text-center"
+          >
+            ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
+          </p>
+        </div>
+      </el-card>
+    </div>
 
- <!-- Empty State -->
- <div
- v-else-if="!searching && searchResults.length === 0 && !searchQuery.trim()"
- class="text-center py-12 text-[var(--text-secondary)]"
- >
- <svg
- class="mx-auto h-16 w-16 mb-4"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- stroke-linecap="round"
- stroke-linejoin="round"
- stroke-width="2"
- d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
- />
- </svg>
- <p class="text-lg font-medium">
- 未选择应用
- </p>
- <p class="text-sm mt-2">
- 请先在上方搜索并选择一个应用
- </p>
- </div>
- </div>
+    <!-- Empty State -->
+    <div
+      v-else-if="!searching && searchResults.length === 0 && !searchQuery.trim()"
+      class="text-center py-12 text-[var(--text-secondary)]"
+    >
+      <svg
+        class="mx-auto h-16 w-16 mb-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+        />
+      </svg>
+      <p class="text-lg font-medium">
+        未选择应用
+      </p>
+      <p class="text-sm mt-2">
+        请先在上方搜索并选择一个应用
+      </p>
+    </div>
+  </div>
 </template>
 
 <script setup>

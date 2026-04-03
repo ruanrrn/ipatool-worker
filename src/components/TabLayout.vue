@@ -1,50 +1,108 @@
 <template>
- <div class="tab-layout" :class="{ 'mobile-layout': isMobile }">
-  <div v-if="!isMobile" class="desktop-tabs">
-   <button
-    v-for="tab in tabs"
-    :key="tab.id"
-    :class="['desktop-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
-    @click="appStore.activeTab = tab.id"
-   >
-    <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
-     <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
-    </el-badge>
-    <svg v-else class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
-    <span>{{ tab.label }}</span>
-   </button>
-  </div>
-
-  <div class="tab-content" :class="{ 'with-mobile-tabs': isMobile }">
-   <component
-    :is="currentTabComponent"
-    v-bind="currentTabProps"
-    @app-selected="handleAppSelected"
-    @download-started="handleDownloadStarted"
-    @accounts-updated="handleAccountsUpdated"
-    @remove-item="emit('remove-item', $event)"
-    @clear-all="emit('clear-queue')"
-    @logout="emit('logout')"
-   />
-  </div>
-
-  <div v-if="isMobile" class="mobile-tabs-wrap">
-   <div class="mobile-tabs">
-    <button
-     v-for="tab in tabs"
-     :key="tab.id"
-     :class="['mobile-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
-     @click="appStore.activeTab = tab.id"
+  <div
+    class="tab-layout"
+    :class="{ 'mobile-layout': isMobile }"
+  >
+    <div
+      v-if="!isMobile"
+      class="desktop-tabs"
     >
-     <el-badge v-if="tab.badge" :value="tab.badge" :max="99">
-      <svg class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
-     </el-badge>
-     <svg v-else class="h-[22px] w-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="tab.svgPath" />
-     <span>{{ tab.label }}</span>
-    </button>
-   </div>
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        :class="['desktop-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
+        @click="appStore.activeTab = tab.id"
+      >
+        <el-badge
+          v-if="tab.badge"
+          :value="tab.badge"
+          :max="99"
+        >
+          <svg
+            class="h-[22px] w-[22px]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            v-html="tab.svgPath"
+          />
+        </el-badge>
+        <svg
+          v-else
+          class="h-[22px] w-[22px]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          v-html="tab.svgPath"
+        />
+        <span>{{ tab.label }}</span>
+      </button>
+    </div>
+
+    <div
+      class="tab-content"
+      :class="{ 'with-mobile-tabs': isMobile }"
+    >
+      <component
+        :is="currentTabComponent"
+        v-bind="currentTabProps"
+        @app-selected="handleAppSelected"
+        @download-started="handleDownloadStarted"
+        @accounts-updated="handleAccountsUpdated"
+        @remove-item="emit('remove-item', $event)"
+        @clear-all="emit('clear-queue')"
+        @logout="emit('logout')"
+      />
+    </div>
+
+    <div
+      v-if="isMobile"
+      class="mobile-tabs-wrap"
+    >
+      <div class="mobile-tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          :class="['mobile-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
+          @click="appStore.activeTab = tab.id"
+        >
+          <el-badge
+            v-if="tab.badge"
+            :value="tab.badge"
+            :max="99"
+          >
+            <svg
+              class="h-[22px] w-[22px]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              v-html="tab.svgPath"
+            />
+          </el-badge>
+          <svg
+            v-else
+            class="h-[22px] w-[22px]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            v-html="tab.svgPath"
+          />
+          <span>{{ tab.label }}</span>
+        </button>
+      </div>
+    </div>
   </div>
- </div>
 </template>
 
 <script setup>
