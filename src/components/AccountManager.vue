@@ -237,6 +237,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { formatRegion } from '../utils/region.js'
 import {
 	User,
 	Lock,
@@ -628,17 +629,7 @@ onMounted(async () => {
 
 // 获取区域标签
 const getRegionLabel = (region) => {
-	const regionMap = {
-		US: '🇺🇸 US',
-		CN: '🇨🇳 CN',
-		JP: '🇯🇵 JP',
-		GB: '🇬🇧 GB',
-		DE: '🇩🇪 DE',
-		FR: '🇫🇷 FR',
-		CA: '🇨🇦 CA',
-		AU: '🇦🇺 AU',
-	}
-	return regionMap[region] || region
+		return formatRegion(region)
 }
 
 // 暴露账号列表供其他组件使用

@@ -588,6 +588,7 @@ import { useAppStore } from '../stores/app'
 import { useNotifications } from '../composables/useNotifications'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, ArrowRight, Download } from '@element-plus/icons-vue'
+import { formatRegion } from '../utils/region.js'
 
 const notifications = useNotifications()
 const appStore = useAppStore()
