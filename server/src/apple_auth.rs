@@ -395,6 +395,10 @@ impl Store {
         let mut url = Self::ensure_guid_query(&endpoint, &self.guid);
         let mut last_result: Option<HashMap<String, Value>> = None;
 
+        // Best-effort region inference: some Apple flows only expose storefront headers
+        // on intermediate 302 responses. Keep the last seen value across redirects.
+        let mut inferred_region: Option<String> = None;
+
         for attempt in 1..=4u32 {
             let combined_password = format!("{}{}", password, mfa.unwrap_or("").replace(' ', ""));
 
@@ -427,6 +431,9 @@ impl Store {
 
             let status = response.status();
             let response_region = extract_region_from_headers(response.headers());
+            if let Some(region) = response_region.clone() {
+                inferred_region = Some(region);
+            }
 
             // Handle 302 redirect — follow to new URL and retry
             if status == StatusCode::FOUND || status == StatusCode::MOVED_PERMANENTLY {
@@ -487,7 +494,7 @@ impl Store {
                 }
             };
 
-            if let Some(region) = response_region {
+            if let Some(region) = inferred_region.clone().or(response_region.clone()) {
                 log::info!("Apple auth inferred region from headers: {}", region);
                 result.insert("region".to_string(), Value::String(region));
             }
@@ -526,6 +533,8 @@ impl Store {
                 final_result.insert("email".to_string(), Value::String(account_email));
             }
             if let Some(region) = region {
+                final_result.insert("region".to_string(), Value::String(region));
+            } else if let Some(region) = inferred_region.clone() {
                 final_result.insert("region".to_string(), Value::String(region));
             }
             log::info!("Apple auth SUCCESS for {}", email);
