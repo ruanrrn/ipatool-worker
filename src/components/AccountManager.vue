@@ -238,6 +238,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatRegion } from '../utils/region.js'
+import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 import {
 	User,
 	Lock,
@@ -250,18 +251,8 @@ import {
 
 const emit = defineEmits(['accounts-updated'])
 
-const accounts = ref([])
-const savedCredentials = ref([]) // 保存的账号密码（仅邮箱）
-const accountIdentityKey = (acc = {}) => String(acc.email || acc.dsid || acc.token || '').trim().toLowerCase()
-const dedupeAccounts = (list = []) => {
-	const map = new Map()
-	for (const acc of list) {
-		const key = accountIdentityKey(acc)
-		if (!key) continue
-		map.set(key, acc)
-	}
-	return [...map.values()]
-}
+const { accounts } = useAccounts()
+const savedCredentials = ref([])
 const newAccount = ref({
 	email: '',
 	password: '',

@@ -589,6 +589,7 @@ import { useNotifications } from '../composables/useNotifications'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, ArrowRight, Download } from '@element-plus/icons-vue'
 import { formatRegion } from '../utils/region.js'
+import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 
 const notifications = useNotifications()
 const appStore = useAppStore()
@@ -646,7 +647,7 @@ const autoSelectFirstAccount = () => {
  }
 }
 
-const accounts = ref([])
+const { accounts } = useAccounts()
 const selectedAccount = ref(null) // 改为 null 而不是空字符串
 
 // 监听账号选择变化，保存到 localStorage
@@ -689,16 +690,6 @@ const downloadInstallMethod = ref('')
 const downloadInspection = ref(null)
 const showActionButtons = ref(false)
 
-const accountIdentityKey = (acc = {}) => String(acc.email || acc.dsid || acc.token || '').trim().toLowerCase()
-const dedupeAccounts = (list = []) => {
- const map = new Map()
- for (const acc of list) {
- const key = accountIdentityKey(acc)
- if (!key) continue
- map.set(key, acc)
- }
- return [...map.values()]
-}
 
 const purchaseRequired = computed(() => !!purchaseStatus.value.needsPurchase)
 const claimRequired = computed(() => {
