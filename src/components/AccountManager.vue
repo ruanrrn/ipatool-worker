@@ -41,7 +41,7 @@
       <div class="accounts-list">
         <div
           v-for="(account, index) in accounts"
-          :key="index"
+          :key="getAccountKey(account, index)"
           class="account-item"
         >
           <div class="account-avatar">
@@ -72,8 +72,8 @@
               class="refresh-button "
               :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
               :disabled="!account.hasSavedCredentials"
-              :loading="refreshingIndex === index"
-              @click="refreshAccount(index)"
+              :loading="refreshingAccountKeys.has(getAccountKey(account, index))"
+              @click="refreshAccount(account, index)"
             />
             <el-button
               type="primary"
@@ -82,7 +82,7 @@
               size="small"
               class="remove-button "
               title="删除账号"
-              @click="removeAccount(index)"
+              @click="removeAccount(account, index)"
             />
           </div>
         </div>
@@ -261,8 +261,10 @@ const newAccount = ref({
 const logging = ref(false)
 const autoLogging = ref(false)
 const savePassword = ref(true) // 默认保存密码
-const refreshingIndex = ref(null) // 正在刷新的账号索引
+const refreshingAccountKeys = ref(new Set()) // 正在刷新的账号集合
 const mfaRequired = ref(false) // 是否处于 MFA 等待状态
+
+const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(account) || account?.email || account?.token || account?.dsid || `account-${fallbackIndex}`
 
 // 表单验证
 const isFormValid = computed(() => {
@@ -447,9 +449,10 @@ const loginAccount = async () => {
 	}
 }
 
-const removeAccount = async (index) => {
-	const account = accounts.value[index]
-	if (!account) return
+const removeAccount = async (accountOrIndex, indexArg) => {
+	const index = typeof accountOrIndex === 'number' ? accountOrIndex : indexArg ?? accounts.value.findIndex((item) => getAccountKey(item) === getAccountKey(accountOrIndex))
+	const account = typeof accountOrIndex === 'number' ? accounts.value[index] : accountOrIndex
+	if (!account || index < 0) return
 
 	try {
 		await ElMessageBox.confirm(
@@ -488,8 +491,9 @@ const removeAccount = async (index) => {
 }
 
 // 刷新账号会话
-const refreshAccount = async (index) => {
-	const account = accounts.value[index]
+const refreshAccount = async (accountOrIndex, indexArg) => {
+	const account = typeof accountOrIndex === 'number' ? accounts.value[accountOrIndex] : accountOrIndex
+	const accountKey = getAccountKey(account, typeof accountOrIndex === 'number' ? accountOrIndex : indexArg)
 	if (!account) return
 
 	if (!account.hasSavedCredentials) {
@@ -497,7 +501,7 @@ const refreshAccount = async (index) => {
 		return
 	}
 
-	refreshingIndex.value = index
+	refreshingAccountKeys.value = new Set(refreshingAccountKeys.value).add(accountKey)
 	ElMessage.info(`检测到数据库已有账号，正在刷新 ${account.email} 的会话…`)
 
 	try {
@@ -529,7 +533,9 @@ const refreshAccount = async (index) => {
 		console.error('Failed to refresh account:', error)
 		ElMessage.warning('刷新失败，请检查网络连接')
 	} finally {
-		refreshingIndex.value = null
+		const nextRefreshingKeys = new Set(refreshingAccountKeys.value)
+		nextRefreshingKeys.delete(accountKey)
+		refreshingAccountKeys.value = nextRefreshingKeys
 	}
 }
 
