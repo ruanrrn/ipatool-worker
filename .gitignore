@@ -56,3 +56,4 @@ coverage/
 # Local runtime state
 downloads/
 server/*.db
+artifacts/
