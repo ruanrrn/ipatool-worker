@@ -33,7 +33,7 @@
           :model="loginForm"
           :rules="loginRules"
           label-position="top"
-          class="space-y-2"
+          class="login-form"
         >
           <el-form-item
             label="用户名"
@@ -101,7 +101,7 @@
           :model="pwdForm"
           :rules="pwdRules"
           label-position="top"
-          class="space-y-1"
+          class="login-form"
         >
           <el-form-item
             label="新用户名"
@@ -309,3 +309,16 @@ const handleChangePassword = async () => {
  }
 }
 </script>
+
+<style scoped>
+/* Element Plus 的校验错误提示是 absolute 定位，el-form-item 需要保留足够的底部空间。
+   之前用 tailwind 的 space-y-* 会把 margin-bottom 覆盖成 0，导致错误提示压到下方按钮上。
+*/
+.login-form :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.login-form :deep(.el-form-item.is-error) {
+  margin-bottom: 22px;
+}
+</style>
