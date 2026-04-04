@@ -769,7 +769,7 @@ defineExpose({
  gap: 8px;
  padding: 12px;
  font-size: 13px;
- background: rgba(142, 142, 147, 0.08);
+ background: var(--el-fill-color-light);
  border: 0.5px solid var(--separator);
  border-radius: 12px;
  color: var(--text-secondary);
@@ -780,7 +780,7 @@ defineExpose({
 }
 
 .mfa-highlight :deep(.el-input__wrapper) {
- border-color: rgba(10, 132, 255, 0.45) !important;
+ border-color: var(--el-color-primary-light-5) !important;
 }
 
 @media (max-width: 640px) {
