@@ -702,6 +702,7 @@ const searchMode = ref('search') // 'search' or 'appid'
 const searchQuery = ref('')
 const searchResults = ref([])
 const searching = ref(false)
+const currentSearchRequestId = ref(0)
 
 // Download/install state
 const downloadReadyUrl = ref('')
@@ -936,11 +937,13 @@ const handleSearch = useDebounceFn(async () => {
  return
  }
 
+ const requestId = ++currentSearchRequestId.value
  searching.value = true
  try {
  // 获取当前选择账号的区域
  const account = accounts.value[selectedAccount.value]
  const region = account?.region || 'US'
+ let nextResults = []
  
  // Check if it's a numeric App ID
  if (/^\d+$/.test(query)) {
@@ -949,9 +952,7 @@ const handleSearch = useDebounceFn(async () => {
  const data = await response.json()
 
  if (data.ok && data.data) {
- searchResults.value = [data.data]
- } else {
- searchResults.value = []
+ nextResults = [data.data]
  }
  } else {
  // Search by name or bundle ID
@@ -959,16 +960,24 @@ const handleSearch = useDebounceFn(async () => {
  const data = await response.json()
 
  if (data.ok) {
- searchResults.value = data.data || []
- } else {
- searchResults.value = []
+ nextResults = data.data || []
  }
  }
+
+ if (requestId !== currentSearchRequestId.value) {
+ return
+ }
+
+ searchResults.value = nextResults
  } catch (error) {
  console.error('Search failed:', error)
+ if (requestId === currentSearchRequestId.value) {
  searchResults.value = []
+ }
  } finally {
+ if (requestId === currentSearchRequestId.value) {
  searching.value = false
+ }
  }
 }, 300)
 
