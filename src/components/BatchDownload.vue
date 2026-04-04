@@ -168,7 +168,7 @@
             <div
               v-for="(item, index) in draftItems"
               :key="`${item.app_id}-${item.version || 'latest'}-${item.account_email}`"
-              class="inline-panel flex items-start justify-between gap-3 rounded-[12px] p-4"
+              class="inline-panel flex items-start justify-between gap-3"
             >
               <div class="min-w-0 flex-1">
                 <p class="font-medium text-[var(--text-primary)] truncate">
@@ -255,7 +255,7 @@
             <div
               v-for="item in taskItems"
               :key="item.id"
-              class="inline-panel rounded-[12px] p-3"
+              class="inline-panel"
             >
               <div class="flex items-center justify-between">
                 <div>

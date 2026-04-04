@@ -224,7 +224,7 @@
         </p>
         <div
           v-if="pendingDeleteItem"
-          class="inline-panel rounded-[12px] px-4 py-3 text-xs text-[var(--text-secondary)] break-all"
+          class="inline-panel text-xs text-[var(--text-secondary)] break-all"
         >
           <div class="font-medium text-gray-900 dark:text-gray-100">
             {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}

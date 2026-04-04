@@ -213,6 +213,10 @@
     border-radius: var(--radius-card);
   }
 
+  .inline-panel {
+    padding: var(--space-4);
+  }
+
   .status-panel.warning,
   .status-panel.success,
   .status-panel.info {

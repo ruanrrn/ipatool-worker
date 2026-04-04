@@ -119,7 +119,7 @@
       </div>
 
       <!-- Search Mode Toggle -->
-      <div class="inline-panel mb-3 flex items-center space-x-4 rounded-[12px] p-3">
+      <div class="inline-panel flex items-center space-x-4">
         <label class="flex items-center space-x-2 cursor-pointer">
           <input
             v-model="searchMode"

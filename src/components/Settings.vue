@@ -32,7 +32,7 @@
       </div>
 
       <!-- Current info -->
-      <div class="inline-panel mb-5 p-4">
+      <div class="inline-panel">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
             <div class="hero-icon text-sm font-bold text-white">
@@ -265,7 +265,7 @@
         </div>
       </div>
 
-      <div class="inline-panel p-4">
+      <div class="inline-panel">
         <p class="text-sm text-[var(--text-secondary)]">
           版本号
         </p>
