@@ -396,7 +396,8 @@
 
           <el-button
             v-if="!claimRequired"
-            :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+            :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isDirectLinkDownloading"
+            :loading="isDirectLinkDownloading"
             :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
             :title="downloadBlockedReason"
             type="primary"
@@ -687,6 +688,7 @@ const selectedVersion = ref('')
 const versionsFetched = ref(false)
 const fetchingVersions = ref(false)
 const downloading = ref(false)
+const isDirectLinkDownloading = ref(false)
 const checkingPurchaseStatus = ref(false)
 const purchaseStatusText = ref('待检测')
 const purchaseStatus = ref({ purchased: null, needsPurchase: false, status: 'unknown', error: null })
@@ -1380,6 +1382,10 @@ const directLinkDownload = async (autoPurchase = false) => {
  const allowed = await preflightPurchaseGate(account, '直链', directLinkDownload)
  if (!allowed) return
  }
+
+ if (isDirectLinkDownloading.value) return
+
+ isDirectLinkDownloading.value = true
  addLog('[直链] 获取直链中…')
  const url = `${API_BASE}/download-url?token=${encodeURIComponent(account.token)}&appid=${encodeURIComponent(appid.value)}${appVerId.value ? `&appVerId=${encodeURIComponent(appVerId.value)}` : ''}${autoPurchase ? '&autoPurchase=true' : ''}`
  const response = await fetch(url, { credentials: 'include' })
@@ -1410,6 +1416,8 @@ const directLinkDownload = async (autoPurchase = false) => {
  } catch (error) {
  ElMessage.error(`直链获取失败：${error.message}`)
  addLog(`[直链] 失败：${error.message}`)
+ } finally {
+ isDirectLinkDownloading.value = false
  }
 }
 
