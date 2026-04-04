@@ -385,7 +385,7 @@ const clearAllRecords = async () => {
 
 const cleanupRecordFile = async (record) => {
  try {
- await ElMessageBox.confirm(`确定清理 ${record.appName || record.filePath || '该安装包'} 吗？`, '确认清理', {
+ await ElMessageBox.confirm(`确定清理 ${record.appName || '该安装包'} 吗？`, '确认清理', {
  type: 'warning',
  confirmButtonText: '清理安装包',
  cancelButtonText: '取消'

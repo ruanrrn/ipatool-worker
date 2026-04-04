@@ -114,7 +114,7 @@
             </el-tag>
           </div>
           <div class="artifact-path">
-            {{ item.filePath }}
+            {{ item.fileName || item.filePath?.split('/').pop() }}
           </div>
           <div class="artifact-actions">
             <el-button
@@ -230,7 +230,7 @@
             {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
           </div>
           <div class="mt-1">
-            {{ pendingDeleteItem.filePath }}
+            {{ pendingDeleteItem.fileName || pendingDeleteItem.filePath?.split('/').pop() }}
           </div>
         </div>
         <p class="text-xs text-secondary">
