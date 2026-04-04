@@ -44,6 +44,7 @@
           批量清理{{ selectedCount > 0 ? `（${selectedCount}）` : '' }}
         </el-button>
         <el-upload
+          class="inline-upload"
           :action="uploadUrl"
           :show-file-list="false"
           accept=".ipa"
@@ -53,17 +54,21 @@
           :on-progress="handleUploadProgress"
           :before-upload="beforeUpload"
         >
-          <el-button
-            :loading="uploading"
-            plain
-          >
-            <template #icon>
-              <el-icon><UploadFilled /></el-icon>
-            </template>
-            {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
-          </el-button>
+          <template #trigger>
+            <el-button
+              size="small"
+              :loading="uploading"
+              plain
+            >
+              <template #icon>
+                <el-icon><UploadFilled /></el-icon>
+              </template>
+              {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
+            </el-button>
+          </template>
         </el-upload>
         <el-button
+          size="small"
           :loading="loading"
           plain
           @click="loadArtifacts"
@@ -548,6 +553,10 @@ onMounted(loadArtifacts)
 
 .artifact-path {
  word-break: break-all;
+}
+
+.inline-upload {
+ display: inline-flex;
 }
 
 .artifact-check {
