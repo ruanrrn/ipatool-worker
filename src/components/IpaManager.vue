@@ -18,10 +18,10 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+          <h2 class="text-xl font-bold text-primary">
             IPA 管理
           </h2>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             管理服务器上的 IPA 文件 · 已占用 {{ formatStorageM(totalStorageBytes) }}
           </p>
         </div>
@@ -176,7 +176,7 @@
 
     <div
       v-else
-      class="empty-state py-14 text-center text-[var(--text-secondary)]"
+      class="empty-state py-14 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"
@@ -219,12 +219,12 @@
       destroy-on-close
     >
       <div class="space-y-3 text-sm">
-        <p class="text-[var(--text-primary)]">
+        <p class="text-primary">
           确定删除这个 IPA 文件吗？
         </p>
         <div
           v-if="pendingDeleteItem"
-          class="inline-panel text-xs text-[var(--text-secondary)] break-all"
+          class="inline-panel text-xs text-secondary break-all"
         >
           <div class="font-medium text-gray-900 dark:text-gray-100">
             {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
@@ -233,7 +233,7 @@
             {{ pendingDeleteItem.filePath }}
           </div>
         </div>
-        <p class="text-xs text-[var(--text-secondary)]">
+        <p class="text-xs text-secondary">
           只删除服务器上的这个 IPA 文件，不清数据库。
         </p>
       </div>
