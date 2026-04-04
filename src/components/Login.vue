@@ -66,7 +66,7 @@
           <el-button
             type="primary"
             size="large"
-            class="mt-4 !h-11 w-full !rounded-[10px] !bg-[var(--accent-blue)] "
+            class="mt-4 !h-11 w-full !rounded-[10px]"
             :loading="loginLoading"
             @click="handleLogin"
           >
