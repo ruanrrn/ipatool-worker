@@ -9,9 +9,17 @@
   --card-bg: #FFFFFF;
   --separator: rgba(0, 0, 0, 0.1);
   --accent-blue: #0A84FF;
+  --accent-red: #FF453A;
   --text-primary: #000000;
   --text-secondary: #8E8E93;
   --text-tertiary: #8E8E93;
+  --text-inverse: #FFFFFF;
+  --selection-bg: rgba(10, 132, 255, 0.24);
+  --surface-muted: rgba(142, 142, 147, 0.08);
+  --surface-scrollbar: rgba(142, 142, 147, 0.4);
+  --accent-blue-border-soft: rgba(10, 132, 255, 0.28);
+  --accent-blue-border-strong: rgba(10, 132, 255, 0.45);
+  --accent-blue-fill-soft: rgba(10, 132, 255, 0.16);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -66,9 +74,17 @@
   --bg-primary: #000000;
   --card-bg: #1C1C1E;
   --separator: rgba(255, 255, 255, 0.12);
+  --accent-red: #FF6961;
   --text-primary: #FFFFFF;
   --text-secondary: #8E8E93;
   --text-tertiary: #8E8E93;
+  --text-inverse: #FFFFFF;
+  --selection-bg: rgba(10, 132, 255, 0.32);
+  --surface-muted: rgba(142, 142, 147, 0.14);
+  --surface-scrollbar: rgba(142, 142, 147, 0.52);
+  --accent-blue-border-soft: rgba(10, 132, 255, 0.36);
+  --accent-blue-border-strong: rgba(10, 132, 255, 0.55);
+  --accent-blue-fill-soft: rgba(10, 132, 255, 0.22);
   --el-mask-color: rgba(0, 0, 0, 0.64);
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
   --gradient-notification: linear-gradient(135deg, #ffb340 0%, #ff6b5f 100%);
@@ -156,8 +172,8 @@
   }
 
   ::selection {
-    background: rgba(10, 132, 255, 0.24);
-    color: #fff;
+    background: var(--selection-bg);
+    color: var(--text-inverse);
   }
 
   ::-webkit-scrollbar {
@@ -166,7 +182,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(142, 142, 147, 0.4);
+    background: var(--surface-scrollbar);
     border-radius: 999px;
   }
 }
@@ -232,7 +248,7 @@
     justify-content: center;
     border-radius: 10px;
     background: var(--accent-blue);
-    color: #fff;
+    color: var(--text-inverse);
   }
 
   .hero-icon {
@@ -275,7 +291,7 @@
   .section-count,
   .hero-icon.section-accent,
   .selected-app-badge.is-accent {
-    border-color: rgba(10, 132, 255, 0.3);
+    border-color: var(--accent-blue-border-soft);
     color: var(--accent-blue);
   }
 
@@ -283,10 +299,30 @@
   .auto-login-status,
   .log-container,
   pre {
-    background: rgba(142, 142, 147, 0.08);
+    background: var(--surface-muted);
     border: 0.5px solid var(--separator);
     border-radius: 12px;
     color: var(--text-secondary);
+  }
+
+  .text-primary {
+    color: var(--text-primary) !important;
+  }
+
+  .text-secondary {
+    color: var(--text-secondary) !important;
+  }
+
+  .text-tertiary {
+    color: var(--text-tertiary) !important;
+  }
+
+  .text-accent-blue {
+    color: var(--accent-blue) !important;
+  }
+
+  .text-danger {
+    color: var(--accent-red) !important;
   }
 
   .log-success,
@@ -300,10 +336,10 @@
 }
 
 .el-button {
-  --el-button-border-color: rgba(10, 132, 255, 0.28);
+  --el-button-border-color: var(--accent-blue-border-soft);
   --el-button-hover-border-color: var(--accent-blue);
   --el-button-active-border-color: var(--accent-blue);
-  --el-button-outline-color: rgba(10, 132, 255, 0.16);
+  --el-button-outline-color: var(--accent-blue-fill-soft);
   min-height: 36px;
   padding: 8px 14px;
   border-radius: 10px !important;
@@ -326,7 +362,7 @@
 .el-button--info {
   background: var(--accent-blue) !important;
   border-color: var(--accent-blue) !important;
-  color: #fff !important;
+  color: var(--text-inverse) !important;
 }
 
 .el-button.is-plain {

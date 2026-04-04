@@ -8,7 +8,7 @@
       <div class="mb-6 flex items-center gap-4">
         <div class="hero-icon">
           <svg
-            class="w-5 h-5 text-white"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -22,10 +22,10 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+          <h3 class="text-lg font-semibold text-primary">
             账号安全
           </h3>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             修改管理员登录凭据
           </p>
         </div>
@@ -35,14 +35,14 @@
       <div class="inline-panel">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="hero-icon text-sm font-bold text-white">
+            <div class="hero-icon text-sm font-bold">
               {{ (appStore.authState.user?.username || '?')[0].toUpperCase() }}
             </div>
             <div>
-              <p class="text-sm font-medium text-[var(--text-primary)]">
+              <p class="text-sm font-medium text-primary">
                 {{ appStore.authState.user?.username || '未知' }}
               </p>
-              <p class="text-xs text-[var(--text-secondary)]">
+              <p class="text-xs text-secondary">
                 管理员账号
               </p>
             </div>
@@ -137,7 +137,7 @@
       <div class="mb-6 flex items-center gap-4">
         <div class="hero-icon bg-[var(--gradient-notification)]">
           <svg
-            class="w-5 h-5 text-white"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -151,10 +151,10 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+          <h3 class="text-lg font-semibold text-primary">
             通知管理
           </h3>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             自定义浏览器通知行为
           </p>
         </div>
@@ -167,10 +167,10 @@
       >
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-[var(--text-secondary)]">
+            <p class="text-sm font-medium text-secondary">
               浏览器通知未授权
             </p>
-            <p class="text-xs text-[var(--text-secondary)] mt-1">
+            <p class="text-xs text-secondary mt-1">
               需要授权后才能接收通知
             </p>
           </div>
@@ -187,7 +187,7 @@
         v-else
         class="status-panel mb-5 p-4"
       >
-        <p class="text-sm text-[var(--text-secondary)]">
+        <p class="text-sm text-secondary">
           ✅ 浏览器通知已授权
         </p>
       </div>
@@ -196,10 +196,10 @@
       <div class="space-y-3">
         <div class="toggle-row flex items-center justify-between p-4">
           <div>
-            <p class="text-sm font-medium text-[var(--text-primary)]">
+            <p class="text-sm font-medium text-primary">
               新版本检测
             </p>
-            <p class="text-xs text-[var(--text-secondary)] mt-0.5">
+            <p class="text-xs text-secondary mt-0.5">
               订阅应用有更新时通知
             </p>
           </div>
@@ -210,10 +210,10 @@
         </div>
         <div class="toggle-row flex items-center justify-between p-4">
           <div>
-            <p class="text-sm font-medium text-[var(--text-primary)]">
+            <p class="text-sm font-medium text-primary">
               下载完成
             </p>
-            <p class="text-xs text-[var(--text-secondary)] mt-0.5">
+            <p class="text-xs text-secondary mt-0.5">
               IPA 下载成功时通知
             </p>
           </div>
@@ -224,10 +224,10 @@
         </div>
         <div class="toggle-row flex items-center justify-between p-4">
           <div>
-            <p class="text-sm font-medium text-[var(--text-primary)]">
+            <p class="text-sm font-medium text-primary">
               下载失败
             </p>
-            <p class="text-xs text-[var(--text-secondary)] mt-0.5">
+            <p class="text-xs text-secondary mt-0.5">
               IPA 下载出错时通知
             </p>
           </div>
@@ -242,7 +242,7 @@
       <div class="flex items-center space-x-3 mb-4">
         <div class="hero-icon bg-[var(--gradient-version)]">
           <svg
-            class="w-5 h-5 text-white"
+            class="w-5 h-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -256,20 +256,20 @@
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+          <h3 class="text-lg font-semibold text-primary">
             版本信息
           </h3>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             当前前端构建版本
           </p>
         </div>
       </div>
 
       <div class="inline-panel">
-        <p class="text-sm text-[var(--text-secondary)]">
+        <p class="text-sm text-secondary">
           版本号
         </p>
-        <p class="mt-1 font-mono text-base text-[var(--text-primary)]">
+        <p class="mt-1 font-mono text-base text-primary">
           v{{ appVersion }} · build {{ buildId }}
         </p>
       </div>

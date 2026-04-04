@@ -3,7 +3,7 @@
     <div class="flex items-center space-x-3 mb-6">
       <div class="hero-icon">
         <svg
-          class="w-6 h-6 text-white"
+          class="w-6 h-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -17,10 +17,10 @@
         </svg>
       </div>
       <div>
-        <h2 class="text-xl font-bold text-[var(--text-primary)]">
+        <h2 class="text-xl font-bold text-primary">
           下载与签名
         </h2>
-        <p class="text-sm text-[var(--text-secondary)]">
+        <p class="text-sm text-secondary">
           搜索应用、查询版本并下载IPA文件
         </p>
       </div>
@@ -35,7 +35,7 @@
       >
         <div class="flex items-start space-x-3">
           <svg
-            class="w-5 h-5 text-[var(--text-secondary)] mt-0.5"
+            class="w-5 h-5 text-secondary mt-0.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -48,10 +48,10 @@
             />
           </svg>
           <div class="flex-1">
-            <h4 class="font-semibold text-[var(--text-primary)]">
+            <h4 class="font-semibold text-primary">
               需要先登录账号
             </h4>
-            <p class="text-sm text-[var(--text-secondary)] mt-1">
+            <p class="text-sm text-secondary mt-1">
               请先在"账号"标签页登录 Apple ID 账号，然后才能搜索应用。
             </p>
             <el-button 
@@ -75,7 +75,7 @@
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center space-x-2 min-w-0">
             <svg
-              class="w-4 h-4 flex-shrink-0 text-[var(--accent-blue)]"
+              class="w-4 h-4 flex-shrink-0 text-accent-blue"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -87,7 +87,7 @@
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span class="text-[13px] text-[var(--text-secondary)] whitespace-nowrap">
+            <span class="text-[13px] text-secondary whitespace-nowrap">
               搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
             </span>
           </div>
@@ -125,18 +125,18 @@
             v-model="searchMode"
             type="radio"
             value="search"
-            class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
+            class="w-4 h-4 text-accent-blue focus:ring-primary-500"
           >
-          <span class="text-sm font-medium text-[var(--text-primary)]">搜索应用</span>
+          <span class="text-sm font-medium text-primary">搜索应用</span>
         </label>
         <label class="flex items-center space-x-2 cursor-pointer">
           <input
             v-model="searchMode"
             type="radio"
             value="appid"
-            class="w-4 h-4 text-[var(--accent-blue)] focus:ring-primary-500"
+            class="w-4 h-4 text-accent-blue focus:ring-primary-500"
           >
-          <span class="text-sm font-medium text-[var(--text-primary)]">直接输入 App ID</span>
+          <span class="text-sm font-medium text-primary">直接输入 App ID</span>
         </label>
       </div>
 
@@ -159,10 +159,10 @@
         class="status-panel mt-3 flex items-center justify-between p-4"
       >
         <div class="flex-1">
-          <p class="text-sm font-medium text-[var(--text-secondary)]">
+          <p class="text-sm font-medium text-secondary">
             App ID: <span class="font-bold">{{ searchQuery.trim() }}</span>
           </p>
-          <p class="text-xs text-[var(--text-secondary)] mt-1">
+          <p class="text-xs text-secondary mt-1">
             即使未找到应用信息，也可以继续查询版本号
           </p>
         </div>
@@ -193,14 +193,14 @@
               class="w-12 h-12 rounded-lg object-cover"
             >
             <div class="flex-1 min-w-0">
-              <h3 class="font-semibold text-[var(--text-primary)] truncate text-sm">
+              <h3 class="font-semibold text-primary truncate text-sm">
                 {{ app.trackName }}
               </h3>
-              <p class="text-xs text-[var(--text-secondary)]">
+              <p class="text-xs text-secondary">
                 {{ app.artistName }}
               </p>
             </div>
-            <el-icon class="w-5 h-5 text-gray-400 flex-shrink-0">
+            <el-icon class="w-5 h-5 text-secondary flex-shrink-0">
               <ArrowRight />
             </el-icon>
           </div>
@@ -226,7 +226,7 @@
             class="w-16 h-16 rounded-[10px] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
           >
             <svg
-              class="w-8 h-8 text-white"
+              class="w-8 h-8"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -240,13 +240,13 @@
             </svg>
           </div>
           <div class="flex-1">
-            <h3 class="font-semibold text-[var(--text-primary)]">
+            <h3 class="font-semibold text-primary">
               {{ selectedApp.trackName }}
             </h3>
-            <p class="text-sm text-[var(--text-secondary)]">
+            <p class="text-sm text-secondary">
               {{ selectedApp.artistName }}
             </p>
-            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            <p class="text-xs text-tertiary mt-1">
               版本: {{ selectedApp.version }} | ID: {{ selectedApp.trackId }}
               <span
                 v-if="selectedApp.isDirectAppId"
@@ -267,7 +267,7 @@
       <!-- Download Options -->
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">
+          <label class="block text-sm font-medium text-primary mb-2">
             选择账号
             <span
               v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== ''"
@@ -302,20 +302,20 @@
           </el-select>
           <p
             v-if="accounts.length === 0"
-            class="text-xs text-[var(--text-secondary)] mt-1"
+            class="text-xs text-secondary mt-1"
           >
             ⚠️ 请先登录账号
           </p>
           <p
             v-else
-            class="text-xs text-[var(--text-secondary)] mt-1"
+            class="text-xs text-secondary mt-1"
           >
             ✅ 搜索和下载将使用此账号的 {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }} 商店
           </p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">APPID</label>
+          <label class="block text-sm font-medium text-primary mb-2">APPID</label>
           <el-input
             v-model="appid"
             placeholder="例如：1160172628"
@@ -324,7 +324,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">版本（历史版本下拉）</label>
+          <label class="block text-sm font-medium text-primary mb-2">版本（历史版本下拉）</label>
           <el-select 
             v-model="selectedVersion"
             placeholder="请先查询版本"
@@ -343,7 +343,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-[var(--text-primary)] mb-2">appVerId（自动填充）</label>
+          <label class="block text-sm font-medium text-primary mb-2">appVerId（自动填充）</label>
           <el-input
             v-model="appVerId"
             placeholder="external_identifier"
@@ -455,8 +455,8 @@
         shadow="never"
       >
         <div class="flex justify-between items-center mb-2">
-          <span class="text-sm font-medium text-[var(--text-primary)]">{{ progressStage }}</span>
-          <span class="text-sm font-bold text-[var(--accent-blue)]">{{ progressPercent }}%</span>
+          <span class="text-sm font-medium text-primary">{{ progressStage }}</span>
+          <span class="text-sm font-bold text-accent-blue">{{ progressPercent }}%</span>
         </div>
         <el-progress 
           :percentage="progressPercent"
@@ -478,7 +478,7 @@
           >
             <div class="flex items-start space-x-2">
               <svg
-                class="w-5 h-5 text-[var(--text-secondary)] mt-0.5 flex-shrink-0"
+                class="w-5 h-5 text-secondary mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -491,7 +491,7 @@
                 />
               </svg>
               <div class="flex-1">
-                <p class="text-sm text-[var(--text-secondary)] font-medium">
+                <p class="text-sm text-secondary font-medium">
                   环境检测
                 </p>
                 <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
@@ -564,12 +564,12 @@
               仅下载
             </el-tag>
           </div>
-          <p class="text-xs text-[var(--text-secondary)] text-center">
+          <p class="text-xs text-secondary text-center">
             下载和安装已分离，请按需手动操作
           </p>
           <p
             v-if="downloadInstallUrl && !isHttps"
-            class="text-xs text-[var(--text-secondary)] mt-1 text-center"
+            class="text-xs text-secondary mt-1 text-center"
           >
             ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
           </p>
@@ -580,7 +580,7 @@
     <!-- Empty State -->
     <div
       v-else-if="!searching && searchResults.length === 0 && !searchQuery.trim()"
-      class="text-center py-12 text-[var(--text-secondary)]"
+      class="text-center py-12 text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"

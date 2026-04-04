@@ -5,7 +5,7 @@
       <div class="flex items-center space-x-3">
         <div class="hero-icon flex-shrink-0">
           <svg
-            class="w-6 h-6 text-white"
+            class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -14,10 +14,10 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+          <h2 class="text-xl font-bold text-primary">
             应用订阅与更新
           </h2>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             {{ subscriptions.length }} 个订阅 | {{ updateCount }} 个更新
           </p>
         </div>
@@ -46,7 +46,7 @@
       class="card mb-6"
     >
       <div class="flex items-center gap-2 mb-3">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+        <h3 class="text-lg font-semibold text-primary">
           发现更新
         </h3>
         <el-badge
@@ -75,10 +75,10 @@
                 fit="cover"
               />
               <div class="flex-1">
-                <p class="font-medium text-[var(--text-primary)]">
+                <p class="font-medium text-primary">
                   {{ update.app_name }}
                 </p>
-                <p class="text-sm text-[var(--text-secondary)]">
+                <p class="text-sm text-secondary">
                   {{ update.current_version }} → {{ update.latest_version }}
                 </p>
               </div>
@@ -98,7 +98,7 @@
     <!-- 订阅列表 -->
     <div v-if="subscriptions.length > 0">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+        <h3 class="text-lg font-semibold text-primary">
           我的订阅
         </h3>
       </div>
@@ -121,7 +121,7 @@
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
-                <h3 class="font-semibold text-[var(--text-primary)] truncate">
+                <h3 class="font-semibold text-primary truncate">
                   {{ sub.app_name }}
                 </h3>
                 <el-button
@@ -132,10 +132,10 @@
                   @click="removeSubscription(sub)"
                 />
               </div>
-              <p class="text-sm text-[var(--text-secondary)]">
+              <p class="text-sm text-secondary">
                 {{ sub.artist_name || '未知开发者' }}
               </p>
-              <div class="flex items-center gap-4 mt-2 text-xs text-[var(--text-secondary)]">
+              <div class="flex items-center gap-4 mt-2 text-xs text-secondary">
                 <span v-if="sub.current_version">版本: {{ sub.current_version }}</span>
                 <span v-if="sub.last_checked">检查于: {{ formatDate(sub.last_checked) }}</span>
               </div>
@@ -148,7 +148,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="empty-state py-12 text-center text-[var(--text-secondary)]"
+      class="empty-state py-12 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"

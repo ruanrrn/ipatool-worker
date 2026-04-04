@@ -4,7 +4,7 @@
       <div class="flex items-center space-x-3">
         <div class="hero-icon">
           <svg
-            class="w-6 h-6 text-white"
+            class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -48,10 +48,10 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+          <h2 class="text-xl font-bold text-primary">
             下载队列
           </h2>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             {{ currentTasks.length }} 个当前任务 · {{ records.length }} 条记录 · 已占用 {{ formatStorageM(totalStorageBytes) }}
           </p>
         </div>
@@ -79,7 +79,7 @@
       v-if="currentTasks.length > 0"
       class="space-y-4"
     >
-      <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+      <h3 class="text-lg font-semibold text-primary">
         当前任务
       </h3>
       <div
@@ -169,7 +169,7 @@
       class="space-y-4"
     >
       <div class="flex items-center justify-between gap-3">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">
+        <h3 class="text-lg font-semibold text-primary">
           下载记录
         </h3>
         <el-button
@@ -277,7 +277,7 @@
 
     <div
       v-if="currentTasks.length === 0 && records.length === 0"
-      class="empty-state py-12 text-center text-[var(--text-secondary)]"
+      class="empty-state py-12 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"

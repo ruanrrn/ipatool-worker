@@ -5,7 +5,7 @@
         <div class="mb-6 flex items-start gap-4">
           <div class="hero-icon">
             <svg
-              class="h-6 w-6 text-white"
+              class="h-6 w-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -19,13 +19,13 @@
             </svg>
           </div>
           <div>
-            <p class="mb-1 text-[13px] text-[var(--text-secondary)]">
+            <p class="mb-1 text-[13px] text-secondary">
               Secure Access
             </p>
-            <h2 class="text-[17px] font-semibold text-[var(--text-primary)]">
+            <h2 class="text-[17px] font-semibold text-primary">
               管理员登录
             </h2>
-            <p class="mt-2 text-[13px] text-[var(--text-secondary)]">
+            <p class="mt-2 text-[13px] text-secondary">
               默认账号：admin / admin
             </p>
           </div>
@@ -69,7 +69,7 @@
           <el-button
             type="primary"
             size="large"
-            class="mt-4 !h-11 w-full !rounded-[10px] !bg-[var(--accent-blue)] !text-white"
+            class="mt-4 !h-11 w-full !rounded-[10px] !bg-[var(--accent-blue)] "
             :loading="loginLoading"
             @click="handleLogin"
           >

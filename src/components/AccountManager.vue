@@ -4,7 +4,7 @@
     <div class="account-header">
       <div class="header-icon">
         <svg
-          class="w-6 h-6 text-white"
+          class="w-6 h-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -18,10 +18,10 @@
         </svg>
       </div>
       <div class="header-text">
-        <h2 class="text-xl font-bold text-[var(--text-primary)]">
+        <h2 class="text-xl font-bold text-primary">
           账号管理
         </h2>
-        <p class="text-sm text-[var(--text-secondary)]">
+        <p class="text-sm text-secondary">
           管理 Apple ID 账号
         </p>
       </div>
@@ -210,7 +210,7 @@
       >
         <div class="empty-icon">
           <svg
-            class="w-16 h-16 text-[var(--text-secondary)]"
+            class="w-16 h-16 text-secondary"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

@@ -4,7 +4,7 @@
       <div class="flex items-center space-x-3">
         <div class="hero-icon flex-shrink-0">
           <svg
-            class="w-6 h-6 text-white"
+            class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -18,10 +18,10 @@
           </svg>
         </div>
         <div class="flex-shrink-0">
-          <h2 class="text-xl font-bold text-[var(--text-primary)]">
+          <h2 class="text-xl font-bold text-primary">
             批量下载
           </h2>
-          <p class="text-sm text-[var(--text-secondary)]">
+          <p class="text-sm text-secondary">
             {{ tasks.length }} 个批量任务
           </p>
         </div>
@@ -59,7 +59,7 @@
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <div class="flex items-center gap-3 mb-2">
-                <h3 class="font-semibold text-[var(--text-primary)]">
+                <h3 class="font-semibold text-primary">
                   {{ task.task_name }}
                 </h3>
                 <el-tag
@@ -70,7 +70,7 @@
                 </el-tag>
               </div>
 
-              <div class="flex items-center gap-4 text-sm text-[var(--text-secondary)] mb-3">
+              <div class="flex items-center gap-4 text-sm text-secondary mb-3">
                 <span>总数: {{ task.total_count }}</span>
                 <span>完成: {{ task.completed_count }}</span>
                 <span>失败: {{ task.failed_count }}</span>
@@ -117,7 +117,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="empty-state py-12 text-center text-[var(--text-secondary)]"
+      class="empty-state py-12 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"
@@ -158,7 +158,7 @@
           />
         </el-form-item>
         <el-form-item label="应用列表">
-          <div class="text-sm text-gray-500 mb-2">
+          <div class="text-sm text-tertiary mb-2">
             在下载页选择账号、APPID 和版本后，点击"添加到批量下载"
           </div>
           <div
@@ -171,15 +171,15 @@
               class="inline-panel flex items-start justify-between gap-3"
             >
               <div class="min-w-0 flex-1">
-                <p class="font-medium text-[var(--text-primary)] truncate">
+                <p class="font-medium text-primary truncate">
                   {{ item.app_name || item.app_id }}
                 </p>
-                <p class="text-xs text-[var(--text-secondary)] mt-1">
+                <p class="text-xs text-secondary mt-1">
                   App ID: {{ item.app_id }}
                   <span class="mx-1">|</span>
                   账号: {{ item.account_email }}
                 </p>
-                <p class="text-xs text-[var(--text-secondary)] mt-1">
+                <p class="text-xs text-secondary mt-1">
                   版本: {{ item.version_label || item.version || '最新版本' }}
                 </p>
               </div>
@@ -204,7 +204,7 @@
           </div>
           <div
             v-else
-            class="text-sm text-gray-400"
+            class="text-sm text-secondary"
           >
             还没有批量下载草稿项
           </div>
@@ -236,7 +236,7 @@
           <h3 class="font-semibold mb-2">
             {{ currentTask.task_name }}
           </h3>
-          <div class="flex items-center gap-4 text-sm text-gray-500">
+          <div class="flex items-center gap-4 text-sm text-tertiary">
             <span>总数: {{ currentTask.total_count }}</span>
             <span>完成: {{ currentTask.completed_count }}</span>
             <span>失败: {{ currentTask.failed_count }}</span>
@@ -259,10 +259,10 @@
             >
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="font-medium text-[var(--text-primary)]">
+                  <p class="font-medium text-primary">
                     {{ item.app_name || item.app_id }}
                   </p>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-sm text-tertiary">
                     版本: {{ item.version || '未知' }} | 账号: {{ item.account_email }}
                   </p>
                 </div>
@@ -275,7 +275,7 @@
                   </el-tag>
                   <p
                     v-if="item.progress > 0"
-                    class="text-sm text-gray-500 mt-1"
+                    class="text-sm text-tertiary mt-1"
                   >
                     {{ item.progress }}%
                   </p>
@@ -283,7 +283,7 @@
               </div>
               <p
                 v-if="item.error"
-                class="text-sm text-[var(--accent-red)] mt-2"
+                class="text-sm text-danger mt-2"
               >
                 {{ item.error }}
               </p>
