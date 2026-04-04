@@ -320,6 +320,8 @@ const emit = defineEmits(['remove-item'])
 const appStore = useAppStore()
 const records = ref([])
 const pollTimers = new Map()
+const pollFailureCounts = new Map()
+const MAX_POLL_FAILURES = 5
 const currentTasks = computed(() => props.queue.filter(task => !['completed', 'ready'].includes(task?.status)))
 const totalStorageBytes = computed(() => records.value.reduce((sum, item) => {
  if (!item?.fileExists) return sum
@@ -433,6 +435,7 @@ const stopTaskPolling = (taskId) => {
  clearInterval(timer)
  pollTimers.delete(taskId)
  }
+ pollFailureCounts.delete(taskId)
 }
 
 const markTaskInterrupted = (taskId, message = '任务已失效，可能是服务重启或页面切换后丢失，请重新发起下载') => {
@@ -489,9 +492,16 @@ const pollTaskStatus = async (taskId) => {
  return
  }
 
+ pollFailureCounts.delete(taskId)
  await syncTaskSnapshot(taskId, data.data)
  } catch (error) {
+ const failureCount = (pollFailureCounts.get(taskId) || 0) + 1
+ pollFailureCounts.set(taskId, failureCount)
  console.error('Failed to poll task status:', error)
+
+ if (failureCount >= MAX_POLL_FAILURES) {
+ markTaskInterrupted(taskId, '任务状态轮询多次失败，请检查网络或稍后重试')
+ }
  }
 }
 
