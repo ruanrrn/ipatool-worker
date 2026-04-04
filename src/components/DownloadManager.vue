@@ -981,6 +981,10 @@ const handleSearch = useDebounceFn(async () => {
  }
 }, 300)
 
+const debouncedFetchVersions = useDebounceFn(() => {
+ fetchVersions()
+}, 400)
+
 const selectApp = (app) => {
  emit('app-selected', app)
  searchQuery.value = ''
@@ -1024,7 +1028,7 @@ watch(() => props.selectedApp, (newApp) => {
 watch([selectedAccount, appid], ([newAccount, newAppid]) => {
  if (newAccount !== '' && newAccount !== null && newAppid) {
  // 自动查询版本
- fetchVersions()
+ debouncedFetchVersions()
  }
 })
 
