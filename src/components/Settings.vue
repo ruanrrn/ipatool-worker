@@ -135,7 +135,7 @@
     <!-- Notification Settings -->
     <div class="card">
       <div class="mb-6 flex items-center gap-4">
-        <div class="hero-icon h-10 w-10 bg-[linear-gradient(135deg,#ff9f0a_0%,#ff453a_100%)]">
+        <div class="hero-icon h-10 w-10 bg-[var(--gradient-notification)]">
           <svg
             class="w-5 h-5 text-white"
             fill="none"
@@ -240,7 +240,7 @@
     </div>
     <div class="card">
       <div class="flex items-center space-x-3 mb-4">
-        <div class="hero-icon h-10 w-10 bg-[linear-gradient(135deg,#7c8aa5_0%,#4f5d75_100%)]">
+        <div class="hero-icon h-10 w-10 bg-[var(--gradient-version)]">
           <svg
             class="w-5 h-5 text-white"
             fill="none"

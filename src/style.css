@@ -23,6 +23,8 @@
   --radius-field: 12px;
   --transition-default: all 0.2s ease;
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --gradient-notification: linear-gradient(135deg, #ff9f0a 0%, #ff453a 100%);
+  --gradient-version: linear-gradient(135deg, #7c8aa5 0%, #4f5d75 100%);
 
   --el-bg-color: var(--card-bg);
   --el-bg-color-overlay: var(--card-bg);
@@ -68,6 +70,8 @@
   --text-tertiary: #8E8E93;
   --el-mask-color: rgba(0, 0, 0, 0.64);
   --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
+  --gradient-notification: linear-gradient(135deg, #ffb340 0%, #ff6b5f 100%);
+  --gradient-version: linear-gradient(135deg, #8d9ab2 0%, #62708b 100%);
 }
 
 @layer base {
