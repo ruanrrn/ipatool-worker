@@ -391,10 +391,10 @@ const downloadUpdate = async (update) => {
 
   const matchAccount = accounts.find(
     (a) => a.email === update.account_email
-  ) || accounts[0]
+  )
 
   if (!matchAccount?.token) {
-    ElMessage.warning('未找到匹配的账号，请先登录 Apple ID')
+    ElMessage.error(`未找到与订阅记录匹配的账号：${update.account_email || '未知账号'}，请重新登录对应 Apple ID 后再试`)
     return
   }
 
