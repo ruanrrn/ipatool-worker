@@ -25,9 +25,6 @@
             <h2 class="text-[17px] font-semibold text-primary">
               管理员登录
             </h2>
-            <p class="mt-2 text-[13px] text-secondary">
-              默认账号：admin / admin
-            </p>
           </div>
         </div>
 
