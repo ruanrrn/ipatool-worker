@@ -182,7 +182,7 @@ const loginFormRef = ref(null)
 const loginLoading = ref(false)
 
 const loginForm = reactive({
- username: 'admin',
+ username: '',
  password: ''
 })
 
