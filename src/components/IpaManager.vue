@@ -144,19 +144,25 @@
               placement="top"
             >
               <span>
-                <el-tag
+                <el-button
                   size="small"
                   type="primary"
-                >仅下载</el-tag>
+                  plain
+                  disabled
+                >
+                  仅下载
+                </el-button>
               </span>
             </el-tooltip>
-            <el-tag
+            <el-button
               v-else-if="item.installMethod === 'download_only'"
               size="small"
               type="primary"
+              plain
+              disabled
             >
               仅下载
-            </el-tag>
+            </el-button>
             <el-button
               v-else
               type="primary"
