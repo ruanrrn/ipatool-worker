@@ -427,7 +427,7 @@
 .el-select__wrapper.is-focused,
 .el-textarea__inner:focus,
 .el-upload-dragger:hover {
-  border-color: rgba(10, 132, 255, 0.45) !important;
+  border-color: var(--accent-blue-border-strong) !important;
   box-shadow: none !important;
 }
 
@@ -508,7 +508,7 @@
 }
 
 .el-progress-bar__outer {
-  background: rgba(142, 142, 147, 0.16) !important;
+  background: var(--surface-muted) !important;
   border-radius: 999px !important;
 }
 
@@ -518,7 +518,7 @@
 
 .el-switch {
   --el-switch-on-color: var(--accent-blue);
-  --el-switch-off-color: rgba(142, 142, 147, 0.28);
+  --el-switch-off-color: var(--accent-blue-border-soft);
 }
 
 .el-switch__core {
