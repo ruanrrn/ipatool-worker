@@ -1874,7 +1874,7 @@ onMounted(() => {
  font-size: 13px;
  line-height: 1.4;
  border: 0.5px solid var(--separator);
- background: rgba(142, 142, 147, 0.08);
+ background: var(--el-fill-color-light);
  color: var(--text-secondary);
 }
 
@@ -1952,7 +1952,7 @@ onMounted(() => {
  line-height: 1.6;
  max-height: 300px;
  overflow-y: auto;
- background: rgba(142, 142, 147, 0.08);
+ background: var(--el-fill-color-light);
  border: 0.5px solid var(--separator);
 }
 
