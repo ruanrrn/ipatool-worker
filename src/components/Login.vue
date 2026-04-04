@@ -3,7 +3,7 @@
     <div class="w-full max-w-[420px]">
       <div class="card overflow-hidden">
         <div class="mb-6 flex items-start gap-4">
-          <div class="hero-icon h-12 w-12">
+          <div class="hero-icon">
             <svg
               class="h-6 w-6 text-white"
               fill="none"

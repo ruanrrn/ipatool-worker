@@ -6,7 +6,7 @@
     <!-- Admin Account Security -->
     <div class="card">
       <div class="mb-6 flex items-center gap-4">
-        <div class="hero-icon h-10 w-10">
+        <div class="hero-icon">
           <svg
             class="w-5 h-5 text-white"
             fill="none"
@@ -35,7 +35,7 @@
       <div class="inline-panel mb-5 p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="hero-icon h-10 w-10 text-sm font-bold text-white">
+            <div class="hero-icon text-sm font-bold text-white">
               {{ (appStore.authState.user?.username || '?')[0].toUpperCase() }}
             </div>
             <div>
@@ -135,7 +135,7 @@
     <!-- Notification Settings -->
     <div class="card">
       <div class="mb-6 flex items-center gap-4">
-        <div class="hero-icon h-10 w-10 bg-[var(--gradient-notification)]">
+        <div class="hero-icon bg-[var(--gradient-notification)]">
           <svg
             class="w-5 h-5 text-white"
             fill="none"
@@ -240,7 +240,7 @@
     </div>
     <div class="card">
       <div class="flex items-center space-x-3 mb-4">
-        <div class="hero-icon h-10 w-10 bg-[var(--gradient-version)]">
+        <div class="hero-icon bg-[var(--gradient-version)]">
           <svg
             class="w-5 h-5 text-white"
             fill="none"

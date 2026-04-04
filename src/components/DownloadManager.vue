@@ -1,7 +1,7 @@
 <template>
   <div class="card">
     <div class="flex items-center space-x-3 mb-6">
-      <div class="hero-icon h-12 w-12">
+      <div class="hero-icon">
         <svg
           class="w-6 h-6 text-white"
           fill="none"
