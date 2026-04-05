@@ -1,23 +1,23 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="card flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+        <div class="hero-icon flex-shrink-0">
           <svg
-            class="w-6 h-6 text-white"
+            class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+          <h2 class="text-xl font-bold text-primary">
             应用订阅与更新
           </h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
+          <p class="text-sm text-secondary">
             {{ subscriptions.length }} 个订阅 | {{ updateCount }} 个更新
           </p>
         </div>
@@ -43,15 +43,15 @@
     <!-- 更新通知 -->
     <div
       v-if="updates.length > 0"
-      class="mb-6"
+      class="card mb-6"
     >
       <div class="flex items-center gap-2 mb-3">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 class="text-lg font-semibold text-primary">
           发现更新
         </h3>
         <el-badge
           :value="updates.length"
-          type="danger"
+          type="primary"
         />
       </div>
       <el-space
@@ -62,7 +62,7 @@
         <el-alert
           v-for="update in updates"
           :key="update.app_id"
-          type="success"
+          type="primary"
           :closable="false"
           show-icon
           class="update-alert"
@@ -75,10 +75,10 @@
                 fit="cover"
               />
               <div class="flex-1">
-                <p class="font-medium text-gray-900 dark:text-white">
+                <p class="font-medium text-primary">
                   {{ update.app_name }}
                 </p>
-                <p class="text-sm text-gray-500">
+                <p class="text-sm text-secondary">
                   {{ update.current_version }} → {{ update.latest_version }}
                 </p>
               </div>
@@ -98,7 +98,7 @@
     <!-- 订阅列表 -->
     <div v-if="subscriptions.length > 0">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 class="text-lg font-semibold text-primary">
           我的订阅
         </h3>
       </div>
@@ -110,33 +110,32 @@
         <el-card
           v-for="sub in subscriptions"
           :key="sub.id"
-          shadow="hover"
-          class="sub-card"
+          shadow="never"
+          class="task-card sub-card"
         >
           <div class="flex items-start gap-4">
             <el-image
               :src="sub.artwork_url || 'https://via.placeholder.com/60'"
-              class="w-12 h-12 rounded-lg shadow-md flex-shrink-0"
+              class="w-12 h-12 rounded-lg flex-shrink-0"
               fit="cover"
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
-                <h3 class="font-semibold text-gray-900 dark:text-white truncate">
+                <h3 class="font-semibold text-primary truncate">
                   {{ sub.app_name }}
                 </h3>
                 <el-button
-                  type="danger"
+                  type="primary"
                   size="small"
                   :icon="Delete"
                   plain
-                  circle
                   @click="removeSubscription(sub)"
                 />
               </div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">
+              <p class="text-sm text-secondary">
                 {{ sub.artist_name || '未知开发者' }}
               </p>
-              <div class="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-4 mt-2 text-xs text-secondary">
                 <span v-if="sub.current_version">版本: {{ sub.current_version }}</span>
                 <span v-if="sub.last_checked">检查于: {{ formatDate(sub.last_checked) }}</span>
               </div>
@@ -149,7 +148,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="text-center py-12 text-gray-500 dark:text-gray-400"
+      class="empty-state py-12 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"
@@ -207,24 +206,10 @@
             placeholder="选择区域"
           >
             <el-option
-              label="美国"
-              value="US"
-            />
-            <el-option
-              label="中国"
-              value="CN"
-            />
-            <el-option
-              label="日本"
-              value="JP"
-            />
-            <el-option
-              label="英国"
-              value="GB"
-            />
-            <el-option
-              label="德国"
-              value="DE"
+              v-for="r in regionOptions"
+              :key="r.value"
+              :label="r.label"
+              :value="r.value"
             />
           </el-select>
         </el-form-item>
@@ -251,10 +236,18 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Delete } from '@element-plus/icons-vue'
 import { useNotifications } from '../composables/useNotifications'
+import { useAppStore } from '../stores/app'
+import { REGION_MAP } from '../utils/region.js'
 
 const notifications = useNotifications()
+const appStore = useAppStore()
+const emit = defineEmits(['download-started'])
 
 const API_BASE = '/api'
+
+const regionOptions = Object.entries(REGION_MAP)
+  .map(([code, label]) => ({ value: code, label }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
 
 const subscriptions = ref([])
 const updates = ref([])
@@ -263,161 +256,218 @@ const checking = ref(false)
 const subscribing = ref(false)
 
 const subscribeForm = ref({
-  app_id: '',
-  app_name: '',
-  account_email: '',
-  account_region: 'US',
-  artwork_url: '',
-  artist_name: ''
+ app_id: '',
+ app_name: '',
+ account_email: '',
+ account_region: 'US',
+ artwork_url: '',
+ artist_name: ''
 })
 
 const updateCount = computed(() => updates.value.length)
 
 // 加载订阅列表
 const loadSubscriptions = async () => {
-  try {
-    const response = await fetch(`${API_BASE}/subscriptions`, { credentials: 'include' })
-    const data = await response.json()
-    if (data.ok) {
-      subscriptions.value = data.data || []
-    }
-  } catch (error) {
-    console.error('Failed to load subscriptions:', error)
-    ElMessage.error('加载订阅失败')
-  }
+ try {
+ const response = await fetch(`${API_BASE}/subscriptions`, { credentials: 'include' })
+ const data = await response.json()
+ if (data.ok) {
+ subscriptions.value = data.data || []
+ }
+ } catch (error) {
+ console.error('Failed to load subscriptions:', error)
+ ElMessage.error('加载订阅失败')
+ }
 }
 
 // 检查更新
 const checkUpdates = async () => {
-  checking.value = true
-  try {
-    const response = await fetch(`${API_BASE}/check-updates`, { credentials: 'include' })
-    const data = await response.json()
+ checking.value = true
+ try {
+ const response = await fetch(`${API_BASE}/check-updates`, { credentials: 'include' })
+ const data = await response.json()
 
-    if (data.ok) {
-      updates.value = data.data.updates || []
-      if (updates.value.length > 0) {
-        ElMessage.success(`发现 ${updates.value.length} 个更新`)
-        // 逐个发送浏览器通知
-        for (const update of updates.value) {
-          notifications.notifyVersionUpdate(
-            update.app_name,
-            update.current_version,
-            update.latest_version
-          )
-        }
-      } else {
-        ElMessage.info('所有应用都是最新版本')
-      }
-    } else {
-      ElMessage.error(data.error || '检查更新失败')
-    }
-  } catch (error) {
-    console.error('Failed to check updates:', error)
-    ElMessage.error('检查更新失败')
-  } finally {
-    checking.value = false
-  }
+ if (data.ok) {
+ updates.value = data.data.updates || []
+ if (updates.value.length > 0) {
+ ElMessage.success(`发现 ${updates.value.length} 个更新`)
+ // 逐个发送浏览器通知
+ for (const update of updates.value) {
+ notifications.notifyVersionUpdate(
+ update.app_name,
+ update.current_version,
+ update.latest_version
+ )
+ }
+ } else {
+ ElMessage.info('所有应用都是最新版本')
+ }
+ } else {
+ ElMessage.error(data.error || '检查更新失败')
+ }
+ } catch (error) {
+ console.error('Failed to check updates:', error)
+ ElMessage.error('检查更新失败')
+ } finally {
+ checking.value = false
+ }
 }
 
 // 添加订阅
 const addSubscription = async () => {
-  if (!subscribeForm.value.app_id || !subscribeForm.value.app_name || !subscribeForm.value.account_email) {
-    ElMessage.warning('请填写完整信息')
-    return
-  }
+ if (!subscribeForm.value.app_id || !subscribeForm.value.app_name || !subscribeForm.value.account_email) {
+ ElMessage.warning('请填写完整信息')
+ return
+ }
 
-  subscribing.value = true
-  try {
-    const response = await fetch(`${API_BASE}/subscriptions`, {
-      credentials: 'include',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscribeForm.value)
-    })
-    const data = await response.json()
+ subscribing.value = true
+ try {
+ const response = await fetch(`${API_BASE}/subscriptions`, {
+ credentials: 'include',
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify(subscribeForm.value)
+ })
+ const data = await response.json()
 
-    if (data.ok) {
-      ElMessage.success('订阅添加成功')
-      showSubscribeDialog.value = false
-      Object.assign(subscribeForm.value, {
-        app_id: '',
-        app_name: '',
-        account_email: '',
-        account_region: 'US',
-        artwork_url: '',
-        artist_name: ''
-      })
-      await loadSubscriptions()
-    } else {
-      ElMessage.error(data.error || '添加订阅失败')
-    }
-  } catch (error) {
-    console.error('Failed to add subscription:', error)
-    ElMessage.error('添加订阅失败')
-  } finally {
-    subscribing.value = false
-  }
+ if (data.ok) {
+ ElMessage.success('订阅添加成功')
+ showSubscribeDialog.value = false
+ Object.assign(subscribeForm.value, {
+ app_id: '',
+ app_name: '',
+ account_email: '',
+ account_region: 'US',
+ artwork_url: '',
+ artist_name: ''
+ })
+ await loadSubscriptions()
+ } else {
+ ElMessage.error(data.error || '添加订阅失败')
+ }
+ } catch (error) {
+ console.error('Failed to add subscription:', error)
+ ElMessage.error('添加订阅失败')
+ } finally {
+ subscribing.value = false
+ }
 }
 
 // 移除订阅
 const removeSubscription = async (sub) => {
-  try {
-    await ElMessageBox.confirm(`确定要取消订阅 "${sub.app_name}" 吗？`, '确认取消', {
-      type: 'warning'
-    })
+ try {
+ await ElMessageBox.confirm(`确定要取消订阅 "${sub.app_name}"吗？`, '确认取消', {
+ type: 'warning'
+ })
 
-    const response = await fetch(`${API_BASE}/subscriptions?app_id=${sub.app_id}&account_email=${sub.account_email}`, {
-      credentials: 'include',
-      method: 'DELETE'
-    })
-    const data = await response.json()
+ const response = await fetch(`${API_BASE}/subscriptions?app_id=${sub.app_id}&account_email=${sub.account_email}`, {
+ credentials: 'include',
+ method: 'DELETE'
+ })
+ const data = await response.json()
 
-    if (data.ok) {
-      ElMessage.success('取消订阅成功')
-      await loadSubscriptions()
-    } else {
-      ElMessage.error(data.error || '取消订阅失败')
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to remove subscription:', error)
-      ElMessage.error('取消订阅失败')
-    }
-  }
+ if (data.ok) {
+ ElMessage.success('取消订阅成功')
+ await loadSubscriptions()
+ } else {
+ ElMessage.error(data.error || '取消订阅失败')
+ }
+ } catch (error) {
+ if (error !== 'cancel') {
+ console.error('Failed to remove subscription:', error)
+ ElMessage.error('取消订阅失败')
+ }
+ }
 }
 
-// 下载更新
-const downloadUpdate = (update) => {
-  ElMessage.info(`开始下载 ${update.app_name} 的更新...`)
-  // 这里可以触发下载逻辑
+// 下载更新 — 复用后端 start-download-direct 接口
+const downloadUpdate = async (update) => {
+  // 找到匹配账号的 token
+  const saved = localStorage.getItem('ipa_accounts')
+  let accounts = []
+  if (saved) {
+    try { accounts = JSON.parse(saved) } catch {}
+  }
+
+  const matchAccount = accounts.find(
+    (a) => a.email === update.account_email
+  )
+
+  if (!matchAccount?.token) {
+    ElMessage.error(`未找到与订阅记录匹配的账号：${update.account_email || '未知账号'}，请重新登录对应 Apple ID 后再试`)
+    return
+  }
+
+  try {
+    ElMessage.info(`正在创建下载任务：${update.app_name} ${update.latest_version}`)
+
+    const response = await fetch(`${API_BASE}/start-download-direct`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: matchAccount.token,
+        appid: String(update.app_id),
+        appName: update.app_name,
+        artworkUrl: update.artwork_url || undefined,
+      })
+    })
+
+    const data = await response.json()
+
+    if (!data.ok) {
+      ElMessage.error(`下载失败：${data.error || '未知错误'}`)
+      return
+    }
+
+    const { jobId } = data
+    const queueItem = {
+      id: jobId,
+      appName: update.app_name,
+      artworkUrl: update.artwork_url || '',
+      artistName: update.artist_name || '',
+      version: update.latest_version || '',
+      account: matchAccount,
+      accountEmail: matchAccount.email || '',
+      status: 'downloading',
+      progress: 0,
+      timestamp: new Date().toISOString(),
+    }
+
+    appStore.addToQueue(queueItem)
+    appStore.activeTab = 'queue'
+    emit('download-started', queueItem)
+    ElMessage.success('下载任务已创建，可在"队列"标签页查看进度')
+  } catch (error) {
+    ElMessage.error(`创建下载任务失败：${error.message}`)
+  }
 }
 
 // 格式化日期
 const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN')
+ if (!dateString) return ''
+ const date = new Date(dateString)
+ return date.toLocaleString('zh-CN')
 }
 
 onMounted(() => {
-  loadSubscriptions()
-  // 自动检查更新
-  checkUpdates()
+ loadSubscriptions()
+ // 自动检查更新
+ checkUpdates()
 })
 </script>
 
 <style scoped>
 .sub-card {
-  transition: all 0.2s ease;
+ transition: all 0.2s ease;
 }
 
 .sub-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+ transform: translateY(-2px);
+ box-shadow: var(--shadow-elevated-hover);
 }
 
 .update-alert :deep(.el-alert__content) {
-  padding: 0;
+ padding: 0;
 }
 </style>

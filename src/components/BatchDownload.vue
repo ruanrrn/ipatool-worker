@@ -2,9 +2,9 @@
   <div class="card">
     <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+        <div class="hero-icon flex-shrink-0">
           <svg
-            class="w-6 h-6 text-white"
+            class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -18,10 +18,10 @@
           </svg>
         </div>
         <div class="flex-shrink-0">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+          <h2 class="text-xl font-bold text-primary">
             批量下载
           </h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
+          <p class="text-sm text-secondary">
             {{ tasks.length }} 个批量任务
           </p>
         </div>
@@ -53,13 +53,13 @@
         <el-card
           v-for="task in tasks"
           :key="task.id"
-          shadow="hover"
+          shadow="never"
           class="task-card"
         >
           <div class="flex items-start justify-between">
             <div class="flex-1">
               <div class="flex items-center gap-3 mb-2">
-                <h3 class="font-semibold text-gray-900 dark:text-white">
+                <h3 class="font-semibold text-primary">
                   {{ task.task_name }}
                 </h3>
                 <el-tag
@@ -70,7 +70,7 @@
                 </el-tag>
               </div>
 
-              <div class="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-3">
+              <div class="flex items-center gap-4 text-sm text-secondary mb-3">
                 <span>总数: {{ task.total_count }}</span>
                 <span>完成: {{ task.completed_count }}</span>
                 <span>失败: {{ task.failed_count }}</span>
@@ -99,7 +99,7 @@
                   查看详情
                 </el-button>
                 <el-button
-                  type="danger"
+                  type="primary"
                   size="small"
                   :icon="Delete"
                   plain
@@ -117,7 +117,7 @@
     <!-- 空状态 -->
     <div
       v-else
-      class="text-center py-12 text-gray-500 dark:text-gray-400"
+      class="empty-state py-12 text-center text-secondary"
     >
       <svg
         class="mx-auto h-16 w-16 mb-4"
@@ -158,7 +158,7 @@
           />
         </el-form-item>
         <el-form-item label="应用列表">
-          <div class="text-sm text-gray-500 mb-2">
+          <div class="text-sm text-tertiary mb-2">
             在下载页选择账号、APPID 和版本后，点击"添加到批量下载"
           </div>
           <div
@@ -168,23 +168,23 @@
             <div
               v-for="(item, index) in draftItems"
               :key="`${item.app_id}-${item.version || 'latest'}-${item.account_email}`"
-              class="flex items-start justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3"
+              class="inline-panel flex items-start justify-between gap-3"
             >
               <div class="min-w-0 flex-1">
-                <p class="font-medium text-gray-900 dark:text-white truncate">
+                <p class="font-medium text-primary truncate">
                   {{ item.app_name || item.app_id }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p class="text-xs text-secondary mt-1">
                   App ID: {{ item.app_id }}
                   <span class="mx-1">|</span>
                   账号: {{ item.account_email }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p class="text-xs text-secondary mt-1">
                   版本: {{ item.version_label || item.version || '最新版本' }}
                 </p>
               </div>
               <el-button
-                type="danger"
+                type="primary"
                 size="small"
                 plain
                 @click="removeDraftItem(index)"
@@ -204,7 +204,7 @@
           </div>
           <div
             v-else
-            class="text-sm text-gray-400"
+            class="text-sm text-secondary"
           >
             还没有批量下载草稿项
           </div>
@@ -236,7 +236,7 @@
           <h3 class="font-semibold mb-2">
             {{ currentTask.task_name }}
           </h3>
-          <div class="flex items-center gap-4 text-sm text-gray-500">
+          <div class="flex items-center gap-4 text-sm text-tertiary">
             <span>总数: {{ currentTask.total_count }}</span>
             <span>完成: {{ currentTask.completed_count }}</span>
             <span>失败: {{ currentTask.failed_count }}</span>
@@ -255,14 +255,14 @@
             <div
               v-for="item in taskItems"
               :key="item.id"
-              class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              class="inline-panel"
             >
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="font-medium text-gray-900 dark:text-white">
+                  <p class="font-medium text-primary">
                     {{ item.app_name || item.app_id }}
                   </p>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-sm text-tertiary">
                     版本: {{ item.version || '未知' }} | 账号: {{ item.account_email }}
                   </p>
                 </div>
@@ -275,7 +275,7 @@
                   </el-tag>
                   <p
                     v-if="item.progress > 0"
-                    class="text-sm text-gray-500 mt-1"
+                    class="text-sm text-tertiary mt-1"
                   >
                     {{ item.progress }}%
                   </p>
@@ -283,7 +283,7 @@
               </div>
               <p
                 v-if="item.error"
-                class="text-sm text-red-500 mt-2"
+                class="text-sm text-danger mt-2"
               >
                 {{ item.error }}
               </p>
@@ -318,161 +318,159 @@ const currentTask = ref(null)
 const taskItems = ref([])
 
 const createForm = ref({
-  taskName: '',
-  items: []
+ taskName: '',
+ items: []
 })
 
 const draftItems = computed(() => appStore.batchDraftItems)
 
 // 加载批量任务
 const loadTasks = async () => {
-  try {
-    const response = await fetch(`${API_BASE}/batch-tasks`, { credentials: 'include' })
-    const data = await response.json()
-    if (data.ok) {
-      tasks.value = data.data || []
-    }
-  } catch (error) {
-    console.error('Failed to load batch tasks:', error)
-    ElMessage.error('加载批量任务失败')
-  }
+ try {
+ const response = await fetch(`${API_BASE}/batch-tasks`, { credentials: 'include' })
+ const data = await response.json()
+ if (data.ok) {
+ tasks.value = data.data || []
+ }
+ } catch (error) {
+ console.error('Failed to load batch tasks:', error)
+ ElMessage.error('加载批量任务失败')
+ }
 }
 
 // 创建批量任务
 const removeDraftItem = (index) => {
-  appStore.removeBatchDraftItem(index)
+ appStore.removeBatchDraftItem(index)
 }
 
-const clearDraftItems = () => {
-  appStore.clearBatchDraftItems()
+const clearDraftItems = async () => {
+  if (draftItems.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(`确定清空全部 ${draftItems.value.length} 个草稿项吗？`, '确认清空', {
+      type: 'warning',
+      confirmButtonText: '清空',
+      cancelButtonText: '取消',
+    })
+    appStore.clearBatchDraftItems()
+  } catch {
+    // user canceled
+  }
 }
 
 const createBatchTask = async () => {
-  if (!createForm.value.taskName) {
-    ElMessage.warning('请输入任务名称')
-    return
-  }
+ if (!createForm.value.taskName) {
+ ElMessage.warning('请输入任务名称')
+ return
+ }
 
-  if (draftItems.value.length === 0) {
-    ElMessage.warning('请先从下载页添加至少一个批量下载项')
-    return
-  }
+ if (draftItems.value.length === 0) {
+ ElMessage.warning('请先从下载页添加至少一个批量下载项')
+ return
+ }
 
-  creating.value = true
-  try {
-    const response = await fetch(`${API_BASE}/batch-download`, {
-      credentials: 'include',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        task_name: createForm.value.taskName,
-        items: draftItems.value.map(item => ({
-          app_id: item.app_id,
-          app_name: item.app_name,
-          version: item.version,
-          account_email: item.account_email
-        }))
-      })
-    })
-    const data = await response.json()
+ creating.value = true
+ try {
+ const response = await fetch(`${API_BASE}/batch-download`, {
+ credentials: 'include',
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({
+ task_name: createForm.value.taskName,
+ items: draftItems.value.map(item => ({
+ app_id: item.app_id,
+ app_name: item.app_name,
+ version: item.version,
+ account_email: item.account_email
+ }))
+ })
+ })
+ const data = await response.json()
 
-    if (data.ok) {
-      ElMessage.success('批量任务创建成功')
-      showCreateDialog.value = false
-      createForm.value.taskName = ''
-      appStore.clearBatchDraftItems()
-      await loadTasks()
-    } else {
-      ElMessage.error(data.error || '创建批量任务失败')
-    }
-  } catch (error) {
-    console.error('Failed to create batch task:', error)
-    ElMessage.error('创建批量任务失败')
-  } finally {
-    creating.value = false
-  }
+ if (data.ok) {
+ ElMessage.success('批量任务创建成功')
+ showCreateDialog.value = false
+ createForm.value.taskName = ''
+ appStore.clearBatchDraftItems()
+ await loadTasks()
+ } else {
+ ElMessage.error(data.error || '创建批量任务失败')
+ }
+ } catch (error) {
+ console.error('Failed to create batch task:', error)
+ ElMessage.error('创建批量任务失败')
+ } finally {
+ creating.value = false
+ }
 }
 
 // 查看任务详情
 const viewDetails = async (task) => {
-  currentTask.value = task
-  try {
-    const response = await fetch(`${API_BASE}/batch-tasks/${task.id}`, { credentials: 'include' })
-    const data = await response.json()
-    if (data.ok && data.data.items) {
-      taskItems.value = data.data.items
-    }
-    showDetailsDialog.value = true
-  } catch (error) {
-    console.error('Failed to load task details:', error)
-    ElMessage.error('加载任务详情失败')
-  }
+ currentTask.value = task
+ try {
+ const response = await fetch(`${API_BASE}/batch-tasks/${task.id}`, { credentials: 'include' })
+ const data = await response.json()
+ if (data.ok && data.data.items) {
+ taskItems.value = data.data.items
+ }
+ showDetailsDialog.value = true
+ } catch (error) {
+ console.error('Failed to load task details:', error)
+ ElMessage.error('加载任务详情失败')
+ }
 }
 
 // 删除任务
 const deleteTask = async (id) => {
-  try {
-    await ElMessageBox.confirm('确定要删除这个批量任务吗？', '确认删除', {
-      type: 'warning'
-    })
+ try {
+ await ElMessageBox.confirm('确定要删除这个批量任务吗？', '确认删除', {
+ type: 'warning'
+ })
 
-    const response = await fetch(`${API_BASE}/batch-tasks/${id}`, {
-      credentials: 'include',
-      method: 'DELETE'
-    })
-    const data = await response.json()
+ const response = await fetch(`${API_BASE}/batch-tasks/${id}`, {
+ credentials: 'include',
+ method: 'DELETE'
+ })
+ const data = await response.json()
 
-    if (data.ok) {
-      ElMessage.success('删除成功')
-      await loadTasks()
-    } else {
-      ElMessage.error(data.error || '删除失败')
-    }
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Failed to delete task:', error)
-      ElMessage.error('删除失败')
-    }
-  }
+ if (data.ok) {
+ ElMessage.success('删除成功')
+ await loadTasks()
+ } else {
+ ElMessage.error(data.error || '删除失败')
+ }
+ } catch (error) {
+ if (error !== 'cancel') {
+ console.error('Failed to delete task:', error)
+ ElMessage.error('删除失败')
+ }
+ }
 }
 
 // 计算进度
 const calculateProgress = (task) => {
-  if (task.total_count === 0) return 0
-  return Math.round((task.completed_count / task.total_count) * 100)
+ if (task.total_count === 0) return 0
+ return Math.round((task.completed_count / task.total_count) * 100)
 }
 
 // 格式化日期
 const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN')
+ if (!dateString) return ''
+ const date = new Date(dateString)
+ return date.toLocaleString('zh-CN')
 }
 
 onMounted(() => {
-  loadTasks()
+ loadTasks()
 })
 </script>
 
 <style scoped>
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.dark .card {
-  background: #1f2937;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
+.card,
 .task-card {
-  transition: all 0.2s ease;
-}
-
-.task-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+ border-radius: 12px;
+ background: var(--card-bg);
+ border: 0.5px solid var(--separator);
+ box-shadow: none;
 }
 </style>
+

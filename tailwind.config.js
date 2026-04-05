@@ -1,40 +1,40 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
+    './index.html',
+    './src/**/*.{vue,js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+        accent: '#0A84FF',
+        ios: {
+          bg: '#000000',
+          card: '#1C1C1E',
+          lightBg: '#F2F2F7',
+          lightCard: '#FFFFFF',
+          text: '#FFFFFF',
+          muted: '#8E8E93',
         },
       },
-      animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      borderRadius: {
+        sm: '4px',
+        DEFAULT: '8px',
+        md: '10px',
+        lg: '12px',
+        xl: '16px',
       },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
+      spacing: {
+        1: '4px',
+        2: '8px',
+        3: '12px',
+        4: '16px',
+        6: '24px',
+        8: '32px',
+      },
+      transitionTimingFunction: {
+        DEFAULT: 'ease',
       },
     },
   },

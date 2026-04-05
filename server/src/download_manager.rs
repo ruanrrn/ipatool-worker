@@ -145,7 +145,7 @@ impl DownloadManager {
     // 带重试的下载
     async fn download_with_retry<S: AppleAuthService + Clone + Send + Sync>(
         db: &Arc<Mutex<Database>>,
-        downloads_dir: &PathBuf,
+        downloads_dir: &Path,
         store: &S,
         app_id: &str,
         version: Option<&str>,
@@ -171,7 +171,7 @@ impl DownloadManager {
                 Ok(result) => {
                     // 记录成功下载
                     if let Some(ref file_path) = result.file {
-                        let file_meta = std::fs::metadata(&file_path).ok();
+                        let file_meta = std::fs::metadata(file_path).ok();
                         let metadata = result.metadata;
                         let record = DownloadRecord {
                             id: None,
@@ -227,14 +227,19 @@ impl DownloadManager {
                             } else if inspection.has_sc_info_manifest
                                 || !inspection.encrypted_binaries.is_empty()
                             {
-                                ("fairplay_appstore_package".to_string(), false, "download_only".to_string())
+                                (
+                                    "fairplay_appstore_package".to_string(),
+                                    false,
+                                    "download_only".to_string(),
+                                )
                             } else {
                                 ("unknown".to_string(), false, "manual_review".to_string())
                             };
                             let inspection_json = serde_json::to_string(&inspection).ok();
                             // Find the record we just inserted (by file_path) and patch delivery fields.
                             if let Ok(db_guard) = db.lock() {
-                                if let Ok(Some(rec)) = db_guard.get_download_record_by_file_path(fp) {
+                                if let Ok(Some(rec)) = db_guard.get_download_record_by_file_path(fp)
+                                {
                                     let _ = db_guard.update_download_record_delivery(
                                         rec.id.unwrap_or(0),
                                         Some(package_kind.as_str()),
@@ -273,7 +278,7 @@ impl DownloadManager {
 
     // 断点续传下载
     async fn download_with_resume<S: AppleAuthService + Clone>(
-        downloads_dir: &PathBuf,
+        downloads_dir: &Path,
         store: &S,
         app_id: &str,
         version: Option<&str>,

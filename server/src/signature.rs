@@ -805,9 +805,7 @@ impl SignatureClient {
             let value = plist::Value::Dictionary(dict);
             let mut buf = Vec::new();
             let options = plist::XmlWriteOptions::default();
-            if let Err(e) =
-                plist::to_writer_xml_with_options(&mut buf, &value, &options)
-            {
+            if let Err(e) = plist::to_writer_xml_with_options(&mut buf, &value, &options) {
                 log::warn!("append_metadata: failed to serialize raw Apple metadata to plist: {e}, falling back to extracted fields");
                 return self.build_metadata_fallback();
             }
