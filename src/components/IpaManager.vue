@@ -548,8 +548,7 @@ onMounted(loadArtifacts)
  text-overflow: ellipsis;
 }
 
-.artifact-meta,
-.artifact-path {
+.artifact-meta {
  display: flex;
  flex-wrap: wrap;
  gap: 8px 14px;
@@ -557,8 +556,14 @@ onMounted(loadArtifacts)
  color: var(--text-secondary);
 }
 
+/* File name: avoid awkward single-letter wraps on mobile */
 .artifact-path {
- word-break: break-all;
+ display: block;
+ margin-top: 4px;
+ font-size: 13px;
+ color: var(--text-secondary);
+ overflow-wrap: anywhere;
+ word-break: break-word;
 }
 
 .inline-upload {

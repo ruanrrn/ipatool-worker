@@ -708,6 +708,18 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: flex-start;
  }
+
+ /* Mobile: keep action buttons aligned and avoid lonely wrap */
+ .row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+ }
+
+ .row-actions :deep(.el-button) {
+  width: 100%;
+  justify-content: center;
+ }
 }
 </style>
 

@@ -72,7 +72,7 @@
         v-else
         class="status-panel p-4"
       >
-        <div class="flex items-center justify-between gap-2">
+        <div class="account-toolbar">
           <div class="flex items-center space-x-2 min-w-0">
             <svg
               class="w-4 h-4 flex-shrink-0 text-accent-blue"
@@ -119,7 +119,7 @@
       </div>
 
       <!-- Search Mode Toggle -->
-      <div class="inline-panel flex items-center space-x-4">
+      <div class="inline-panel search-mode-row">
         <label class="flex items-center space-x-2 cursor-pointer">
           <input
             v-model="searchMode"
@@ -1918,6 +1918,20 @@ onMounted(() => {
  font-size: 15px;
 }
 
+.account-toolbar {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 8px;
+}
+
+.search-mode-row {
+ display: flex;
+ align-items: center;
+ gap: 16px;
+ flex-wrap: wrap;
+}
+
 .account-quick-select {
  width: 320px;
  max-width: 100%;
@@ -1978,9 +1992,22 @@ onMounted(() => {
   height: 44px;
  }
 
+ .account-toolbar {
+  flex-direction: column;
+  align-items: stretch;
+ }
+
+ .account-toolbar > div:first-child {
+  width: 100%;
+ }
+
+ .search-mode-row {
+  gap: 12px;
+ }
+
  .account-quick-select {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 0;
  }
 
  .search-result-item {
