@@ -1,6 +1,6 @@
 <template>
   <div class="card">
-    <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
       <div class="flex items-center space-x-3">
         <div class="hero-icon flex-shrink-0">
           <svg
@@ -26,16 +26,18 @@
           </p>
         </div>
       </div>
-      <div class="flex items-center space-x-2 flex-shrink-0">
+      <div class="flex items-center gap-2">
         <el-button
           type="primary"
           :icon="Plus"
+          size="small"
           @click="showCreateDialog = true"
         >
           创建批量下载
         </el-button>
         <el-button
           :icon="Refresh"
+          size="small"
           @click="loadTasks"
         >
           刷新
@@ -144,12 +146,14 @@
     <el-dialog
       v-model="showCreateDialog"
       title="创建批量下载"
-      width="500px"
+      width="min(92vw, 520px)"
       :close-on-click-modal="false"
+      :lock-scroll="false"
+      align-center
     >
       <el-form
         :model="createForm"
-        label-width="100px"
+        label-position="top"
       >
         <el-form-item label="任务名称">
           <el-input
@@ -229,7 +233,9 @@
     <el-dialog
       v-model="showDetailsDialog"
       title="批量下载详情"
-      width="800px"
+      width="min(92vw, 900px)"
+      :lock-scroll="false"
+      align-center
     >
       <div v-if="currentTask">
         <div class="mb-4">
@@ -350,6 +356,7 @@ const clearDraftItems = async () => {
       type: 'warning',
       confirmButtonText: '清空',
       cancelButtonText: '取消',
+      lockScroll: false,
     })
     appStore.clearBatchDraftItems()
   } catch {
@@ -423,7 +430,8 @@ const viewDetails = async (task) => {
 const deleteTask = async (id) => {
  try {
  await ElMessageBox.confirm('确定要删除这个批量任务吗？', '确认删除', {
- type: 'warning'
+ type: 'warning',
+ lockScroll: false,
  })
 
  const response = await fetch(`${API_BASE}/batch-tasks/${id}`, {
@@ -471,6 +479,26 @@ onMounted(() => {
  background: var(--card-bg);
  border: 0.5px solid var(--separator);
  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+ .task-card :deep(.el-card__body) {
+  padding: 14px;
+ }
+
+ .task-card .flex.items-start.justify-between {
+  display: block;
+ }
+
+ .task-card .flex.items-center.gap-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+ }
+
+ .task-card .flex.items-center.gap-2 :deep(.el-button) {
+  width: 100%;
+  margin: 0;
+ }
 }
 </style>
 

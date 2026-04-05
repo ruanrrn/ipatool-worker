@@ -177,6 +177,7 @@
       title="添加订阅"
       width="500px"
       :close-on-click-modal="false"
+      :lock-scroll="false"
     >
       <el-form
         :model="subscribeForm"
@@ -357,7 +358,8 @@ const addSubscription = async () => {
 const removeSubscription = async (sub) => {
  try {
  await ElMessageBox.confirm(`确定要取消订阅 "${sub.app_name}"吗？`, '确认取消', {
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  })
 
  const response = await fetch(`${API_BASE}/subscriptions?app_id=${sub.app_id}&account_email=${sub.account_email}`, {

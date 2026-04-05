@@ -2,11 +2,11 @@
  <div
   id="app"
   :class="{ dark: isDark }"
-  class="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-200"
+  class="min-h-[100svh] bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-200"
  >
   <div
    v-if="authState === 'loading'"
-   class="flex min-h-screen items-center justify-center"
+   class="flex min-h-[100svh] items-center justify-center"
   >
    <div class="text-[13px] text-[var(--text-secondary)]">加载中...</div>
   </div>
@@ -17,7 +17,7 @@
   />
 
   <template v-else>
-   <div class="mx-auto min-h-screen max-w-[960px] px-4 pb-6 sm:px-6">
+   <div class="mx-auto min-h-[100svh] max-w-[960px] px-4 pb-6 sm:px-6">
     <header class="sticky top-0 z-50 flex h-11 items-center justify-between border-b border-[var(--separator)] bg-[var(--bg-primary)]">
      <div class="flex items-center gap-3">
       <div class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[var(--accent-blue)] text-white">
@@ -112,6 +112,7 @@ async function handleLogout() {
      confirmButtonText: '退出',
      cancelButtonText: '取消',
      type: 'warning',
+     lockScroll: false,
    })
    await appStore.logoutAdmin()
    authState.value = 'unauthenticated'

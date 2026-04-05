@@ -315,17 +315,8 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-primary mb-2">APPID</label>
-          <el-input
-            v-model="appid"
-            placeholder="例如：1160172628"
-            class="form-input"
-          />
-        </div>
-
-        <div>
           <label class="block text-sm font-medium text-primary mb-2">版本（历史版本下拉）</label>
-          <el-select 
+          <el-select
             v-model="selectedVersion"
             placeholder="请先查询版本"
             class="w-full form-select"
@@ -342,14 +333,11 @@
           </el-select>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-primary mb-2">appVerId（自动填充）</label>
-          <el-input
-            v-model="appVerId"
-            placeholder="external_identifier"
-            readonly
-            class="form-input"
-          />
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
+          <span>APPID: <strong class="font-mono">{{ appid || '—' }}</strong></span>
+          <span>
+            版本: <strong class="font-mono">{{ versions.find(v => v.external_identifier === selectedVersion)?.bundle_version || '最新' }}</strong>
+          </span>
         </div>
 
         <el-space
@@ -914,32 +902,46 @@ const addToBatchDraft = () => {
  })
 
  if (result.updated) {
- ElMessage.success('已更新批量草稿项')
+  ElMessage.success('已更新批量草稿项')
  } else if (result.added) {
- ElMessage.success('已添加到批量下载草稿')
+  ElMessage.success('已添加到批量下载草稿，可继续搜索下一个应用')
  }
+
+ // 为下一次搜索准备：清除当前选择并滚动到顶部聚焦搜索框
+ emit('app-selected', null)
+ showProgress.value = false
+ searchQuery.value = ''
+ searchResults.value = []
+ window.scrollTo({ top: 0, behavior: 'smooth' })
+ setTimeout(() => {
+  const input = document.querySelector('.search-input input')
+  if (input) input.focus()
+ }, 200)
 }
 
 // Search functionality - 使用所选账号的区域
 const handleSearch = useDebounceFn(async () => {
- const query = searchQuery.value.trim()
- if (!query) {
- searchResults.value = []
- return
- }
+  const query = searchQuery.value.trim()
+  if (!query) {
+    searchResults.value = []
+    return
+  }
 
- // In direct App ID mode, don't search automatically
- if (searchMode.value === 'appid') {
- return
- }
+  // In direct App ID mode, don't search automatically
+  if (searchMode.value === 'appid') {
+    return
+  }
 
- // 检查是否已选择账号
- if (accounts.value.length === 0 || selectedAccount.value === '' || selectedAccount.value === null) {
- searchResults.value = []
- return
- }
+  // 检查是否已选择账号
+  if (accounts.value.length === 0 || selectedAccount.value === '' || selectedAccount.value === null) {
+    searchResults.value = []
+    return
+  }
 
- const requestId = ++currentSearchRequestId.value
+  // 搜索新应用时清除旧的选中应用
+  emit('app-selected', null)
+
+  const requestId = ++currentSearchRequestId.value
  searching.value = true
  try {
  // 获取当前选择账号的区域
@@ -1020,10 +1022,18 @@ watch(searchMode, () => {
 })
 
 // Watch for selectedApp changes to auto-fill appid
-watch(() => props.selectedApp, (newApp) => {
- if (newApp && newApp.trackId) {
- appid.value = String(newApp.trackId)
- }
+watch(() => props.selectedApp, (newApp, oldApp) => {
+  // Reset version-related state when switching apps (or clearing selection)
+  versions.value = []
+  selectedVersion.value = ''
+  appVerId.value = ''
+  versionsFetched.value = false
+
+  if (newApp && newApp.trackId) {
+    appid.value = String(newApp.trackId)
+  } else {
+    appid.value = ''
+  }
 }, { immediate: true })
 
 // Watch for account and appid changes to auto-fetch versions
@@ -1257,7 +1267,8 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  '无法开始下载',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  return false
@@ -1268,7 +1279,8 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  '无法开始下载',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  return false
@@ -1285,7 +1297,8 @@ const buyOrClaimSelectedApp = async () => {
  if (price === null) {
  await ElMessageBox.alert('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。', '无法领取', {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  })
  return
  }
@@ -1293,7 +1306,8 @@ const buyOrClaimSelectedApp = async () => {
  if (price > 0) {
  await ElMessageBox.alert('这是付费应用，请先在 App Store 购买。购买完成后页面会自动恢复下载按钮。', '需要先购买', {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  })
  return
  }
@@ -1305,7 +1319,8 @@ const buyOrClaimSelectedApp = async () => {
  '请先到 App Store 获取',
  {
  confirmButtonText: '打开 App Store',
- type: 'info'
+ type: 'info',
+ lockScroll: false
  }
  ).catch(() => {})
 
@@ -1328,7 +1343,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  '无法自动购买',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  addLog(`[${modeLabel}] 未购买，但价格未知，已阻止自动购买`)
@@ -1341,7 +1357,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  '付费应用无法自动购买',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  addLog(`[${modeLabel}] 未购买的付费应用，已提示先去 App Store 购买`)
@@ -1354,7 +1371,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  {
  confirmButtonText: '领取并下载',
  cancelButtonText: '取消',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  ).then(() => true).catch(() => false)
 
@@ -1799,7 +1817,8 @@ const installDownloadedIpa = async () => {
  confirmButtonText: '直接下载文件',
  cancelButtonText: '取消操作',
  type: 'warning',
- center: true
+ center: true,
+ lockScroll: false
  }
  ).then(
  () => 'download',
@@ -1824,7 +1843,8 @@ const installDownloadedIpa = async () => {
  {
  confirmButtonText: '继续尝试',
  cancelButtonText: '取消',
- type: 'info'
+ type: 'info',
+ lockScroll: false
  }
  ).then(() => true).catch(() => false)
 

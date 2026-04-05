@@ -114,6 +114,12 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Element Plus 在弹窗打开时会给 body 注入 padding-right 以补偿滚动条宽度，
+     在移动端和部分桌面环境会表现成页面整体向左抖一下。这里禁用这段补偿。 */
+  body.el-popup-parent--hidden {
+    padding-right: 0 !important;
+  }
+
   h1, h2, h3, h4, h5, h6, p {
     margin: 0;
   }

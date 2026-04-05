@@ -227,6 +227,7 @@
       :close-on-click-modal="false"
       :close-on-press-escape="!deletingArtifact"
       :show-close="!deletingArtifact"
+      :lock-scroll="false"
       destroy-on-close
     >
       <div class="space-y-3 text-sm">
@@ -402,7 +403,8 @@ const removeSelectedArtifacts = async () => {
  await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
  type: 'warning',
  confirmButtonText: '批量清理',
- cancelButtonText: '取消'
+ cancelButtonText: '取消',
+ lockScroll: false
  })
 
  for (const id of [...selectedIds.value]) {
