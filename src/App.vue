@@ -77,7 +77,7 @@ import { useAppStore } from './stores/app'
 import { useNotifications } from './composables/useNotifications'
 import TabLayout from './components/TabLayout.vue'
 import Login from './components/Login.vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const { isDark, toggleDark } = useDark()
 const appStore = useAppStore()
@@ -107,9 +107,18 @@ function onLoginSuccess() {
 }
 
 async function handleLogout() {
- await appStore.logoutAdmin()
- authState.value = 'unauthenticated'
- ElMessage.success('已退出登录')
+ try {
+   await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+     confirmButtonText: '退出',
+     cancelButtonText: '取消',
+     type: 'warning',
+   })
+   await appStore.logoutAdmin()
+   authState.value = 'unauthenticated'
+   ElMessage.success('已退出登录')
+ } catch {
+   // user canceled
+ }
 }
 
 const handleAppSelected = (app) => appStore.setSelectedApp(app)

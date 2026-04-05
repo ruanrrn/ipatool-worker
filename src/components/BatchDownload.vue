@@ -343,8 +343,18 @@ const removeDraftItem = (index) => {
  appStore.removeBatchDraftItem(index)
 }
 
-const clearDraftItems = () => {
- appStore.clearBatchDraftItems()
+const clearDraftItems = async () => {
+  if (draftItems.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(`确定清空全部 ${draftItems.value.length} 个草稿项吗？`, '确认清空', {
+      type: 'warning',
+      confirmButtonText: '清空',
+      cancelButtonText: '取消',
+    })
+    appStore.clearBatchDraftItems()
+  } catch {
+    // user canceled
+  }
 }
 
 const createBatchTask = async () => {

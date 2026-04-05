@@ -536,9 +536,21 @@ const syncActiveTaskPolling = () => {
  }
 }
 
-const removeTask = (id) => {
- stopTaskPolling(id)
- emit('remove-item', id)
+const removeTask = async (id) => {
+  const task = props.queue.find(t => t?.id === id)
+  if (!task) { stopTaskPolling(id); emit('remove-item', id); return }
+  const isActive = !isFinalStatus(task.status)
+  if (isActive) {
+    try {
+      await ElMessageBox.confirm(
+        `任务「${task.appName || '未知'}」仍在进行中，确定取消吗？`,
+        '确认取消任务',
+        { type: 'warning', confirmButtonText: '取消任务', cancelButtonText: '继续等待' }
+      )
+    } catch { return }
+  }
+  stopTaskPolling(id)
+  emit('remove-item', id)
 }
 const download = (url) => window.open(url, '_blank', 'noopener')
 

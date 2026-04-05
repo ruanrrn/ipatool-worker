@@ -20,7 +20,7 @@
           </div>
           <div>
             <p class="mb-1 text-[13px] text-secondary">
-              Secure Access
+              安全登录
             </p>
             <h2 class="text-[17px] font-semibold text-primary">
               管理员登录
@@ -90,7 +90,7 @@
       <el-dialog
         v-model="showChangePassword"
         title="首次登录：请修改用户名和密码"
-        width="420px"
+        width="min(92vw, 420px)"
         :close-on-click-modal="false"
         :close-on-press-escape="false"
         :show-close="false"
