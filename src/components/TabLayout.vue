@@ -209,6 +209,7 @@ onUnmounted(() => {
  flex-direction: column;
  gap: 8px;
  min-height: calc(100vh - 72px);
+ min-height: calc(100svh - 72px);
 }
 
 .desktop-tabs {

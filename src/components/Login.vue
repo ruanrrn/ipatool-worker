@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+  <div class="flex min-h-[100svh] items-center justify-center px-4 py-10 sm:px-6">
     <div class="w-full max-w-[420px]">
       <div class="card overflow-hidden">
         <div class="mb-6 flex items-start gap-4">
