@@ -148,6 +148,7 @@
       title="创建批量下载"
       width="min(92vw, 520px)"
       :close-on-click-modal="false"
+      :lock-scroll="false"
       align-center
     >
       <el-form
@@ -233,6 +234,7 @@
       v-model="showDetailsDialog"
       title="批量下载详情"
       width="min(92vw, 900px)"
+      :lock-scroll="false"
       align-center
     >
       <div v-if="currentTask">
@@ -354,6 +356,7 @@ const clearDraftItems = async () => {
       type: 'warning',
       confirmButtonText: '清空',
       cancelButtonText: '取消',
+      lockScroll: false,
     })
     appStore.clearBatchDraftItems()
   } catch {
@@ -427,7 +430,8 @@ const viewDetails = async (task) => {
 const deleteTask = async (id) => {
  try {
  await ElMessageBox.confirm('确定要删除这个批量任务吗？', '确认删除', {
- type: 'warning'
+ type: 'warning',
+ lockScroll: false,
  })
 
  const response = await fetch(`${API_BASE}/batch-tasks/${id}`, {

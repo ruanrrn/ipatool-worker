@@ -351,7 +351,7 @@ const loadRecords = async () => {
 
 const removeRecord = async (id) => {
  try {
- await ElMessageBox.confirm('确定删除这条记录吗？', '确认删除', { type: 'warning' })
+ await ElMessageBox.confirm('确定删除这条记录吗？', '确认删除', { type: 'warning', lockScroll: false })
  const response = await fetch(`${API_BASE}/download-records/${id}`, {
  method: 'DELETE',
  credentials: 'include'
@@ -372,7 +372,8 @@ const clearAllRecords = async () => {
  await ElMessageBox.confirm('确定清空全部下载记录吗？', '确认清空', {
  type: 'warning',
  confirmButtonText: '清空',
- cancelButtonText: '取消'
+ cancelButtonText: '取消',
+ lockScroll: false
  })
  const response = await fetch(`${API_BASE}/download-records`, {
  method: 'DELETE',
@@ -394,7 +395,8 @@ const cleanupRecordFile = async (record) => {
  await ElMessageBox.confirm(`确定清理 ${record.appName || '该安装包'} 吗？`, '确认清理', {
  type: 'warning',
  confirmButtonText: '清理安装包',
- cancelButtonText: '取消'
+ cancelButtonText: '取消',
+ lockScroll: false
  })
  const response = await fetch(`${API_BASE}/download-records/${record.id}/file`, {
  method: 'DELETE',
@@ -416,7 +418,8 @@ const cleanupServerFiles = async () => {
  await ElMessageBox.confirm('确定清理服务器上的下载目录吗？', '确认清理', {
  type: 'warning',
  confirmButtonText: '清理',
- cancelButtonText: '取消'
+ cancelButtonText: '取消',
+ lockScroll: false
  })
  const response = await fetch(`${API_BASE}/cleanup-downloads`, {
  method: 'POST',
@@ -545,7 +548,7 @@ const removeTask = async (id) => {
       await ElMessageBox.confirm(
         `任务「${task.appName || '未知'}」仍在进行中，确定取消吗？`,
         '确认取消任务',
-        { type: 'warning', confirmButtonText: '取消任务', cancelButtonText: '继续等待' }
+        { type: 'warning', confirmButtonText: '取消任务', cancelButtonText: '继续等待', lockScroll: false }
       )
     } catch { return }
   }

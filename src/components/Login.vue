@@ -94,6 +94,7 @@
         :close-on-click-modal="false"
         :close-on-press-escape="false"
         :show-close="false"
+        :lock-scroll="false"
         align-center
       >
         <el-form

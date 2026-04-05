@@ -1267,7 +1267,8 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  '无法开始下载',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  return false
@@ -1278,7 +1279,8 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
  '无法开始下载',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  return false
@@ -1295,7 +1297,8 @@ const buyOrClaimSelectedApp = async () => {
  if (price === null) {
  await ElMessageBox.alert('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。', '无法领取', {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  })
  return
  }
@@ -1303,7 +1306,8 @@ const buyOrClaimSelectedApp = async () => {
  if (price > 0) {
  await ElMessageBox.alert('这是付费应用，请先在 App Store 购买。购买完成后页面会自动恢复下载按钮。', '需要先购买', {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  })
  return
  }
@@ -1315,7 +1319,8 @@ const buyOrClaimSelectedApp = async () => {
  '请先到 App Store 获取',
  {
  confirmButtonText: '打开 App Store',
- type: 'info'
+ type: 'info',
+ lockScroll: false
  }
  ).catch(() => {})
 
@@ -1338,7 +1343,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  '无法自动购买',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  addLog(`[${modeLabel}] 未购买，但价格未知，已阻止自动购买`)
@@ -1351,7 +1357,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  '付费应用无法自动购买',
  {
  confirmButtonText: '知道了',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  )
  addLog(`[${modeLabel}] 未购买的付费应用，已提示先去 App Store 购买`)
@@ -1364,7 +1371,8 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  {
  confirmButtonText: '领取并下载',
  cancelButtonText: '取消',
- type: 'warning'
+ type: 'warning',
+ lockScroll: false
  }
  ).then(() => true).catch(() => false)
 
@@ -1809,7 +1817,8 @@ const installDownloadedIpa = async () => {
  confirmButtonText: '直接下载文件',
  cancelButtonText: '取消操作',
  type: 'warning',
- center: true
+ center: true,
+ lockScroll: false
  }
  ).then(
  () => 'download',
@@ -1834,7 +1843,8 @@ const installDownloadedIpa = async () => {
  {
  confirmButtonText: '继续尝试',
  cancelButtonText: '取消',
- type: 'info'
+ type: 'info',
+ lockScroll: false
  }
  ).then(() => true).catch(() => false)
 

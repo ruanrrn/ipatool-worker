@@ -61,6 +61,7 @@
         title="修改登录凭据"
         width="420px"
         :close-on-click-modal="false"
+        :lock-scroll="false"
         align-center
       >
         <el-form

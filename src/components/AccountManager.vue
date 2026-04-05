@@ -462,6 +462,7 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 				type: 'warning',
 				confirmButtonText: '删除',
 				cancelButtonText: '取消',
+				lockScroll: false,
 			}
 		)
 	} catch {

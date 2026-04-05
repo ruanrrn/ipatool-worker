@@ -112,6 +112,7 @@ async function handleLogout() {
      confirmButtonText: '退出',
      cancelButtonText: '取消',
      type: 'warning',
+     lockScroll: false,
    })
    await appStore.logoutAdmin()
    authState.value = 'unauthenticated'
