@@ -752,8 +752,7 @@ fn resolve_artifact_path(downloads_dir: &Path, artifact_id: &str) -> Option<Path
                 .map(|relative| {
                     relative
                         .to_string_lossy()
-                        .replace('\\', "__")
-                        .replace('/', "__")
+                        .replace(['\\', '/'], "__")
                 })
                 .as_deref()
                 == Some(artifact_id)
@@ -1648,7 +1647,7 @@ async fn get_job_info(
         .unwrap_or(false);
     let persisted_record_inspection = persisted_record
         .as_ref()
-        .and_then(|record| inspection_for_record(record));
+        .and_then(inspection_for_record);
     if let Some(record) = persisted_record.as_ref() {
         if snapshot.status == "ready" {
             if let Ok(db) = data.db.lock() {
@@ -3863,9 +3862,8 @@ async fn cleanup_download_record_file(
         if is_jobs_child {
             let mut empty = true;
             if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
-                while let Ok(Some(_)) = entries.next_entry().await {
+                if entries.next_entry().await.ok().flatten().is_some() {
                     empty = false;
-                    break;
                 }
             }
             if empty {

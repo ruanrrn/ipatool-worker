@@ -145,7 +145,7 @@ impl DownloadManager {
     // 带重试的下载
     async fn download_with_retry<S: AppleAuthService + Clone + Send + Sync>(
         db: &Arc<Mutex<Database>>,
-        downloads_dir: &PathBuf,
+        downloads_dir: &Path,
         store: &S,
         app_id: &str,
         version: Option<&str>,
@@ -171,7 +171,7 @@ impl DownloadManager {
                 Ok(result) => {
                     // 记录成功下载
                     if let Some(ref file_path) = result.file {
-                        let file_meta = std::fs::metadata(&file_path).ok();
+                        let file_meta = std::fs::metadata(file_path).ok();
                         let metadata = result.metadata;
                         let record = DownloadRecord {
                             id: None,
@@ -273,7 +273,7 @@ impl DownloadManager {
 
     // 断点续传下载
     async fn download_with_resume<S: AppleAuthService + Clone>(
-        downloads_dir: &PathBuf,
+        downloads_dir: &Path,
         store: &S,
         app_id: &str,
         version: Option<&str>,
