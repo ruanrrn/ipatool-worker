@@ -749,11 +749,7 @@ fn resolve_artifact_path(downloads_dir: &Path, artifact_id: &str) -> Option<Path
                 .path
                 .strip_prefix(downloads_dir)
                 .ok()
-                .map(|relative| {
-                    relative
-                        .to_string_lossy()
-                        .replace(['\\', '/'], "__")
-                })
+                .map(|relative| relative.to_string_lossy().replace(['\\', '/'], "__"))
                 .as_deref()
                 == Some(artifact_id)
         })
@@ -805,8 +801,7 @@ fn derive_delivery_decision(
             }
         }
         Some(inspection)
-            if inspection.has_sc_info_manifest
-                && !inspection.missing_sinf_paths.is_empty() =>
+            if inspection.has_sc_info_manifest && !inspection.missing_sinf_paths.is_empty() =>
         {
             // App Store IPA but sinf injection incomplete — cannot install
             DeliveryDecision {
@@ -1645,9 +1640,7 @@ async fn get_job_info(
         .map(PathBuf::from)
         .map(|path| path.exists())
         .unwrap_or(false);
-    let persisted_record_inspection = persisted_record
-        .as_ref()
-        .and_then(inspection_for_record);
+    let persisted_record_inspection = persisted_record.as_ref().and_then(inspection_for_record);
     if let Some(record) = persisted_record.as_ref() {
         if snapshot.status == "ready" {
             if let Ok(db) = data.db.lock() {

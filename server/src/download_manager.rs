@@ -227,14 +227,19 @@ impl DownloadManager {
                             } else if inspection.has_sc_info_manifest
                                 || !inspection.encrypted_binaries.is_empty()
                             {
-                                ("fairplay_appstore_package".to_string(), false, "download_only".to_string())
+                                (
+                                    "fairplay_appstore_package".to_string(),
+                                    false,
+                                    "download_only".to_string(),
+                                )
                             } else {
                                 ("unknown".to_string(), false, "manual_review".to_string())
                             };
                             let inspection_json = serde_json::to_string(&inspection).ok();
                             // Find the record we just inserted (by file_path) and patch delivery fields.
                             if let Ok(db_guard) = db.lock() {
-                                if let Ok(Some(rec)) = db_guard.get_download_record_by_file_path(fp) {
+                                if let Ok(Some(rec)) = db_guard.get_download_record_by_file_path(fp)
+                                {
                                     let _ = db_guard.update_download_record_delivery(
                                         rec.id.unwrap_or(0),
                                         Some(package_kind.as_str()),
