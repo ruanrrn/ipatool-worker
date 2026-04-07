@@ -18,7 +18,7 @@
 
   <template v-else>
    <div class="mx-auto min-h-[100svh] max-w-[960px] px-4 pb-6 sm:px-6">
-    <header class="sticky top-0 z-50 flex h-11 items-center justify-between border-b border-[var(--separator)] bg-[var(--bg-primary)]">
+    <header class="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-[var(--separator)] bg-[var(--bg-primary)]">
      <div class="flex items-center gap-3">
       <div class="flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] bg-[var(--accent-blue)] text-white">
        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
