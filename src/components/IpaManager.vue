@@ -1,118 +1,57 @@
 <template>
   <div class="space-y-4">
-    <!-- Section A: 下载任务 -->
-    <div class="card flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center space-x-3">
-        <div class="hero-icon">
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <line
-              x1="8"
-              y1="6"
-              x2="21"
-              y2="6"
-            />
-            <line
-              x1="8"
-              y1="12"
-              x2="21"
-              y2="12"
-            />
-            <line
-              x1="8"
-              y1="18"
-              x2="21"
-              y2="18"
-            />
-            <line
-              x1="3"
-              y1="6"
-              x2="3.01"
-              y2="6"
-            />
-            <line
-              x1="3"
-              y1="12"
-              x2="3.01"
-              y2="12"
-            />
-            <line
-              x1="3"
-              y1="18"
-              x2="3.01"
-              y2="18"
-            />
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-primary">
-            下载任务
-          </h2>
-          <p class="text-sm text-secondary">
-            {{ currentTasks.length }} 个当前任务 · {{ records.length }} 条记录 · 已占用 {{ formatStorageM(queueStorageBytes) }}
-          </p>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <el-button
-          size="small"
-          plain
-          @click="loadRecords"
-        >
-          刷新
-        </el-button>
-        <el-button
-          size="small"
-          type="danger"
-          plain
-          @click="cleanupServerFiles"
-        >
-          清理服务器文件
-        </el-button>
-      </div>
-    </div>
-
+    <!-- Active download tasks (only visible when tasks exist) -->
     <section
-      v-if="currentTasks.length > 0"
+      v-if="activeTasks.length > 0"
       class="space-y-4"
     >
-      <h3 class="text-lg font-semibold text-primary">
-        当前任务
-      </h3>
+      <div class="card flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <div class="hero-icon">
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-primary">下载中</h2>
+            <p class="text-sm text-secondary">{{ activeTasks.length }} 个任务进行中</p>
+          </div>
+        </div>
+      </div>
+
       <div
-        v-for="task in currentTasks"
+        v-for="task in activeTasks"
         :key="task.id"
-        class="queue-row"
+        class="task-row"
       >
         <AppArtwork
           :src="task.artworkUrl"
           :alt="task.appName"
           :label="task.appName"
         />
-        <div class="row-main">
-          <div class="row-top">
+        <div class="task-main">
+          <div class="task-top">
             <div class="min-w-0">
-              <div class="row-title">
-                {{ task.appName }}
-              </div>
-              <div class="row-meta">
+              <div class="task-title">{{ task.appName }}</div>
+              <div class="task-meta">
                 <span>{{ task.artistName || '未知开发者' }}</span>
                 <span>版本 {{ task.version || '未知' }}</span>
                 <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
               </div>
             </div>
-            <el-tag
-              :type="statusTagType(task.status)"
-              size="small"
-            >
-              {{ statusLabel(task.status) }}
-            </el-tag>
+            <el-tag :type="statusTagType(task.status)" size="small">{{ statusLabel(task.status) }}</el-tag>
           </div>
-          <div class="row-info">
+          <div class="task-info">
             <span v-if="task.fileSize">大小 {{ formatFileSize(task.fileSize) }}</span>
             <span v-if="task.progress !== undefined">进度 {{ task.progress }}%</span>
             <span v-if="task.stage">阶段 {{ task.stage }}</span>
@@ -122,44 +61,12 @@
             :percentage="task.progress"
             :stroke-width="6"
           />
-          <div
-            v-if="task.error"
-            class="row-error"
-          >
-            {{ task.error }}
-          </div>
-          <div class="row-actions">
-            <el-button
-              v-if="task.status === 'completed' && task.downloadUrl"
-              type="primary"
-              size="small"
-              @click="download(task.downloadUrl)"
-            >
-              下载
-            </el-button>
-            <el-button
-              v-if="task.status === 'completed' && task.otaInstallable && task.installUrl"
-              type="primary"
-              size="small"
-              @click="install(task.installUrl)"
-            >
-              安装
-            </el-button>
-            <el-button
-              v-else-if="task.status === 'completed' && task.installMethod === 'download_only'"
-              size="small"
-              type="primary"
-              plain
-              disabled
-            >
-              仅下载
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              plain
-              @click="removeTask(task.id)"
-            >
+          <div v-if="task.error" class="task-error">{{ task.error }}</div>
+          <div class="task-actions">
+            <el-button v-if="task.status === 'completed' && task.downloadUrl" type="primary" size="small" @click="download(task.downloadUrl)">下载</el-button>
+            <el-button v-if="task.status === 'completed' && task.otaInstallable && task.installUrl" type="primary" size="small" @click="install(task.installUrl)">安装</el-button>
+            <el-button v-else-if="task.status === 'completed' && task.installMethod === 'download_only'" size="small" type="primary" plain disabled>仅下载</el-button>
+            <el-button size="small" type="danger" plain @click="removeTask(task.id)">
               {{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}
             </el-button>
           </div>
@@ -167,162 +74,25 @@
       </div>
     </section>
 
-    <section
-      v-if="records.length > 0"
-      class="space-y-4"
-    >
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="text-lg font-semibold text-primary">
-          下载记录
-        </h3>
-        <el-button
-          size="small"
-          type="danger"
-          plain
-          @click="clearAllRecords"
-        >
-          清空记录
-        </el-button>
-      </div>
-      <div
-        v-for="record in records"
-        :key="record.id"
-        class="queue-row"
-      >
-        <AppArtwork
-          :src="record.artworkUrl"
-          :alt="record.appName"
-          :label="record.appName || 'IPA'"
-        />
-        <div class="row-main">
-          <div class="row-top">
-            <div class="min-w-0">
-              <div class="row-title">
-                {{ record.appName || '未命名 IPA' }}
-              </div>
-              <div class="row-meta">
-                <span>{{ record.artistName || '未知开发者' }}</span>
-                <span>版本 {{ record.version || '未知' }}</span>
-                <span>账号 {{ record.accountEmail || '未知账号' }}</span>
-              </div>
-            </div>
-            <el-tag
-              :type="statusTagType(record.status)"
-              size="small"
-            >
-              {{ statusLabel(record.status) }}
-            </el-tag>
-          </div>
-          <div class="row-info">
-            <span v-if="record.fileSize">大小 {{ formatFileSize(record.fileSize) }}</span>
-            <span>{{ formatDate(record.downloadDate || record.createdAt) }}</span>
-            <span>{{ record.fileExists ? '文件在服务器' : '文件缺失' }}</span>
-          </div>
-          <div
-            v-if="record.error"
-            class="row-error"
-          >
-            {{ record.error }}
-          </div>
-          <div class="row-actions">
-            <el-button
-              v-if="record.downloadUrl && record.fileExists"
-              type="primary"
-              size="small"
-              @click="download(record.downloadUrl)"
-            >
-              下载
-            </el-button>
-            <el-button
-              v-if="record.fileExists && record.otaInstallable && record.installUrl"
-              type="primary"
-              size="small"
-              @click="install(record.installUrl)"
-            >
-              安装
-            </el-button>
-            <el-tooltip
-              v-else-if="record.fileExists && record.installMethod === 'download_only'"
-              :content="record.inspection?.summary || ''"
-              :disabled="!record.inspection?.summary"
-              placement="top"
-            >
-              <span>
-                <el-button
-                  size="small"
-                  type="primary"
-                  plain
-                  disabled
-                >
-                  仅下载
-                </el-button>
-              </span>
-            </el-tooltip>
-            <el-button
-              v-if="record.fileExists"
-              size="small"
-              type="danger"
-              plain
-              @click="cleanupRecordFile(record)"
-            >
-              清理安装包
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              plain
-              @click="removeRecord(record.id)"
-            >
-              删除记录
-            </el-button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Section B: IPA 文件 -->
+    <!-- IPA files -->
     <div class="card flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="hero-icon">
-          <svg
-            class="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 16V4m0 12l-4-4m4 4l4-4M5 20h14"
-            />
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
         </div>
         <div>
-          <h2 class="text-xl font-bold text-primary">
-            IPA 文件
-          </h2>
-          <p class="text-sm text-secondary">
-            管理服务器上的 IPA 文件 · 已占用 {{ formatStorageM(ipaStorageBytes) }}
-          </p>
+          <h2 class="text-xl font-bold text-primary">IPA 管理</h2>
+          <p class="text-sm text-secondary">{{ artifacts.length }} 个文件 · 已占用 {{ formatStorageM(ipaStorageBytes) }}</p>
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <el-checkbox
-          :model-value="allSelected"
-          :indeterminate="selectedCount > 0 && !allSelected"
-          @change="toggleSelectAll"
-        >
-          全选
-        </el-checkbox>
-        <el-button
-          size="small"
-          type="danger"
-          plain
-          :disabled="selectedCount === 0"
-          @click="removeSelectedArtifacts"
-        >
-          批量清理{{ selectedCount > 0 ? `（${selectedCount}）` : '' }}
+        <el-button v-if="selectedCount > 0" size="small" type="danger" plain @click="removeSelectedArtifacts">
+          清理{{ selectedCount }}个
         </el-button>
         <el-upload
           class="inline-upload"
@@ -336,55 +106,26 @@
           :before-upload="beforeUpload"
         >
           <template #trigger>
-            <el-button
-              size="small"
-              :loading="uploading"
-              plain
-            >
-              <template #icon>
-                <el-icon><UploadFilled /></el-icon>
-              </template>
+            <el-button size="small" :loading="uploading" plain>
+              <template #icon><el-icon><UploadFilled /></el-icon></template>
               {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
             </el-button>
           </template>
         </el-upload>
-        <el-button
-          size="small"
-          :loading="ipaLoading"
-          plain
-          @click="loadArtifacts"
-        >
-          刷新
-        </el-button>
+        <el-button size="small" :loading="ipaLoading" plain @click="loadArtifacts">刷新</el-button>
       </div>
     </div>
 
-    <div
-      v-if="artifacts.length > 0"
-      class="space-y-4"
-    >
-      <div
-        v-for="item in artifacts"
-        :key="item.id"
-        class="artifact-row"
-      >
+    <div v-if="artifacts.length > 0" class="space-y-4">
+      <div v-for="item in artifacts" :key="item.id" class="artifact-row">
         <div class="artifact-check">
-          <el-checkbox
-            :model-value="selectedIds.includes(item.id)"
-            @change="(checked) => toggleArtifact(item.id, checked)"
-          />
+          <el-checkbox :model-value="selectedIds.includes(item.id)" @change="(checked) => toggleArtifact(item.id, checked)" />
         </div>
-        <AppArtwork
-          :src="item.artworkUrl"
-          :alt="item.appName"
-          :label="item.appName || item.fileName"
-        />
+        <AppArtwork :src="item.artworkUrl" :alt="item.appName" :label="item.appName" />
         <div class="artifact-main">
           <div class="artifact-top">
             <div class="min-w-0">
-              <div class="artifact-title">
-                {{ item.appName || item.fileName }}
-              </div>
+              <div class="artifact-title">{{ item.appName }}</div>
               <div class="artifact-meta">
                 <span>{{ item.artistName || '未知开发者' }}</span>
                 <span>版本 {{ item.version || '未知' }}</span>
@@ -392,111 +133,35 @@
                 <span>{{ formatFileSize(item.fileSize) }}</span>
               </div>
             </div>
-            <el-tag
-              size="small"
-              type="primary"
-            >
-              {{ formatDate(item.modifiedAt) }}
-            </el-tag>
-          </div>
-          <div class="artifact-path">
-            {{ item.fileName || item.filePath?.split('/').pop() }}
+            <el-tag size="small" type="primary">{{ formatDate(item.modifiedAt) }}</el-tag>
           </div>
           <div class="artifact-actions">
-            <el-button
-              type="primary"
-              size="small"
-              @click="download(item.downloadUrl)"
-            >
-              下载
-            </el-button>
-            <el-button
-              v-if="item.otaInstallable && item.installUrl"
-              type="primary"
-              size="small"
-              @click="install(item.installUrl)"
-            >
-              安装
-            </el-button>
-            <el-tooltip
-              v-else-if="item.installMethod === 'download_only' && item.inspection"
-              :content="item.inspection.summary"
-              placement="top"
-            >
-              <span>
-                <el-button
-                  size="small"
-                  type="primary"
-                  plain
-                  disabled
-                >
-                  仅下载
-                </el-button>
-              </span>
+            <el-button type="primary" size="small" @click="download(item.downloadUrl)">下载</el-button>
+            <el-button v-if="item.otaInstallable && item.installUrl" type="primary" size="small" @click="install(item.installUrl)">安装</el-button>
+            <el-tooltip v-else-if="item.installMethod === 'download_only' && item.inspection" :content="item.inspection.summary" placement="top">
+              <span><el-button size="small" type="primary" plain disabled>仅下载</el-button></span>
             </el-tooltip>
-            <el-button
-              v-else-if="item.installMethod === 'download_only'"
-              size="small"
-              type="primary"
-              plain
-              disabled
-            >
-              仅下载
-            </el-button>
-            <el-button
-              v-else
-              type="primary"
-              size="small"
-              disabled
-            >
-              安装
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              plain
-              @click="removeArtifact(item)"
-            >
-              删除
-            </el-button>
+            <el-button v-else-if="item.installMethod === 'download_only'" size="small" type="primary" plain disabled>仅下载</el-button>
+            <el-button v-else type="primary" size="small" disabled>安装</el-button>
+            <el-button type="danger" size="small" plain @click="removeArtifact(item)">删除</el-button>
           </div>
         </div>
       </div>
     </div>
 
     <div
-      v-if="currentTasks.length === 0 && records.length === 0 && artifacts.length === 0"
+      v-if="activeTasks.length === 0 && artifacts.length === 0"
       class="empty-state py-12 text-center text-secondary"
     >
-      <svg
-        class="mx-auto h-16 w-16 mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-        />
+      <svg class="mx-auto h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
       </svg>
-      <p class="text-lg font-medium">
-        暂无下载任务和 IPA 文件
-      </p>
-      <p class="text-sm mt-2">
-        下载完成后可在这里查看状态与操作
-      </p>
+      <p class="text-lg font-medium">暂无 IPA 文件</p>
+      <p class="text-sm mt-2">下载完成后会出现在这里</p>
     </div>
 
-    <div
-      v-if="uploading"
-      class="-mt-2"
-    >
-      <el-progress
-        :percentage="uploadProgress"
-        :stroke-width="8"
-      />
+    <div v-if="uploading" class="-mt-2">
+      <el-progress :percentage="uploadProgress" :stroke-width="8" />
     </div>
 
     <el-dialog
@@ -510,39 +175,15 @@
       destroy-on-close
     >
       <div class="space-y-3 text-sm">
-        <p class="text-primary">
-          确定删除这个 IPA 文件吗？
-        </p>
-        <div
-          v-if="pendingDeleteItem"
-          class="inline-panel text-xs text-secondary break-all"
-        >
-          <div class="font-medium text-primary">
-            {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
-          </div>
-          <div class="mt-1">
-            {{ pendingDeleteItem.fileName || pendingDeleteItem.filePath?.split('/').pop() }}
-          </div>
+        <p class="text-primary">确定删除这个 IPA 文件吗？</p>
+        <div v-if="pendingDeleteItem" class="inline-panel text-xs text-secondary break-all">
+          <div class="font-medium text-primary">{{ pendingDeleteItem.appName }}</div>
         </div>
-        <p class="text-xs text-secondary">
-          只删除服务器上的这个 IPA 文件，不清数据库。
-        </p>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button
-            :disabled="deletingArtifact"
-            @click="closeDeleteDialog"
-          >
-            取消
-          </el-button>
-          <el-button
-            type="danger"
-            :loading="deletingArtifact"
-            @click="confirmDeleteArtifact"
-          >
-            删除
-          </el-button>
+          <el-button :disabled="deletingArtifact" @click="closeDeleteDialog">取消</el-button>
+          <el-button type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">删除</el-button>
         </div>
       </template>
     </el-dialog>
@@ -560,12 +201,8 @@ const API_BASE = '/api'
 const uploadUrl = `${API_BASE}/upload-ipa`
 
 const props = defineProps({
-  queue: {
-    type: Array,
-    default: () => []
-  }
+  queue: { type: Array, default: () => [] }
 })
-
 const emit = defineEmits(['remove-item'])
 const appStore = useAppStore()
 
@@ -599,16 +236,12 @@ const buildInstallUrl = (installUrl) => {
       return installUrl
     }
     return rewriteToCurrentOrigin(installUrl)
-  } catch {
-    return installUrl
-  }
+  } catch { return installUrl }
 }
 
 const install = (installUrl) => {
   const url = buildInstallUrl(installUrl)
-  if (url) {
-    window.location.href = url
-  }
+  if (url) window.location.href = url
 }
 
 const formatFileSize = (bytes) => {
@@ -616,10 +249,7 @@ const formatFileSize = (bytes) => {
   const units = ['B', 'KB', 'MB', 'GB']
   let value = bytes
   let unitIndex = 0
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
+  while (value >= 1024 && unitIndex < units.length - 1) { value /= 1024; unitIndex += 1 }
   return `${value.toFixed(value >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
@@ -629,13 +259,7 @@ const formatDate = (value) => {
   if (!value) return '未知时间'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 const statusTagType = (status) => {
@@ -650,101 +274,14 @@ const statusLabel = (status) => {
   return '进行中'
 }
 
-// ── Queue / records state (Section A) ──
+// ── Active download tasks ──
 
-const records = ref([])
 const pollTimers = new Map()
 const pollFailureCounts = new Map()
 const MAX_POLL_FAILURES = 5
 
-const currentTasks = computed(() => props.queue.filter(task => !['completed', 'ready'].includes(task?.status)))
-const queueStorageBytes = computed(() => records.value.reduce((sum, item) => {
-  if (!item?.fileExists) return sum
-  return sum + Number(item.fileSize || 0)
-}, 0))
-
-const loadRecords = async () => {
-  try {
-    const response = await fetch(`${API_BASE}/download-records`, { credentials: 'include' })
-    const data = await response.json()
-    if (data.ok) {
-      records.value = data.data || []
-    } else {
-      ElMessage.error(data.error || '加载记录失败')
-    }
-  } catch (error) {
-    console.error('Failed to load download records:', error)
-    ElMessage.error('加载记录失败')
-  }
-}
-
-const removeRecord = async (id) => {
-  try {
-    await ElMessageBox.confirm('确定删除这条记录吗？', '确认删除', { type: 'error', confirmButtonClass: 'danger-confirm-button', lockScroll: false })
-    const response = await fetch(`${API_BASE}/download-records/${id}`, { method: 'DELETE', credentials: 'include' })
-    const data = await response.json()
-    if (!data.ok) throw new Error(data.error || '删除失败')
-    ElMessage.success('记录已删除')
-    await loadRecords()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
-    }
-  }
-}
-
-const clearAllRecords = async () => {
-  try {
-    await ElMessageBox.confirm('确定清空全部下载记录吗？', '确认清空', {
-      type: 'error', confirmButtonText: '清空', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
-    })
-    const response = await fetch(`${API_BASE}/download-records`, { method: 'DELETE', credentials: 'include' })
-    const data = await response.json()
-    if (!data.ok) throw new Error(data.error || '清空失败')
-    ElMessage.success('记录已清空')
-    await loadRecords()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '清空失败')
-    }
-  }
-}
-
-const cleanupRecordFile = async (record) => {
-  try {
-    await ElMessageBox.confirm(`确定清理 ${record.appName || '该安装包'} 吗？`, '确认清理', {
-      type: 'error', confirmButtonText: '清理安装包', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
-    })
-    const response = await fetch(`${API_BASE}/download-records/${record.id}/file`, { method: 'DELETE', credentials: 'include' })
-    const data = await response.json()
-    if (!data.ok) throw new Error(data.error || '清理失败')
-    ElMessage.success(`已清理 ${formatStorageM(data.data?.freed_bytes || 0)}`)
-    await loadRecords()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '清理失败')
-    }
-  }
-}
-
-const cleanupServerFiles = async () => {
-  try {
-    await ElMessageBox.confirm('确定清理服务器上的下载目录吗？', '确认清理', {
-      type: 'error', confirmButtonText: '清理', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
-    })
-    const response = await fetch(`${API_BASE}/cleanup-downloads`, { method: 'POST', credentials: 'include' })
-    const data = await response.json()
-    if (!data.ok) throw new Error(data.error || '清理失败')
-    ElMessage.success(`已释放 ${formatFileSize(data.data?.freed_bytes || 0)}`)
-    await loadRecords()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '清理失败')
-    }
-  }
-}
-
-// Polling logic
+// Only show tasks that are NOT in a final state
+const activeTasks = computed(() => props.queue.filter(task => !['completed', 'ready'].includes(task?.status)))
 
 const isFinalStatus = (status) => ['completed', 'ready', 'failed', 'error'].includes(status)
 
@@ -754,7 +291,7 @@ const stopTaskPolling = (taskId) => {
   pollFailureCounts.delete(taskId)
 }
 
-const markTaskInterrupted = (taskId, message = '任务已失效，可能是服务重启或页面切换后丢失，请重新发起下载') => {
+const markTaskInterrupted = (taskId, message = '任务已失效，可能是服务重启，请重新发起下载') => {
   stopTaskPolling(taskId)
   appStore.updateQueueItem(taskId, { status: 'failed', stage: 'interrupted', error: message })
 }
@@ -776,7 +313,8 @@ const syncTaskSnapshot = async (taskId, snapshot) => {
     updates.installUrl = snapshot.installUrl
     updates.fileSize = snapshot.fileSize || 0
     stopTaskPolling(taskId)
-    await loadRecords()
+    // Refresh IPA list when download completes
+    await loadArtifacts()
   } else if (snapshot.status === 'failed') {
     stopTaskPolling(taskId)
   }
@@ -789,7 +327,7 @@ const pollTaskStatus = async (taskId) => {
     if (response.status === 404) { markTaskInterrupted(taskId); return }
     const data = await response.json()
     if (!response.ok || !data.ok || !data.data) {
-      if (response.status >= 400) markTaskInterrupted(taskId, data?.error || '任务状态获取失败，请重新发起下载')
+      if (response.status >= 400) markTaskInterrupted(taskId, data?.error || '任务状态获取失败')
       return
     }
     pollFailureCounts.delete(taskId)
@@ -797,8 +335,7 @@ const pollTaskStatus = async (taskId) => {
   } catch (error) {
     const failureCount = (pollFailureCounts.get(taskId) || 0) + 1
     pollFailureCounts.set(taskId, failureCount)
-    console.error('Failed to poll task status:', error)
-    if (failureCount >= MAX_POLL_FAILURES) markTaskInterrupted(taskId, '任务状态轮询多次失败，请检查网络或稍后重试')
+    if (failureCount >= MAX_POLL_FAILURES) markTaskInterrupted(taskId, '轮询多次失败，请检查网络')
   }
 }
 
@@ -836,7 +373,7 @@ const removeTask = async (id) => {
   emit('remove-item', id)
 }
 
-// ── IPA artifacts state (Section B) ──
+// ── IPA artifacts ──
 
 const artifacts = ref([])
 const ipaLoading = ref(false)
@@ -849,7 +386,6 @@ const uploadProgress = ref(0)
 
 const ipaStorageBytes = computed(() => artifacts.value.reduce((sum, item) => sum + Number(item.fileSize || 0), 0))
 const selectedCount = computed(() => selectedIds.value.length)
-const allSelected = computed(() => artifacts.value.length > 0 && selectedIds.value.length === artifacts.value.length)
 
 const loadArtifacts = async () => {
   ipaLoading.value = true
@@ -914,26 +450,18 @@ const removeSelectedArtifacts = async () => {
     await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
       type: 'error', confirmButtonText: '批量清理', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
     })
-    for (const id of [...selectedIds.value]) {
-      await deleteArtifactById(id)
-    }
+    for (const id of [...selectedIds.value]) { await deleteArtifactById(id) }
     ElMessage.success(`已清理 ${selectedIds.value.length} 个安装包`)
     selectedIds.value = []
     await loadArtifacts()
   } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '批量清理失败')
-    }
+    if (error !== 'cancel') ElMessage.error(error.message || '批量清理失败')
   }
 }
 
 const toggleArtifact = (id, checked) => {
   if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id); return }
   selectedIds.value = selectedIds.value.filter(item => item !== id)
-}
-
-const toggleSelectAll = (checked) => {
-  selectedIds.value = checked ? artifacts.value.map(item => item.id) : []
 }
 
 // Upload
@@ -976,7 +504,6 @@ watch(
 )
 
 onMounted(() => {
-  loadRecords()
   loadArtifacts()
   syncActiveTaskPolling()
 })
@@ -987,8 +514,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Queue row (tasks & records) */
-.queue-row {
+.task-row {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
@@ -998,7 +524,7 @@ onBeforeUnmount(() => {
   background: var(--card-bg);
 }
 
-.row-main {
+.task-main {
   min-width: 0;
   flex: 1;
   display: flex;
@@ -1006,14 +532,14 @@ onBeforeUnmount(() => {
   gap: var(--space-2);
 }
 
-.row-top {
+.task-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.row-title {
+.task-title {
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text-primary);
@@ -1022,8 +548,8 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
-.row-meta,
-.row-info {
+.task-meta,
+.task-info {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3-5);
@@ -1031,23 +557,22 @@ onBeforeUnmount(() => {
   color: var(--text-secondary);
 }
 
-.row-actions {
+.task-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
 }
 
-.row-actions :deep(.el-button) {
+.task-actions :deep(.el-button) {
   margin: 0;
 }
 
-.row-error {
+.task-error {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
-/* Artifact row (IPA files) */
 .artifact-row {
   display: flex;
   align-items: flex-start;
@@ -1090,15 +615,6 @@ onBeforeUnmount(() => {
   color: var(--text-secondary);
 }
 
-.artifact-path {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
 .inline-upload {
   display: inline-flex;
 }
@@ -1121,18 +637,18 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 767px) {
-  .row-top {
+  .task-top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .row-actions {
+  .task-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
   }
 
-  .row-actions :deep(.el-button) {
+  .task-actions :deep(.el-button) {
     width: 100%;
     justify-content: center;
   }
