@@ -3975,6 +3975,117 @@ async fn remove_subscription(
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct ArchiveApp {
+    id: String,
+    name: String,
+    icon_url: Option<String>,
+    bundle_id: Option<String>,
+    versions: Vec<ArchiveVersion>,
+    delisted: bool,
+    added_at: String,
+    added_by: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct ArchiveVersion {
+    version_id: String,
+    version: String,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct AddArchiveRequest {
+    app_id: String,
+    app_name: String,
+    icon_url: Option<String>,
+    bundle_id: Option<String>,
+    versions: Vec<ArchiveVersion>,
+}
+
+fn resolve_archive_dir() -> PathBuf {
+    resolve_project_root().join("data").join("archive")
+}
+
+async fn get_archive_apps() -> impl Responder {
+    let archive_dir = resolve_archive_dir();
+    let mut apps: Vec<ArchiveApp> = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(archive_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(app) = serde_json::from_str::<ArchiveApp>(&content) {
+                    apps.push(app);
+                }
+            }
+        }
+    }
+
+    apps.sort_by(|a, b| b.added_at.cmp(&a.added_at));
+    HttpResponse::Ok().json(ApiResponse::success(apps))
+}
+
+async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
+    let archive_dir = resolve_archive_dir();
+    if let Err(error) = std::fs::create_dir_all(&archive_dir) {
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::<()>::error(format!("创建收藏目录失败: {}", error)));
+    }
+
+    let app = ArchiveApp {
+        id: body.app_id.clone(),
+        name: body.app_name.clone(),
+        icon_url: body.icon_url.clone(),
+        bundle_id: body.bundle_id.clone(),
+        versions: body.versions.clone(),
+        delisted: false,
+        added_at: Utc::now().to_rfc3339(),
+        added_by: "user".to_string(),
+    };
+
+    let file_path = archive_dir.join(format!("{}.json", app.id));
+    match serde_json::to_string_pretty(&app) {
+        Ok(json) => match std::fs::write(&file_path, json) {
+            Ok(_) => HttpResponse::Ok().json(ApiResponse::success(app)),
+            Err(error) => HttpResponse::InternalServerError()
+                .json(ApiResponse::<()>::error(format!("保存收藏失败: {}", error))),
+        },
+        Err(error) => HttpResponse::InternalServerError()
+            .json(ApiResponse::<()>::error(format!("序列化收藏失败: {}", error))),
+    }
+}
+
+async fn remove_archive_app(path: web::Path<String>) -> impl Responder {
+    let id = path.into_inner();
+    let file_path = resolve_archive_dir().join(format!("{}.json", id));
+
+    if file_path.exists() {
+        if let Err(error) = std::fs::remove_file(&file_path) {
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::<()>::error(format!("取消收藏失败: {}", error)));
+        }
+    }
+
+    HttpResponse::Ok().json(ApiResponse::success(true))
+}
+
+async fn get_delisted_apps() -> impl Responder {
+    let client = Client::new();
+    let url = "https://raw.githubusercontent.com/ruanrrn/ipa-archive/main/delisted.json";
+
+    match client.get(url).send().await {
+        Ok(resp) => match resp.json::<Value>().await {
+            Ok(data) => HttpResponse::Ok().json(ApiResponse::success(data)),
+            Err(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] }))),
+        },
+        Err(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] }))),
+    }
+}
+
 // 检查更新
 async fn check_updates(data: web::Data<AppState>) -> impl Responder {
     match data.download_manager.check_app_updates().await {
@@ -4086,7 +4197,11 @@ async fn main() -> std::io::Result<()> {
                             .route("/subscriptions", web::get().to(get_subscriptions))
                             .route("/subscriptions", web::post().to(add_subscription))
                             .route("/subscriptions", web::delete().to(remove_subscription))
-                            .route("/check-updates", web::get().to(check_updates)),
+                            .route("/check-updates", web::get().to(check_updates))
+                            .route("/archive", web::get().to(get_archive_apps))
+                            .route("/archive", web::post().to(add_archive_app))
+                            .route("/archive/{id}", web::delete().to(remove_archive_app))
+                            .route("/archive/delisted", web::get().to(get_delisted_apps)),
                     ),
             )
             // 托管前端静态文件

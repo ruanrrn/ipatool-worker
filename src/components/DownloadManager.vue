@@ -375,21 +375,38 @@
             直链下载（仅下载文件）
           </el-button>
 
-          <el-button
+          <div
             v-if="!claimRequired"
-            :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
-            :loading="downloading"
-            :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
-            :title="downloadBlockedReason"
-            type="primary"
-            class="w-full action-button"
-            @click="startDownloadWithProgress"
+            class="download-action-row"
           >
-            <template #icon>
-              <el-icon><Download /></el-icon>
-            </template>
-            {{ downloading ? '处理中...' : '下载到服务器' }}
-          </el-button>
+            <el-button
+              :loading="favoriteLoading"
+              :type="isCurrentAppFavorited ? 'warning' : 'default'"
+              :plain="!isCurrentAppFavorited"
+              class="action-button favorite-button"
+              @click="toggleFavoriteApp"
+            >
+              <template #icon>
+                <el-icon><component :is="isCurrentAppFavorited ? StarFilled : Star" /></el-icon>
+              </template>
+              {{ isCurrentAppFavorited ? '已收藏' : '收藏' }}
+            </el-button>
+
+            <el-button
+              :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+              :loading="downloading"
+              :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
+              :title="downloadBlockedReason"
+              type="primary"
+              class="action-button download-action-primary"
+              @click="startDownloadWithProgress"
+            >
+              <template #icon>
+                <el-icon><Download /></el-icon>
+              </template>
+              {{ downloading ? '处理中...' : '下载到服务器' }}
+            </el-button>
+          </div>
 
           <div
             v-if="purchaseRequired"
@@ -576,7 +593,7 @@ import { useDebounceFn } from '@vueuse/core'
 import { useAppStore } from '../stores/app'
 import { useNotifications } from '../composables/useNotifications'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, ArrowRight, Download, Plus } from '@element-plus/icons-vue'
+import { Search, ArrowRight, Download, Plus, Star, StarFilled } from '@element-plus/icons-vue'
 import { formatRegion } from '../utils/region.js'
 import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 
@@ -680,7 +697,13 @@ const downloadOtaInstallable = ref(false)
 const downloadInstallMethod = ref('')
 const downloadInspection = ref(null)
 const showActionButtons = ref(false)
+const archivedAppIds = ref(new Set())
+const favoriteLoading = ref(false)
 
+const isCurrentAppFavorited = computed(() => {
+ if (!selectedApp.value?.trackId) return false
+ return archivedAppIds.value.has(String(selectedApp.value.trackId))
+})
 
 const purchaseRequired = computed(() => !!purchaseStatus.value.needsPurchase)
 const claimRequired = computed(() => {
@@ -749,6 +772,82 @@ watch(accounts, () => {
 }, { deep: true })
 
 const API_BASE = '/api'
+
+const loadArchivedAppIds = async () => {
+ try {
+ const response = await fetch(`${API_BASE}/archive`, { credentials: 'include' })
+ const data = await response.json()
+ if (!data.ok || !Array.isArray(data.data)) return
+ archivedAppIds.value = new Set(data.data.map(item => String(item?.id || item?.app_id || '')).filter(Boolean))
+ } catch (error) {
+ console.warn('Failed to load archive apps:', error)
+ }
+}
+
+const toggleFavoriteApp = async () => {
+ const app = selectedApp.value
+ if (!app?.trackId) {
+ ElMessage.warning('请先选择应用')
+ return
+ }
+ if (favoriteLoading.value) return
+
+ favoriteLoading.value = true
+ try {
+ const appId = String(app.trackId)
+
+ if (archivedAppIds.value.has(appId)) {
+ const response = await fetch(`${API_BASE}/archive/${encodeURIComponent(appId)}`, {
+ method: 'DELETE',
+ credentials: 'include'
+ })
+ const data = await response.json()
+ if (!data.ok) throw new Error(data.error || '取消收藏失败')
+ const nextIds = new Set(archivedAppIds.value)
+ nextIds.delete(appId)
+ archivedAppIds.value = nextIds
+ ElMessage.success('已取消收藏')
+ return
+ }
+
+ const versionResponse = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(appId)}&region=US`, { credentials: 'include' })
+ const versionData = await versionResponse.json()
+ if (!versionData.ok) {
+ throw new Error(versionData.error || '获取版本列表失败')
+ }
+
+ const versionsPayload = Array.isArray(versionData.data) ? versionData.data : []
+ const payload = {
+ app_id: appId,
+ app_name: app.trackName || `App ID: ${appId}`,
+ icon_url: app.artworkUrl100 || app.artworkUrl60 || null,
+ bundle_id: app.bundleId || null,
+ versions: versionsPayload.map((version) => ({
+ version_id: String(version?.external_identifier ?? version?.version_id ?? version?.id ?? ''),
+ version: String(version?.bundle_version ?? version?.version ?? version?.name ?? '')
+ })).filter((version) => version.version_id)
+ }
+
+ const response = await fetch(`${API_BASE}/archive`, {
+ method: 'POST',
+ credentials: 'include',
+ headers: {
+ 'Content-Type': 'application/json'
+ },
+ body: JSON.stringify(payload)
+ })
+ const data = await response.json()
+ if (!data.ok) throw new Error(data.error || '收藏失败')
+ const nextIds = new Set(archivedAppIds.value)
+ nextIds.add(appId)
+ archivedAppIds.value = nextIds
+ ElMessage.success('已加入收藏')
+ } catch (error) {
+ ElMessage.error(error.message || '收藏失败')
+ } finally {
+ favoriteLoading.value = false
+ }
+}
 
 const loadAccounts = async () => {
  const saved = localStorage.getItem('ipa_accounts')
@@ -1802,6 +1901,7 @@ const formatFileSize = (bytes) => {
 
 onMounted(() => {
  loadAccounts()
+ loadArchivedAppIds()
  restoreStateFromStore()
  
  // 检测当前环境
@@ -1904,6 +2004,20 @@ onMounted(() => {
  height: var(--size-control-xl);
 }
 
+.download-action-row {
+ display: flex;
+ gap: var(--space-2);
+ width: 100%;
+}
+
+.favorite-button {
+ min-width: 112px;
+}
+
+.download-action-primary {
+ flex: 1;
+}
+
 .log-container {
  padding: var(--space-4);
  font-family: 'SFMono-Regular', Consolas, monospace;
@@ -1953,6 +2067,15 @@ onMounted(() => {
  .account-quick-select {
   width: 100%;
   margin-top: 0;
+ }
+
+ .download-action-row {
+  flex-direction: column;
+ }
+
+ .favorite-button,
+ .download-action-primary {
+  width: 100%;
  }
 
  .search-result-item {
