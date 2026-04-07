@@ -1,5 +1,5 @@
 <template>
-  <div class="app-artwork bg-[var(--card-bg)] rounded-[10px]">
+  <div class="app-artwork bg-[var(--card-bg)] rounded-[var(--radius-artwork)]">
     <img
       v-if="imageSrc && !imageFailed"
       :src="imageSrc"
@@ -50,12 +50,12 @@ const fallbackText = computed(() => {
 
 <style scoped>
 .app-artwork {
- width: 56px;
- height: 56px;
+ width: var(--size-artwork-md);
+ height: var(--size-artwork-md);
  flex-shrink: 0;
  overflow: hidden;
- border-radius: 10px;
- border: 0.5px solid var(--separator);
+ border-radius: var(--radius-artwork);
+ border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -75,7 +75,7 @@ const fallbackText = computed(() => {
  align-items: center;
  justify-content: center;
  color: var(--accent-blue);
- font-size: 20px;
+ font-size: var(--font-size-2xl);
  font-weight: 600;
 }
 </style>

@@ -76,10 +76,11 @@
               @click="refreshAccount(account, index)"
             />
             <el-button
-              type="primary"
+              type="danger"
               :icon="Delete"
 
               size="small"
+              plain
               class="remove-button "
               title="删除账号"
               @click="removeAccount(account, index)"
@@ -459,9 +460,10 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 			'确定要删除这个账号吗？',
 			'确认删除',
 			{
-				type: 'warning',
+				type: 'error',
 				confirmButtonText: '删除',
 				cancelButtonText: '取消',
+				confirmButtonClass: 'danger-confirm-button',
 				lockScroll: false,
 			}
 		)
@@ -644,20 +646,20 @@ defineExpose({
 .account-header {
  display: flex;
  align-items: center;
- gap: 12px;
- margin-bottom: 12px;
+ gap: var(--space-3);
+ margin-bottom: var(--space-3);
 }
 
 .header-icon {
- width: 40px;
- height: 40px;
+ width: var(--size-artwork-sm);
+ height: var(--size-artwork-sm);
 }
 
 .header-text h2,
 .form-title,
 .section-title,
 .empty-title {
- font-size: 17px;
+ font-size: var(--font-size-xl);
  font-weight: 600;
  color: var(--text-primary);
  margin: 0;
@@ -672,7 +674,7 @@ defineExpose({
 .checkbox-label,
 .mfa-hint,
 .save-password-checkbox :deep(.el-checkbox__label) {
- font-size: 13px;
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 
@@ -681,7 +683,7 @@ defineExpose({
 .accounts-list {
  display: flex;
  flex-direction: column;
- gap: 12px;
+ gap: var(--space-3);
 }
 
 .form-header,
@@ -689,39 +691,39 @@ defineExpose({
  display: flex;
  align-items: center;
  justify-content: space-between;
- margin-bottom: 12px;
+ margin-bottom: var(--space-3);
 }
 
 .form-field {
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .field-icon {
  color: var(--text-secondary);
- font-size: 16px;
+ font-size: var(--font-size-lg);
 }
 
 .submit-button {
  width: 100%;
- height: 44px;
- margin-top: 8px;
+ height: var(--size-control-xl);
+ margin-top: var(--space-2);
 }
 
 .account-item {
  display: flex;
  align-items: center;
- gap: 12px;
- padding: 16px;
- border: 0.5px solid var(--separator);
- border-radius: 12px;
+ gap: var(--space-3);
+ padding: var(--space-4);
+ border: var(--border-width-thin) solid var(--separator);
+ border-radius: var(--radius-card);
  background: var(--card-bg);
 }
 
 .account-avatar {
- width: 40px;
- height: 40px;
+ width: var(--size-artwork-sm);
+ height: var(--size-artwork-sm);
  flex-shrink: 0;
 }
 
@@ -731,8 +733,8 @@ defineExpose({
 }
 
 .account-email {
- margin: 0 0 2px;
- font-size: 15px;
+ margin: 0 0 var(--space-0-5);
+ font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
  overflow: hidden;
@@ -741,25 +743,25 @@ defineExpose({
 }
 
 .region-badge {
- padding: 0 8px;
+ padding: 0 var(--space-2);
 }
 
 .account-actions {
  display: flex;
  align-items: center;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .empty-state {
  text-align: center;
- padding: 32px 16px;
+ padding: var(--space-6) var(--space-4);
  border-style: solid;
 }
 
 .empty-icon {
  display: flex;
  justify-content: center;
- margin-bottom: 12px;
+ margin-bottom: var(--space-3);
  color: var(--text-secondary);
 }
 
@@ -767,17 +769,17 @@ defineExpose({
  display: flex;
  align-items: center;
  justify-content: center;
- gap: 8px;
- padding: 12px;
- font-size: 13px;
+ gap: var(--space-2);
+ padding: var(--space-3);
+ font-size: var(--font-size-sm);
  background: var(--el-fill-color-light);
- border: 0.5px solid var(--separator);
- border-radius: 12px;
+ border: var(--border-width-thin) solid var(--separator);
+ border-radius: var(--radius-card);
  color: var(--text-secondary);
 }
 
 .auto-login-status .el-icon {
- font-size: 16px;
+ font-size: var(--font-size-lg);
 }
 
 .mfa-highlight :deep(.el-input__wrapper) {

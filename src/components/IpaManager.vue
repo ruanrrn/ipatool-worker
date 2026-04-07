@@ -36,7 +36,7 @@
         </el-checkbox>
         <el-button
           size="small"
-          type="primary"
+          type="danger"
           plain
           :disabled="selectedCount === 0"
           @click="removeSelectedArtifacts"
@@ -173,7 +173,7 @@
             </el-button>
 
             <el-button
-              type="primary"
+              type="danger"
               size="small"
               plain
               @click="removeArtifact(item)"
@@ -238,7 +238,7 @@
           v-if="pendingDeleteItem"
           class="inline-panel text-xs text-secondary break-all"
         >
-          <div class="font-medium text-gray-900 dark:text-gray-100">
+          <div class="font-medium text-primary">
             {{ pendingDeleteItem.appName || pendingDeleteItem.fileName }}
           </div>
           <div class="mt-1">
@@ -258,7 +258,7 @@
             取消
           </el-button>
           <el-button
-            type="primary"
+            type="danger"
             :loading="deletingArtifact"
             @click="confirmDeleteArtifact"
           >
@@ -401,9 +401,10 @@ const removeSelectedArtifacts = async () => {
  if (selectedIds.value.length === 0) return
  try {
  await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
- type: 'warning',
+ type: 'error',
  confirmButtonText: '批量清理',
  cancelButtonText: '取消',
+ confirmButtonClass: 'danger-confirm-button',
  lockScroll: false
  })
 
@@ -519,10 +520,10 @@ onMounted(loadArtifacts)
 .artifact-row {
  display: flex;
  align-items: flex-start;
- gap: 12px;
- padding: 16px;
- border-radius: 12px;
- border: 0.5px solid var(--separator);
+ gap: var(--space-3);
+ padding: var(--space-4);
+ border-radius: var(--radius-card);
+ border: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -531,18 +532,18 @@ onMounted(loadArtifacts)
  min-width: 0;
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
 }
 
 .artifact-top {
  display: flex;
  justify-content: space-between;
  align-items: flex-start;
- gap: 12px;
+ gap: var(--space-3);
 }
 
 .artifact-title {
- font-size: 15px;
+ font-size: var(--font-size-md);
  font-weight: 600;
  color: var(--text-primary);
  white-space: nowrap;
@@ -553,16 +554,16 @@ onMounted(loadArtifacts)
 .artifact-meta {
  display: flex;
  flex-wrap: wrap;
- gap: 8px 14px;
- font-size: 13px;
+ gap: var(--space-2) var(--space-3-5);
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
 }
 
 /* File name: avoid awkward single-letter wraps on mobile */
 .artifact-path {
  display: block;
- margin-top: 4px;
- font-size: 13px;
+ margin-top: var(--space-1);
+ font-size: var(--font-size-sm);
  color: var(--text-secondary);
  overflow-wrap: anywhere;
  word-break: break-word;
@@ -575,13 +576,13 @@ onMounted(loadArtifacts)
 .artifact-check {
  display: flex;
  align-items: center;
- padding-top: 4px;
+ padding-top: var(--space-1);
 }
 
 .artifact-actions {
  display: flex;
  flex-wrap: wrap;
- gap: 8px;
+ gap: var(--space-2);
  align-items: center;
 }
 

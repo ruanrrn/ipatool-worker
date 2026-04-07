@@ -101,7 +101,7 @@
                   查看详情
                 </el-button>
                 <el-button
-                  type="primary"
+                  type="danger"
                   size="small"
                   :icon="Delete"
                   plain
@@ -188,7 +188,7 @@
                 </p>
               </div>
               <el-button
-                type="primary"
+                type="danger"
                 size="small"
                 plain
                 @click="removeDraftItem(index)"
@@ -199,6 +199,7 @@
             <div class="flex justify-end">
               <el-button
                 size="small"
+                type="danger"
                 plain
                 @click="clearDraftItems"
               >
@@ -353,9 +354,10 @@ const clearDraftItems = async () => {
   if (draftItems.value.length === 0) return
   try {
     await ElMessageBox.confirm(`确定清空全部 ${draftItems.value.length} 个草稿项吗？`, '确认清空', {
-      type: 'warning',
+      type: 'error',
       confirmButtonText: '清空',
       cancelButtonText: '取消',
+      confirmButtonClass: 'danger-confirm-button',
       lockScroll: false,
     })
     appStore.clearBatchDraftItems()
@@ -430,7 +432,8 @@ const viewDetails = async (task) => {
 const deleteTask = async (id) => {
  try {
  await ElMessageBox.confirm('确定要删除这个批量任务吗？', '确认删除', {
- type: 'warning',
+ type: 'error',
+ confirmButtonClass: 'danger-confirm-button',
  lockScroll: false,
  })
 
@@ -475,15 +478,15 @@ onMounted(() => {
 <style scoped>
 .card,
 .task-card {
- border-radius: 12px;
+ border-radius: var(--radius-card);
  background: var(--card-bg);
- border: 0.5px solid var(--separator);
- box-shadow: none;
+ border: var(--border-width-thin) solid var(--separator);
+ box-shadow: var(--shadow-none);
 }
 
 @media (max-width: 767px) {
  .task-card :deep(.el-card__body) {
-  padding: 14px;
+  padding: var(--space-3-5);
  }
 
  .task-card .flex.items-start.justify-between {

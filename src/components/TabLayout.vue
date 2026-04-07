@@ -207,29 +207,29 @@ onUnmounted(() => {
 .tab-layout {
  display: flex;
  flex-direction: column;
- gap: 8px;
+ gap: var(--space-2);
  min-height: calc(100vh - 72px);
  min-height: calc(100svh - 72px);
 }
 
 .desktop-tabs {
  display: flex;
- gap: 8px;
- border-bottom: 0.5px solid var(--separator);
+ gap: var(--space-2);
+ border-bottom: var(--border-width-thin) solid var(--separator);
 }
 
 .desktop-tab {
  position: relative;
  display: inline-flex;
  align-items: center;
- gap: 8px;
- height: 38px;
- padding: 0 12px;
+ gap: var(--space-2);
+ height: var(--size-control-lg);
+ padding: 0 var(--space-3);
  border: 0;
  border-radius: 0;
  background: transparent;
  color: var(--text-secondary);
- font-size: 13px;
+ font-size: var(--font-size-sm);
  font-weight: 500;
 }
 
@@ -238,9 +238,9 @@ onUnmounted(() => {
  position: absolute;
  left: 0;
  right: 0;
- bottom: -0.5px;
+ bottom: calc(var(--border-width-thin) * -1);
  height: 2px;
- border-radius: 999px;
+ border-radius: var(--radius-full);
  background: transparent;
 }
 
@@ -266,9 +266,9 @@ onUnmounted(() => {
 
 .mobile-tabs {
  display: grid;
- height: 50px;
+ height: var(--size-tab-mobile);
  padding-bottom: env(safe-area-inset-bottom);
- border-top: 0.5px solid var(--separator);
+ border-top: var(--border-width-thin) solid var(--separator);
  background: var(--card-bg);
 }
 
@@ -277,11 +277,11 @@ onUnmounted(() => {
  flex-direction: column;
  align-items: center;
  justify-content: center;
- gap: 2px;
+ gap: var(--space-0-5);
  border: 0;
  background: transparent;
  color: var(--text-secondary);
- font-size: 10px;
+ font-size: var(--font-size-xs);
  font-weight: 500;
 }
 
@@ -290,7 +290,7 @@ onUnmounted(() => {
 }
 
 .tab-content.with-mobile-tabs {
- padding-bottom: calc(49px + env(safe-area-inset-bottom) + 12px);
+ padding-bottom: calc(49px + env(safe-area-inset-bottom) + var(--space-3));
 }
 </style>
 
