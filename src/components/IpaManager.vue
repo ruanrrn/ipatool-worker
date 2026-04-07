@@ -44,7 +44,6 @@
             <div class="min-w-0">
               <div class="task-title">{{ task.appName }}</div>
               <div class="task-meta">
-                <span>{{ task.artistName || '未知开发者' }}</span>
                 <span>版本 {{ task.version || '未知' }}</span>
                 <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
               </div>
@@ -127,13 +126,11 @@
             <div class="min-w-0">
               <div class="artifact-title">{{ item.appName }}</div>
               <div class="artifact-meta">
-                <span>{{ item.artistName || '未知开发者' }}</span>
                 <span>版本 {{ item.version || '未知' }}</span>
                 <span>账号 {{ item.accountEmail || '未知账号' }}</span>
                 <span>{{ formatFileSize(item.fileSize) }}</span>
               </div>
             </div>
-            <el-tag size="small" type="primary">{{ formatDate(item.modifiedAt) }}</el-tag>
           </div>
           <div class="artifact-actions">
             <el-button type="primary" size="small" @click="download(item.downloadUrl)">下载</el-button>
@@ -254,13 +251,6 @@ const formatFileSize = (bytes) => {
 }
 
 const formatStorageM = (bytes) => `${(Number(bytes || 0) / 1024 / 1024).toFixed(1)} M`
-
-const formatDate = (value) => {
-  if (!value) return '未知时间'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
 
 const statusTagType = (status) => {
   if (status === 'completed' || status === 'ready') return 'success'
