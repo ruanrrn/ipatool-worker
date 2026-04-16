@@ -1,10 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
-// Element Plus base + dark vars
-import 'element-plus/dist/index.css'
-import 'element-plus/theme-chalk/dark/css-vars.css'
-
 // Design tokens (Radix Colors)
 import '@radix-ui/colors/slate.css'
 import '@radix-ui/colors/slate-dark.css'

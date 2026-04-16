@@ -4,7 +4,7 @@
     <div class="account-header">
       <div class="header-icon">
         <svg
-          class="w-6 h-6"
+          class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -45,7 +45,10 @@
           class="account-item"
         >
           <div class="account-avatar">
-            <el-icon><User /></el-icon>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="account-avatar__icon">
+              <path d="M20 21a8 8 0 10-16 0" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </div>
           <div class="account-info">
             <p class="account-email">
@@ -64,27 +67,40 @@
             </p>
           </div>
           <div class="account-actions">
-            <el-button
+            <MobileButton
               type="primary"
-              :icon="Refresh"
-
               size="small"
-              class="refresh-button "
+              class="refresh-button"
               :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
               :disabled="!account.hasSavedCredentials"
               :loading="refreshingAccountKeys.has(getAccountKey(account, index))"
               @click="refreshAccount(account, index)"
-            />
-            <el-button
-              type="danger"
-              :icon="Delete"
+            >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+                  <path d="M21 12a9 9 0 10-3.5 7" />
+                  <path d="M21 3v7h-7" />
+                </svg>
+              </template>
+            </MobileButton>
 
+            <MobileButton
+              type="danger"
               size="small"
-              plain
-              class="remove-button "
+              class="remove-button"
               title="删除账号"
               @click="removeAccount(account, index)"
-            />
+            >
+              <template #icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 16h10l1-16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </template>
+            </MobileButton>
           </div>
         </div>
       </div>
@@ -104,60 +120,92 @@
         <div class="form-fields">
           <div class="form-field">
             <label class="field-label">邮箱</label>
-            <el-input
+            <MobileInput
               v-model="newAccount.email"
               type="email"
               placeholder="your@email.com"
               :disabled="logging"
-              size="large"
               clearable
               class="form-input"
             >
               <template #prefix>
-                <el-icon class="field-icon">
-                  <User />
-                </el-icon>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="field-icon">
+                  <path d="M20 21a8 8 0 10-16 0" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </template>
-            </el-input>
+            </MobileInput>
           </div>
 
           <div class="form-field">
             <label class="field-label">密码</label>
-            <el-input
+            <MobileInput
               v-model="newAccount.password"
-              type="password"
+              :type="passwordVisible ? 'text' : 'password'"
               placeholder="••••••••"
               :disabled="logging"
-              show-password
-              size="large"
               class="form-input"
+              autocomplete="current-password"
             >
               <template #prefix>
-                <el-icon class="field-icon">
-                  <Lock />
-                </el-icon>
+                <Lock class="field-icon" style="width:18px;height:18px" />
               </template>
-            </el-input>
+              <template #suffix>
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :disabled="logging"
+                  :aria-label="passwordVisible ? '隐藏密码' : '显示密码'"
+                  @click="passwordVisible = !passwordVisible"
+                >
+                  <svg
+                    v-if="passwordVisible"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.81 21.81 0 015.06-6.94" />
+                    <path d="M1 1l22 22" />
+                    <path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.88 21.88 0 01-5.5 7.5" />
+                    <path d="M14.12 14.12a3 3 0 01-4.24-4.24" />
+                  </svg>
+                  <svg
+                    v-else
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </template>
+            </MobileInput>
           </div>
 
           <div class="form-field">
             <label class="field-label">验证码</label>
-            <el-input
+            <MobileInput
               v-model="newAccount.code"
               type="text"
               placeholder="两步验证码（如需要）"
               :disabled="logging"
-              size="large"
               clearable
               class="form-input"
               :class="{ 'mfa-highlight': mfaRequired }"
+              autocomplete="one-time-code"
+              inputmode="numeric"
             >
               <template #prefix>
-                <el-icon class="field-icon">
-                  <Key />
-                </el-icon>
+                <Key class="field-icon" style="width:18px;height:18px" />
               </template>
-            </el-input>
+            </MobileInput>
             <p
               v-if="mfaRequired"
               class="mfa-hint"
@@ -168,16 +216,15 @@
 
           <!-- 保存密码选项 -->
           <div class="form-field">
-            <el-checkbox
+            <MobileCheckbox
               v-model="savePassword"
               :disabled="logging"
               class="save-password-checkbox"
-            >
-              <span class="checkbox-label">保存密码以便下次自动登录</span>
-            </el-checkbox>
+              label="保存密码以便下次自动登录"
+            />
           </div>
 
-          <el-button
+          <MobileButton
             :disabled="logging || autoLogging || !isFormValid"
             :loading="logging"
             type="primary"
@@ -186,19 +233,17 @@
             @click="loginAccount"
           >
             <template #icon>
-              <el-icon><Right /></el-icon>
+              <Right style="width:18px;height:18px" />
             </template>
             {{ logging ? '登录中...' : '登录' }}
-          </el-button>
+          </MobileButton>
 
           <!-- 自动登录状态提示 -->
           <div
             v-if="autoLogging"
             class="auto-login-status"
           >
-            <el-icon class="is-loading">
-              <Loading />
-            </el-icon>
+            <span class="inline-loading" aria-hidden="true"></span>
             <span>正在自动登录保存的账号...</span>
           </div>
         </div>
@@ -237,18 +282,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import MobileButton from './MobileButton.vue'
+import MobileCheckbox from './MobileCheckbox.vue'
+import MobileInput from './MobileInput.vue'
+import { Toast } from './MobileToast.vue'
+import { Confirm } from './MobileConfirm.vue'
 import { formatRegion } from '../utils/region.js'
 import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 import {
-	User,
 	Lock,
 	Key,
 	Right,
-	Delete,
-	Loading,
-	Refresh,
-} from '@element-plus/icons-vue'
+} from './icons'
 
 const emit = defineEmits(['accounts-updated'])
 
@@ -264,6 +309,7 @@ const autoLogging = ref(false)
 const savePassword = ref(true) // 默认保存密码
 const refreshingAccountKeys = ref(new Set()) // 正在刷新的账号集合
 const mfaRequired = ref(false) // 是否处于 MFA 等待状态
+const passwordVisible = ref(false) // 密码可见性切换（替代 el-input 的 show-password）
 
 const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(account) || account?.email || account?.token || account?.dsid || `account-${fallbackIndex}`
 
@@ -350,7 +396,7 @@ const saveAccounts = () => {
 
 const loginAccount = async () => {
 	if (!newAccount.value.email || !newAccount.value.password) {
-		ElMessage.warning('请填写完整的账号信息')
+		Toast.warning('请填写完整的账号信息')
 		return
 	}
 
@@ -359,7 +405,7 @@ const loginAccount = async () => {
 		(acc) => acc.email === newAccount.value.email,
 	)
 	if (existingAccount) {
-		ElMessage.warning('该账号已登录，无需重复登录')
+		Toast.warning('该账号已登录，无需重复登录')
 		return
 	}
 
@@ -384,7 +430,7 @@ const loginAccount = async () => {
 
 		// Network/server error
 		if (!response.ok && !data.ok) {
-			ElMessage.error(`登录失败：${data.error || '服务器错误'}`)
+			Toast.error(`登录失败：${data.error || '服务器错误'}`)
 			logging.value = false
 			return
 		}
@@ -392,7 +438,7 @@ const loginAccount = async () => {
 		// MFA needed — first round, no code provided yet
 		if (data.ok && data.data?.status === 'need_mfa') {
 			mfaRequired.value = true
-			ElMessage({
+			Toast.show({
 				type: 'warning',
 				message: '此账号需要二次验证，请查看你的受信任设备上的验证码，填入后再次点击登录',
 				duration: 8000,
@@ -403,7 +449,7 @@ const loginAccount = async () => {
 
 		// MFA code was wrong/expired — keep the session, let user retry
 		if (data.ok && data.data?.status === 'mfa_failed') {
-			ElMessage.error('验证码无效或已过期，请重新输入')
+			Toast.error('验证码无效或已过期，请重新输入')
 			newAccount.value.code = ''
 			logging.value = false
 			return
@@ -412,7 +458,7 @@ const loginAccount = async () => {
 		// Business logic error (bad password, account locked, etc.)
 		if (!data.ok) {
 			const errMsg = data.error || '未知错误'
-			ElMessage.error(`登录失败：${errMsg}`)
+			Toast.error(`登录失败：${errMsg}`)
 			// If it looks like a credential error, hint about MFA
 			if (errMsg.includes('密码') || errMsg.includes('BadLogin')) {
 				mfaRequired.value = true
@@ -442,9 +488,9 @@ const loginAccount = async () => {
 		// 重置表单
 		newAccount.value = { email: '', password: '', code: '' }
 
-		ElMessage.success(`登录成功：${data.data.email}`)
+		Toast.success(`登录成功：${data.data.email}`)
 	} catch (error) {
-		ElMessage.error(`网络错误：${error.message}`)
+		Toast.error(`网络错误：${error.message}`)
 	} finally {
 		logging.value = false
 	}
@@ -456,17 +502,8 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 	if (!account || index < 0) return
 
 	try {
-		await ElMessageBox.confirm(
-			'确定要删除这个账号吗？',
-			'确认删除',
-			{
-				type: 'error',
-				confirmButtonText: '删除',
-				cancelButtonText: '取消',
-				confirmButtonClass: 'danger-confirm-button',
-				lockScroll: false,
-			}
-		)
+		const __confirmed = await Confirm.show({ title: '确认删除', message: '确定要删除这个账号吗？', confirmText: '删除', cancelText: '取消', type: 'danger' })
+		if (!__confirmed) return
 	} catch {
 		// user canceled
 		return
@@ -485,11 +522,11 @@ const removeAccount = async (accountOrIndex, indexArg) => {
 			// 更新保存的凭证列表
 			await loadSavedCredentials()
 		} else {
-			ElMessage.warning('删除失败')
+			Toast.warning('删除失败')
 		}
 	} catch (error) {
 		console.error('Failed to remove account:', error)
-		ElMessage.warning('删除失败')
+		Toast.warning('删除失败')
 	}
 }
 
@@ -500,12 +537,12 @@ const refreshAccount = async (accountOrIndex, indexArg) => {
 	if (!account) return
 
 	if (!account.hasSavedCredentials) {
-		ElMessage.warning('这个账号没有保存密码，无法自动刷新。请重新登录并勾选“保存密码”。')
+		Toast.warning('这个账号没有保存密码，无法自动刷新。请重新登录并勾选“保存密码”。')
 		return
 	}
 
 	refreshingAccountKeys.value = new Set(refreshingAccountKeys.value).add(accountKey)
-	ElMessage.info(`检测到数据库已有账号，正在刷新 ${account.email} 的会话…`)
+	Toast.show(`检测到数据库已有账号，正在刷新 ${account.email} 的会话…`)
 
 	try {
 		const response = await fetch(`${API_BASE}/login/refresh`, {
@@ -523,18 +560,18 @@ const refreshAccount = async (accountOrIndex, indexArg) => {
 			// 刷新账号列表以获取最新信息
 			await loadSavedCredentials()
 			await loadAccounts()
-			ElMessage.success('账号会话已刷新，页面状态已自动同步')
+			Toast.success('账号会话已刷新，页面状态已自动同步')
 		} else {
 			const errMsg = data.error || '刷新失败'
 			if (errMsg.includes('未找到保存的密码')) {
-				ElMessage.error('刷新失败：这个账号没有保存密码。请重新登录并勾选“保存密码”。')
+				Toast.error('刷新失败：这个账号没有保存密码。请重新登录并勾选“保存密码”。')
 			} else {
-				ElMessage.error(`刷新失败: ${errMsg}`)
+				Toast.error(`刷新失败: ${errMsg}`)
 			}
 		}
 	} catch (error) {
 		console.error('Failed to refresh account:', error)
-		ElMessage.warning('刷新失败，请检查网络连接')
+		Toast.warning('刷新失败，请检查网络连接')
 	} finally {
 		const nextRefreshingKeys = new Set(refreshingAccountKeys.value)
 		nextRefreshingKeys.delete(accountKey)
@@ -602,7 +639,7 @@ const autoLoginAll = async () => {
 					) {
 						// 全部成功，不显示提示
 					} else {
-						ElMessage.info(message)
+						Toast.show(message)
 					}
 				}, 500)
 			}
