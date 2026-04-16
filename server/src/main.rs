@@ -3980,10 +3980,18 @@ struct ArchiveApp {
     id: String,
     name: String,
     icon_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_bak_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_base64: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_content_type: Option<String>,
     bundle_id: Option<String>,
     versions: Vec<ArchiveVersion>,
+    #[serde(default)]
     delisted: bool,
     added_at: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     added_by: String,
 }
 
@@ -3991,6 +3999,8 @@ struct ArchiveApp {
 struct ArchiveVersion {
     version_id: String,
     version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -4001,6 +4011,495 @@ struct AddArchiveRequest {
     icon_url: Option<String>,
     bundle_id: Option<String>,
     versions: Vec<ArchiveVersion>,
+}
+
+#[derive(Deserialize)]
+struct SaveGitHubTokenRequest {
+    token: String,
+}
+
+#[derive(Serialize)]
+struct GitHubTokenResponse {
+    configured: bool,
+    username: String,
+    masked_token: Option<String>,
+    updated_at: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CommunityPublishRequest {
+    app_id: String,
+    owner: String,
+    repo: String,
+    branch: Option<String>,
+    path: Option<String>,
+    commit_message: Option<String>,
+    #[serde(default)]
+    create_pr: bool,
+}
+
+#[derive(Serialize)]
+struct CommunityPublishResponse {
+    app_id: String,
+    owner: String,
+    repo: String,
+    branch: String,
+    path: String,
+    commit_message: String,
+    sha: Option<String>,
+    html_url: Option<String>,
+    download_url: Option<String>,
+    pr_url: Option<String>,
+    pr_number: Option<i64>,
+}
+
+fn archive_file_path(app_id: &str) -> PathBuf {
+    resolve_archive_dir().join(format!("{}.json", app_id))
+}
+
+fn load_archive_app_from_path(file_path: &Path) -> Result<Option<ArchiveApp>, String> {
+    if !file_path.exists() {
+        return Ok(None);
+    }
+
+    let content = std::fs::read_to_string(file_path)
+        .map_err(|error| format!("读取收藏记录失败: {}", error))?;
+
+    let app = serde_json::from_str::<ArchiveApp>(&content)
+        .map_err(|error| format!("解析收藏记录失败: {}", error))?;
+
+    Ok(Some(app))
+}
+
+fn save_archive_app(file_path: &Path, app: &ArchiveApp) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(app)
+        .map_err(|error| format!("序列化收藏失败: {}", error))?;
+
+    std::fs::write(file_path, json).map_err(|error| format!("保存收藏失败: {}", error))
+}
+
+fn mask_github_token(token: &str) -> String {
+    let trimmed = token.trim();
+    if trimmed.len() <= 8 {
+        return "****".to_string();
+    }
+
+    format!("{}****{}", &trimmed[..4], &trimmed[trimmed.len() - 4..])
+}
+
+async fn ensure_archive_icon_base64(app: &mut ArchiveApp) -> Result<(), String> {
+    if app.icon_base64.is_some() {
+        return Ok(());
+    }
+
+    let Some(icon_url) = app.icon_url.clone() else {
+        return Ok(());
+    };
+
+    let response = Client::new()
+        .get(&icon_url)
+        .send()
+        .await
+        .map_err(|error| format!("下载图标失败: {}", error))?;
+
+    if !response.status().is_success() {
+        return Err(format!("下载图标失败: HTTP {}", response.status()));
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(|value| value.to_string())
+        .or_else(|| {
+            icon_url
+                .rsplit('.')
+                .next()
+                .map(|ext| match ext.to_ascii_lowercase().as_str() {
+                    "png" => "image/png".to_string(),
+                    "jpg" | "jpeg" => "image/jpeg".to_string(),
+                    "webp" => "image/webp".to_string(),
+                    "gif" => "image/gif".to_string(),
+                    _ => "application/octet-stream".to_string(),
+                })
+        })
+        .or(Some("application/octet-stream".to_string()));
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("读取图标失败: {}", error))?;
+
+    app.icon_base64 = Some(base64::engine::general_purpose::STANDARD.encode(&bytes));
+    app.icon_content_type = content_type.clone();
+    // Set icon_bak_url as data URI for community publishing
+    let ct = content_type.as_deref().unwrap_or("application/octet-stream");
+    app.icon_bak_url = Some(format!(
+        "data:{};base64,{}",
+        ct,
+        base64::engine::general_purpose::STANDARD.encode(&bytes)
+    ));
+    Ok(())
+}
+
+fn build_publish_path(body: &CommunityPublishRequest) -> String {
+    body.path
+        .clone()
+        .filter(|path| !path.trim().is_empty())
+        .unwrap_or_else(|| format!("data/{}.json", body.app_id))
+}
+
+async fn get_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
+    match data.db.lock().unwrap().get_github_token(&admin.username) {
+        Ok(Some(token)) => HttpResponse::Ok().json(ApiResponse::success(GitHubTokenResponse {
+            configured: true,
+            username: admin.username,
+            masked_token: Some(mask_github_token(&token.token)),
+            updated_at: token.updated_at,
+        })),
+        Ok(None) => HttpResponse::Ok().json(ApiResponse::success(GitHubTokenResponse {
+            configured: false,
+            username: admin.username,
+            masked_token: None,
+            updated_at: None,
+        })),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "读取 GitHub Token 失败: {}",
+            error
+        ))),
+    }
+}
+
+async fn save_github_token(
+    admin: AuthenticatedAdmin,
+    body: web::Json<SaveGitHubTokenRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let token = body.token.trim();
+    if token.is_empty() {
+        return HttpResponse::BadRequest()
+            .json(ApiResponse::<()>::error("GitHub PAT 不能为空".to_string()));
+    }
+
+    match data.db.lock().unwrap().upsert_github_token(&admin.username, token) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(GitHubTokenResponse {
+            configured: true,
+            username: admin.username,
+            masked_token: Some(mask_github_token(token)),
+            updated_at: Some(Utc::now().to_rfc3339()),
+        })),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "保存 GitHub Token 失败: {}",
+            error
+        ))),
+    }
+}
+
+async fn delete_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
+    match data.db.lock().unwrap().delete_github_token(&admin.username) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+            "删除 GitHub Token 失败: {}",
+            error
+        ))),
+    }
+}
+
+
+async fn publish_community_archive(
+    admin: AuthenticatedAdmin,
+    body: web::Json<CommunityPublishRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let owner = body.owner.trim().to_string();
+    let repo = body.repo.trim().to_string();
+    let app_id = body.app_id.trim().to_string();
+
+    if owner.is_empty() || repo.is_empty() || app_id.is_empty() {
+        return HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+            "owner、repo、app_id 不能为空".to_string(),
+        ));
+    }
+
+    let github_token = match data.db.lock().unwrap().get_github_token(&admin.username) {
+        Ok(Some(token)) => token.token,
+        Ok(None) => {
+            return HttpResponse::BadRequest()
+                .json(ApiResponse::<()>::error("请先配置 GitHub PAT".to_string()))
+        }
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+                "读取 GitHub Token 失败: {}",
+                error
+            )))
+        }
+    };
+
+    let file_path = archive_file_path(&app_id);
+    let Some(mut app) = (match load_archive_app_from_path(&file_path) {
+        Ok(app) => app,
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
+        }
+    }) else {
+        return HttpResponse::NotFound().json(ApiResponse::<()>::error(
+            "本地 archive 记录不存在".to_string(),
+        ));
+    };
+
+    if let Err(error) = ensure_archive_icon_base64(&mut app).await {
+        return HttpResponse::BadGateway().json(ApiResponse::<()>::error(error));
+    }
+
+    if let Err(error) = save_archive_app(&file_path, &app) {
+        return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
+    }
+
+    let publish_path = build_publish_path(&body.0);
+    let commit_message = body
+        .commit_message
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("Publish archive {} via ipatool", app.id));
+
+    let archive_json = match serde_json::to_string_pretty(&app) {
+        Ok(json) => json,
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+                "序列化 archive JSON 失败: {}",
+                error
+            )))
+        }
+    };
+
+    let client = Client::new();
+    let content_base64 = base64::engine::general_purpose::STANDARD.encode(archive_json.as_bytes());
+    let default_branch = "main".to_string();
+
+    // Step 1: If PR mode, get default branch SHA and create feature branch
+    let use_pr = body.create_pr;
+    let target_branch = if use_pr {
+        let ref_url = format!(
+            "https://api.github.com/repos/{}/{}/git/ref/heads/{}",
+            owner, repo, default_branch
+        );
+        let base_sha = match client
+            .get(&ref_url)
+            .bearer_auth(&github_token)
+            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .send()
+            .await
+        {
+            Ok(response) if response.status().is_success() => response
+                .json::<Value>()
+                .await
+                .ok()
+                .and_then(|p| p.get("object").and_then(|o| o.get("sha")).and_then(|v| v.as_str()).map(String::from)),
+            _ => {
+                return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
+                    "无法获取默认分支信息，请检查仓库和 PAT 权限".to_string(),
+                ));
+            }
+        };
+
+        let Some(sha) = base_sha else {
+            return HttpResponse::BadGateway()
+                .json(ApiResponse::<()>::error("无法解析默认分支 SHA".to_string()));
+        };
+
+        let timestamp = Utc::now().format("%Y%m%d%H%M%S");
+        let feature_branch = format!("publish/{}-{}", app_id, timestamp);
+
+        // Create branch
+        let create_ref_url = format!(
+            "https://api.github.com/repos/{}/{}/git/refs",
+            owner, repo
+        );
+        let create_resp = match client
+            .post(&create_ref_url)
+            .bearer_auth(&github_token)
+            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .json(&serde_json::json!({
+                "ref": format!("refs/heads/{}", feature_branch),
+                "sha": sha,
+            }))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
+                    "创建分支失败: {}",
+                    e
+                )));
+            }
+        };
+
+        if !create_resp.status().is_success() {
+            let status = create_resp.status();
+            let text = create_resp.text().await.unwrap_or_default();
+            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
+                "创建分支失败: HTTP {} {}",
+                status, text
+            )));
+        }
+
+        feature_branch
+    } else {
+        body.branch
+            .clone()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| default_branch.clone())
+    };
+
+    // Step 2: Check existing file on target branch
+    let github_api = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        owner,
+        repo,
+        urlencoding::encode(&publish_path)
+    );
+
+    let existing_sha = match client
+        .get(&github_api)
+        .bearer_auth(&github_token)
+        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .query(&[("ref", target_branch.as_str())])
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r.json::<Value>().await.ok().and_then(|p| {
+            p.get("sha").and_then(|v| v.as_str()).map(String::from)
+        }),
+        Ok(r) if r.status().as_u16() == 404 => None,
+        Ok(r) => {
+            let s = r.status();
+            let t = r.text().await.unwrap_or_default();
+            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
+                "查询文件失败: HTTP {} {}", s, t
+            )));
+        }
+        Err(e) => {
+            return HttpResponse::BadGateway()
+                .json(ApiResponse::<()>::error(format!("查询文件失败: {}", e)));
+        }
+    };
+
+    // Step 3: Push file to target branch
+    let put_resp = match client
+        .put(&github_api)
+        .bearer_auth(&github_token)
+        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .json(&serde_json::json!({
+            "message": commit_message.clone(),
+            "content": content_base64,
+            "branch": target_branch,
+            "sha": existing_sha,
+        }))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return HttpResponse::BadGateway()
+                .json(ApiResponse::<()>::error(format!("推送文件失败: {}", e)));
+        }
+    };
+
+    let put_status = put_resp.status();
+    let put_text = match put_resp.text().await {
+        Ok(t) => t,
+        Err(e) => {
+            return HttpResponse::BadGateway()
+                .json(ApiResponse::<()>::error(format!("读取响应失败: {}", e)));
+        }
+    };
+
+    if !put_status.is_success() {
+        return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
+            "推送文件失败: HTTP {} {}",
+            put_status, put_text
+        )));
+    }
+
+    let put_payload: Value = match serde_json::from_str(&put_text) {
+        Ok(p) => p,
+        Err(e) => {
+            return HttpResponse::BadGateway()
+                .json(ApiResponse::<()>::error(format!("解析响应失败: {}", e)));
+        }
+    };
+
+    let content = put_payload.get("content").cloned().unwrap_or(Value::Null);
+    let file_sha = content.get("sha").and_then(|v| v.as_str()).map(String::from);
+    let file_html_url = content.get("html_url").and_then(|v| v.as_str()).map(String::from);
+    let file_download_url = content.get("download_url").and_then(|v| v.as_str()).map(String::from);
+
+    // Step 4: If PR mode, create pull request
+    let (final_pr_url, final_pr_number) = if use_pr {
+        let pr_api = format!("https://api.github.com/repos/{}/{}/pulls", owner, repo);
+        let pr_title = format!("Add archive: {} ({})", app.name, app.id);
+        let pr_body = format!(
+            "Auto-generated from ipaTool.\n\nApp: {} ({})\nBundle ID: {}\nVersions: {}",
+            app.name,
+            app.id,
+            app.bundle_id.as_deref().unwrap_or("unknown"),
+            app.versions.len(),
+        );
+
+        match client
+            .post(&pr_api)
+            .bearer_auth(&github_token)
+            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+            .json(&serde_json::json!({
+                "title": pr_title,
+                "body": pr_body,
+                "head": target_branch,
+                "base": default_branch,
+            }))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => match r.json::<Value>().await {
+                Ok(pr_data) => (
+                    pr_data.get("html_url").and_then(|v| v.as_str()).map(String::from),
+                    pr_data.get("number").and_then(|v| v.as_i64()),
+                ),
+                Err(_) => (None, None),
+            },
+            Ok(r) => {
+                let s = r.status();
+                let t = r.text().await.unwrap_or_default();
+                log::warn!("PR creation failed: HTTP {} {}", s, t);
+                (None, None)
+            }
+            Err(e) => {
+                log::warn!("PR creation failed: {}", e);
+                (None, None)
+            }
+        }
+    } else {
+        (None, None)
+    };
+
+    HttpResponse::Ok().json(ApiResponse::success(CommunityPublishResponse {
+        app_id: app.id,
+        owner,
+        repo,
+        branch: target_branch,
+        path: publish_path,
+        commit_message,
+        sha: file_sha,
+        html_url: file_html_url,
+        download_url: file_download_url,
+        pr_url: final_pr_url,
+        pr_number: final_pr_number,
+    }))
 }
 
 fn resolve_archive_dir() -> PathBuf {
@@ -4038,34 +4537,96 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
         )));
     }
 
-    let app = ArchiveApp {
-        id: body.app_id.clone(),
-        name: body.app_name.clone(),
-        icon_url: body.icon_url.clone(),
-        bundle_id: body.bundle_id.clone(),
-        versions: body.versions.clone(),
-        delisted: false,
-        added_at: Utc::now().to_rfc3339(),
-        added_by: "user".to_string(),
+    let file_path = archive_file_path(&body.app_id);
+    let mut app = match load_archive_app_from_path(&file_path) {
+        Ok(Some(existing)) => ArchiveApp {
+            id: body.app_id.clone(),
+            name: body.app_name.clone(),
+            icon_url: body.icon_url.clone().or(existing.icon_url.clone()),
+            icon_bak_url: existing.icon_bak_url,
+            icon_base64: existing.icon_base64,
+            icon_content_type: existing.icon_content_type,
+            bundle_id: body.bundle_id.clone().or(existing.bundle_id.clone()),
+            versions: existing.versions,
+            delisted: existing.delisted,
+            added_at: existing.added_at,
+            added_by: existing.added_by,
+        },
+        Ok(None) => ArchiveApp {
+            id: body.app_id.clone(),
+            name: body.app_name.clone(),
+            icon_url: body.icon_url.clone(),
+            icon_bak_url: None,
+            icon_base64: None,
+            icon_content_type: None,
+            bundle_id: body.bundle_id.clone(),
+            versions: Vec::new(),
+            delisted: false,
+            added_at: Utc::now().to_rfc3339(),
+            added_by: "user".to_string(),
+        },
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
+        }
     };
 
-    let file_path = archive_dir.join(format!("{}.json", app.id));
-    match serde_json::to_string_pretty(&app) {
-        Ok(json) => match std::fs::write(&file_path, json) {
-            Ok(_) => HttpResponse::Ok().json(ApiResponse::success(app)),
-            Err(error) => HttpResponse::InternalServerError()
-                .json(ApiResponse::<()>::error(format!("保存收藏失败: {}", error))),
-        },
-        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
-            "序列化收藏失败: {}",
-            error
-        ))),
+    for version in &body.versions {
+        if version.version_id.trim().is_empty() {
+            continue;
+        }
+
+        if let Some(existing_version) = app
+            .versions
+            .iter_mut()
+            .find(|existing| existing.version_id == version.version_id)
+        {
+            if !version.version.trim().is_empty() {
+                existing_version.version = version.version.clone();
+            }
+        } else {
+            app.versions.push(version.clone());
+        }
+    }
+
+    match save_archive_app(&file_path, &app) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(app)),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error)),
+    }
+}
+
+async fn remove_archive_app_version(path: web::Path<(String, String)>) -> impl Responder {
+    let (id, version_id) = path.into_inner();
+    let file_path = archive_file_path(&id);
+
+    let Some(mut app) = (match load_archive_app_from_path(&file_path) {
+        Ok(app) => app,
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
+        }
+    }) else {
+        return HttpResponse::Ok().json(ApiResponse::success(true));
+    };
+
+    app.versions.retain(|version| version.version_id != version_id);
+
+    if app.versions.is_empty() {
+        if let Err(error) = std::fs::remove_file(&file_path) {
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::<()>::error(format!("取消收藏失败: {}", error)));
+        }
+
+        return HttpResponse::Ok().json(ApiResponse::success(true));
+    }
+
+    match save_archive_app(&file_path, &app) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
+        Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error)),
     }
 }
 
 async fn remove_archive_app(path: web::Path<String>) -> impl Responder {
     let id = path.into_inner();
-    let file_path = resolve_archive_dir().join(format!("{}.json", id));
+    let file_path = archive_file_path(&id);
 
     if file_path.exists() {
         if let Err(error) = std::fs::remove_file(&file_path) {
@@ -4145,7 +4706,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::JsonConfig::default().limit(4096))
+            .app_data(web::JsonConfig::default().limit(2 * 1024 * 1024))
             .app_data(app_state.clone())
             .route("/i/{token}.plist", web::get().to(plist_from_token))
             .service(
@@ -4208,7 +4769,16 @@ async fn main() -> std::io::Result<()> {
                             .route("/check-updates", web::get().to(check_updates))
                             .route("/archive", web::get().to(get_archive_apps))
                             .route("/archive", web::post().to(add_archive_app))
-                            .route("/archive/{id}", web::delete().to(remove_archive_app)),
+                            .route(
+                                "/archive/{id}/versions/{version_id}",
+                                web::delete().to(remove_archive_app_version),
+                            )
+                            .route("/archive/{id}", web::delete().to(remove_archive_app))
+                            .route("/github/token", web::get().to(get_github_token))
+                            .route("/github/token", web::post().to(save_github_token))
+                            .route("/github/token", web::delete().to(delete_github_token))
+                            .route("/community/publish", web::post().to(publish_community_archive)),
+
                     ),
             )
             // 托管前端静态文件

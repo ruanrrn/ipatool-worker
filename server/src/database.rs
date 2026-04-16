@@ -48,6 +48,15 @@ pub struct SessionRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubToken {
+    pub id: Option<i64>,
+    pub username: String,
+    pub token: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionKey {
     pub id: Option<i64>,
     pub key_id: String,
@@ -288,6 +297,20 @@ impl Database {
                 username TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 expires_at DATETIME NOT NULL,
+                FOREIGN KEY (username) REFERENCES admin_users(username) ON DELETE CASCADE
+            )
+        ",
+            [],
+        )?;
+
+        conn.execute(
+            "
+            CREATE TABLE IF NOT EXISTS github_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                token TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (username) REFERENCES admin_users(username) ON DELETE CASCADE
             )
         ",
@@ -653,6 +676,49 @@ impl Database {
             [],
         )?;
         Ok(deleted)
+    }
+
+    pub fn upsert_github_token(&self, username: &str, token: &str) -> Result<()> {
+        let conn = self.connection.lock().unwrap();
+        conn.execute(
+            "INSERT INTO github_tokens (username, token)
+             VALUES (?, ?)
+             ON CONFLICT(username) DO UPDATE SET
+                 token = excluded.token,
+                 updated_at = CURRENT_TIMESTAMP",
+            params![username, token],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_github_token(&self, username: &str) -> Result<Option<GitHubToken>> {
+        let conn = self.connection.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, token, created_at, updated_at
+             FROM github_tokens
+             WHERE username = ?",
+        )?;
+        let token = stmt
+            .query_row(params![username], |row| {
+                Ok(GitHubToken {
+                    id: row.get(0)?,
+                    username: row.get(1)?,
+                    token: row.get(2)?,
+                    created_at: row.get(3)?,
+                    updated_at: row.get(4)?,
+                })
+            })
+            .optional()?;
+        Ok(token)
+    }
+
+    pub fn delete_github_token(&self, username: &str) -> Result<()> {
+        let conn = self.connection.lock().unwrap();
+        conn.execute(
+            "DELETE FROM github_tokens WHERE username = ?",
+            params![username],
+        )?;
+        Ok(())
     }
 
     pub fn get_all_accounts(&self) -> Result<Vec<Account>> {
