@@ -7,6 +7,9 @@
   .text-xs { font-size: var(--font-size-xs) !important; }
   .text-sm { font-size: var(--font-size-sm) !important; }
   .text-base { font-size: var(--font-size-md) !important; }
+  .text-lg { font-size: var(--font-size-lg) !important; }
+  .text-xl { font-size: var(--font-size-xl) !important; }
+  .text-2xl { font-size: var(--font-size-2xl) !important; }
 
   .rounded-lg { border-radius: var(--radius-artwork) !important; }
   .rounded-xl { border-radius: var(--radius-card) !important; }
@@ -624,5 +627,327 @@
   .empty-state,
   .section-shell {
     padding: var(--space-4);
+  }
+}
+
+
+/* ==================== 移动端适配 ==================== */
+/*
+ * ipatool 移动端适配 - Element Plus 组件样式优化
+ * 在 src/style.css 的 @layer components 中添加以下样式
+ */
+
+/* ==================== 移动端通用适配 ==================== */
+@media (max-width: 767px) {
+  /* ✅ 按钮适配 */
+  .el-button {
+    min-height: var(--size-control-mobile) !important;
+    min-width: var(--size-control-mobile) !important;
+    padding: var(--space-3) var(--space-4) !important;
+    font-size: var(--font-size-sm-mobile) !important;
+  }
+
+  .el-button--large {
+    min-height: var(--size-touch-mobile) !important;
+    padding: var(--space-3-5) var(--space-5) !important;
+    font-size: var(--font-size-base-mobile) !important;
+  }
+
+  .el-button--small {
+    min-height: var(--size-control-sm) !important;
+    padding: var(--space-2) var(--space-3) !important;
+    font-size: var(--font-size-xs-mobile) !important;
+  }
+
+  /* ✅ 输入框适配 */
+  .el-input__wrapper,
+  .el-textarea__inner,
+  .el-select__wrapper,
+  .el-input-number {
+    min-height: var(--size-control-mobile) !important;
+    padding: var(--space-2) var(--space-3) !important;
+    font-size: var(--font-size-base-mobile) !important;
+  }
+
+  .el-input__inner {
+    font-size: var(--font-size-base-mobile) !important;
+  }
+
+  /* ✅ Select 下拉框适配 */
+  .el-select-dropdown {
+    max-width: calc(100vw - var(--space-4)) !important;
+    margin: var(--space-2) !important;
+  }
+
+  .el-select-dropdown__item {
+    min-height: var(--size-control-mobile) !important;
+    padding: var(--space-2) var(--space-3) !important;
+    font-size: var(--font-size-base-mobile) !important;
+    line-height: 1.5;
+  }
+
+  /* ✅ Dialog 对话框适配 */
+  .el-dialog {
+    width: calc(100vw - var(--space-6)) !important;
+    max-width: 100vw !important;
+    margin: var(--space-3) auto !important;
+    border-radius: var(--radius-card) !important;
+  }
+
+  .el-dialog__header {
+    padding: var(--space-4) !important;
+  }
+
+  .el-dialog__body {
+    padding: var(--space-4) !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto;
+  }
+
+  .el-dialog__footer {
+    padding: var(--space-4) !important;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .el-dialog__footer .el-button {
+    width: 100% !important;
+    order: 2; /* Cancel 按钮在下方 */
+  }
+
+  .el-dialog__footer .el-button--primary {
+    order: 1; /* Primary 按钮在上方 */
+  }
+
+  /* ✅ Drawer 抽屉适配 */
+  .el-drawer {
+    width: 100vw !important;
+  }
+
+  .el-drawer__header {
+    padding: var(--space-4) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .el-drawer__body {
+    padding: var(--space-4) !important;
+  }
+
+  /* ✅ Message 提示适配 */
+  .el-message {
+    max-width: calc(100vw - var(--space-6)) !important;
+    margin: var(--space-2) !important;
+    padding: var(--space-3) var(--space-4) !important;
+    font-size: var(--font-size-sm-mobile) !important;
+    border-radius: var(--radius-card) !important;
+  }
+
+  .el-message__icon {
+    font-size: 18px !important;
+  }
+
+  /* ✅ MessageBox 消息框适配 */
+  .el-message-box {
+    width: calc(100vw - var(--space-6)) !important;
+    max-width: 100vw !important;
+    padding: var(--space-5) !important;
+    border-radius: var(--radius-card) !important;
+  }
+
+  .el-message-box__header {
+    padding-bottom: var(--space-3) !important;
+  }
+
+  .el-message-box__content {
+    font-size: var(--font-size-base-mobile) !important;
+    padding: var(--space-3) 0 !important;
+  }
+
+  .el-message-box__btns {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding-top: var(--space-4) !important;
+  }
+
+  .el-message-box__btns .el-button {
+    width: 100% !important;
+  }
+
+  /* ✅ Tag 标签适配 */
+  .el-tag {
+    min-height: 28px !important;
+    padding: var(--space-1) var(--space-2) !important;
+    font-size: var(--font-size-xs-mobile) !important;
+  }
+
+  /* ✅ Card 卡片适配 */
+  .el-card {
+    margin: var(--space-3) 0 !important;
+    border-radius: var(--radius-card) !important;
+  }
+
+  .el-card__body {
+    padding: var(--space-4) !important;
+  }
+
+  /* ✅ Alert 提示框适配 */
+  .el-alert {
+    padding: var(--space-3) var(--space-4) !important;
+    font-size: var(--font-size-sm-mobile) !important;
+    border-radius: var(--radius-card) !important;
+  }
+
+  .el-alert__icon {
+    font-size: 18px !important;
+    margin-right: var(--space-2) !important;
+  }
+
+  /* ✅ Radio 单选框适配 */
+  .el-radio__label {
+    font-size: var(--font-size-base-mobile) !important;
+    line-height: 1.5;
+  }
+
+  .el-radio__input.is-checked .el-radio__inner {
+    border-color: var(--accent-blue);
+    background: var(--accent-blue);
+  }
+
+  /* ✅ Checkbox 复选框适配 */
+  .el-checkbox__label {
+    font-size: var(--font-size-base-mobile) !important;
+    line-height: 1.5;
+  }
+
+  /* ✅ Switch 开关适配 */
+  .el-switch {
+    height: 28px !important;
+  }
+
+  .el-switch__core {
+    width: 52px !important;
+    height: 28px !important;
+  }
+
+  .el-switch__core::after {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* ✅ Form 表单适配 */
+  .el-form-item__label {
+    font-size: var(--font-size-sm-mobile) !important;
+    padding-bottom: var(--space-1) !important;
+    line-height: 1.4;
+  }
+
+  .el-form-item__error {
+    font-size: var(--font-size-xs-mobile) !important;
+    padding-top: var(--space-1) !important;
+  }
+
+  /* ✅ Upload 上传组件适配 */
+  .el-upload-dragger {
+    padding: var(--space-8) var(--space-4) !important;
+    min-height: 120px !important;
+  }
+
+  /* ✅ Progress 进度条适配 */
+  .el-progress__text {
+    font-size: var(--font-size-sm-mobile) !important;
+  }
+
+  /* ✅ Loading 加载动画适配 */
+  .el-loading-spinner {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* ✅ Breadcrumb 面包屑适配 */
+  .el-breadcrumb__item {
+    font-size: var(--font-size-sm-mobile) !important;
+  }
+
+  /* ✅ Pagination 分页适配 */
+  .el-pagination {
+    padding: var(--space-3) 0 !important;
+  }
+
+  .el-pagination button,
+  .el-pager li {
+    min-width: var(--size-control-mobile) !important;
+    height: var(--size-control-mobile) !important;
+    line-height: var(--size-control-mobile);
+    font-size: var(--font-size-sm-mobile) !important;
+  }
+
+  /* ✅ Table 表格适配 */
+  .el-table {
+    font-size: var(--font-size-sm-mobile) !important;
+  }
+
+  .el-table th,
+  .el-table td {
+    padding: var(--space-2) var(--space-3) !important;
+  }
+
+  /* ✅ Tooltip 提示适配 */
+  .el-tooltip__popper {
+    max-width: 200px !important;
+    font-size: var(--font-size-xs-mobile) !important;
+    padding: var(--space-2) var(--space-3) !important;
+  }
+}
+
+/* ==================== 触摸优化 ==================== */
+@media (hover: none) and (pointer: coarse) {
+  /* 触摸设备上增加点击区域 */
+  .el-button::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+  }
+
+  /* 禁用悬停效果 */
+  .el-button:hover {
+    transform: none !important;
+  }
+
+  /* 激活状态更明显 */
+  .el-button:active {
+    transform: scale(0.98) !important;
+  }
+}
+
+/* ==================== 安全区域适配 ==================== */
+@supports (padding: max(0px)) {
+  .el-dialog,
+  .el-drawer,
+  .el-message-box,
+  .el-message {
+    padding-top: max(var(--space-4), env(safe-area-inset-top));
+    padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  }
+
+  .el-drawer {
+    padding-left: max(var(--space-4), env(safe-area-inset-left));
+    padding-right: max(var(--space-4), env(safe-area-inset-right));
+  }
+}
+
+/* ==================== 横屏适配 ==================== */
+@media (max-width: 767px) and (orientation: landscape) {
+  .el-dialog {
+    width: 90vw !important;
+    max-height: 80vh !important;
+  }
+
+  .el-dialog__body {
+    max-height: 50vh !important;
   }
 }

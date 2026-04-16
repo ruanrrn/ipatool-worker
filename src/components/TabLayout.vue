@@ -13,13 +13,12 @@
         :class="['desktop-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
         @click="appStore.activeTab = tab.id"
       >
-        <el-badge
+        <MobileBadge
           v-if="tab.badge"
           :value="tab.badge"
-          :max="99"
         >
           <svg
-            class="h-[22px] w-[22px]"
+            class="h-[var(--size-icon-lg)] w-[var(--size-icon-lg)]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -28,10 +27,10 @@
             stroke-linejoin="round"
             v-html="tab.svgPath"
           />
-        </el-badge>
+        </MobileBadge>
         <svg
           v-else
-          class="h-[22px] w-[22px]"
+          class="h-[var(--size-icon-lg)] w-[var(--size-icon-lg)]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -74,25 +73,12 @@
           :class="['mobile-tab', appStore.activeTab === tab.id ? 'is-active' : '']"
           @click="appStore.activeTab = tab.id"
         >
-          <el-badge
-            v-if="tab.badge"
-            :value="tab.badge"
-            :max="99"
-          >
-            <svg
-              class="h-[22px] w-[22px]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              v-html="tab.svgPath"
-            />
-          </el-badge>
+        <MobileBadge
+          v-if="tab.badge"
+          :value="tab.badge"
+        >
           <svg
-            v-else
-            class="h-[22px] w-[22px]"
+            class="h-[var(--size-icon-lg)] w-[var(--size-icon-lg)]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -101,6 +87,18 @@
             stroke-linejoin="round"
             v-html="tab.svgPath"
           />
+        </MobileBadge>
+        <svg
+          v-else
+          class="h-[var(--size-icon-lg)] w-[var(--size-icon-lg)]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          v-html="tab.svgPath"
+        />
           <span>{{ tab.label }}</span>
         </button>
       </div>
@@ -110,6 +108,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import MobileBadge from './MobileBadge.vue'
 import { useAppStore } from '../stores/app'
 import DownloadManager from './DownloadManager.vue'
 import IpaManager from './IpaManager.vue'
@@ -247,14 +246,19 @@ onUnmounted(() => {
   inset-inline: 0;
   bottom: 0;
   z-index: 50;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .mobile-tabs {
   display: grid;
-  height: var(--size-tab-mobile);
-  padding-bottom: env(safe-area-inset-bottom);
+  height: 64px;
+  padding-bottom: 0;
   border-top: var(--border-width-thin) solid var(--separator);
-  background: var(--card-bg);
+  background: transparent;
 }
 
 .mobile-tab {
@@ -262,12 +266,15 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-0-5);
+  gap: 4px;
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: 11px;
   font-weight: 500;
+  min-height: 56px;
+  min-width: 44px;
+  transition: color 0.2s ease;
 }
 
 .mobile-tab.is-active {
@@ -275,7 +282,13 @@ onUnmounted(() => {
 }
 
 .tab-content.with-mobile-tabs {
-  /* Must match the actual fixed mobile tab bar height */
+  /* Must match the actual fixed mobile tab bar height including safe area */
   padding-bottom: calc(var(--size-tab-mobile) + env(safe-area-inset-bottom) + var(--space-3));
 }
 </style>
+
+
+.dark .mobile-tabs-wrap {
+  background: rgba(28, 28, 30, 0.9);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}

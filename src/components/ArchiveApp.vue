@@ -3,7 +3,7 @@
     <div class="card">
       <div class="flex items-center space-x-3 mb-2">
         <div class="hero-icon">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
         </div>
@@ -19,21 +19,14 @@
           <strong class="text-primary">{{ activeAccountLabel }}</strong>
         </div>
         <div class="archive-toolbar-actions">
-          <el-select
+          <MobileSelect
             v-if="accounts.length > 1"
             v-model="selectedAccountIndex"
-            size="small"
             class="archive-account-select"
             placeholder="选择账号"
-          >
-            <el-option
-              v-for="(account, index) in accounts"
-              :key="`${account.email}-${index}`"
-              :label="`${account.email} · ${getRegionLabel(account.region || 'US')}`"
-              :value="index"
-            />
-          </el-select>
-          <el-button size="small" plain :loading="refreshing" @click="refreshAll">刷新</el-button>
+            :options="accounts.map((account, index) => ({ label: `${account.email} · ${getRegionLabel(account.region || 'US')}`, value: index }))"
+          />
+          <MobileButton size="small" variant="plain" :loading="refreshing" @click="refreshAll">刷新</MobileButton>
         </div>
       </div>
     </div>
@@ -44,7 +37,7 @@
           <h3 class="text-lg font-semibold text-primary">我的收藏</h3>
           <p class="text-sm text-secondary">保存在本地 data/archive/ 的应用</p>
         </div>
-        <el-tag size="small" type="primary">{{ favorites.length }}</el-tag>
+        <MobileTag size="small" variant="primary">{{ favorites.length }}</MobileTag>
       </div>
 
       <div v-if="favoritesLoading" class="section-loading text-secondary">正在加载收藏…</div>
@@ -62,55 +55,50 @@
               <div class="min-w-0">
                 <div class="artifact-title">{{ app.name }}</div>
                 <div class="artifact-meta">
-                  <span>{{ app.bundle_id || 'Bundle ID 未知' }}</span>
-                  <span>收藏于 {{ formatDateTime(app.added_at) }}</span>
-                </div>
+                <span>{{ app.bundle_id || 'Bundle ID 未知' }}</span>
+                <span>收藏于 {{ formatDateTime(app.added_at) }}</span>
               </div>
-              <el-tag size="small" type="success">已收藏</el-tag>
+              <MobileTag size="small" variant="success">已收藏</MobileTag>
             </div>
 
             <div class="archive-actions">
-              <el-select
+              <MobileSelect
                 :model-value="selectedVersionByApp[app.id] || ''"
-                size="small"
                 filterable
                 placeholder="选择版本"
                 class="archive-version-select"
                 :loading="loadingVersions[app.id]"
                 @click.stop="prepareApp(app)"
                 @change="(value) => setSelectedVersion(app.id, value)"
-              >
-                <el-option
-                  v-for="version in getVersionOptions(app)"
-                  :key="`${app.id}-${version.version_id}`"
-                  :label="version.version || version.version_id"
-                  :value="version.version_id"
-                />
-              </el-select>
-              <el-button
+                :options="getVersionOptions(app).map(version => ({ label: version.version || version.version_id, value: version.version_id }))"
+              />
+              <MobileButton
                 type="primary"
                 size="small"
                 :loading="downloadingAppId === app.id"
                 @click.stop="downloadArchivedApp(app)"
               >
-                <template #icon>
-                  <el-icon><Download /></el-icon>
-                </template>
                 下载
-              </el-button>
-              <el-button
+              </MobileButton>
+              <MobileButton
                 type="danger"
                 size="small"
                 plain
                 @click.stop="removeFavorite(app)"
               >
-                <template #icon>
-                  <el-icon><Delete /></el-icon>
-                </template>
                 取消收藏
-              </el-button>
+              </MobileButton>
+              <MobileButton
+                type="success"
+                size="small"
+                plain
+                @click.stop="openPublishDialog(app)"
+              >
+                发布
+              </MobileButton>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -121,7 +109,7 @@
           <h3 class="text-lg font-semibold text-primary">已下架应用</h3>
           <p class="text-sm text-secondary">来自 ruanrrn/ipa-archive 的公开归档数据</p>
         </div>
-        <el-tag size="small">{{ delistedApps.length }}</el-tag>
+        <MobileTag size="small">{{ delistedApps.length }}</MobileTag>
       </div>
 
       <div v-if="delistedLoading" class="section-loading text-secondary">正在加载下架数据…</div>
@@ -143,54 +131,73 @@
                   <span v-if="app.artist_name">{{ app.artist_name }}</span>
                   <span v-if="app.added_at">收录于 {{ formatDateTime(app.added_at) }}</span>
                 </div>
-              </div>
-              <el-tag size="small" type="warning">已下架</el-tag>
+              <MobileTag size="small" variant="warning">已下架</MobileTag>
             </div>
 
             <div class="archive-actions">
-              <el-select
+              <MobileSelect
                 :model-value="selectedVersionByApp[app.id] || ''"
-                size="small"
                 filterable
                 placeholder="选择版本"
                 class="archive-version-select"
                 :loading="loadingVersions[app.id]"
                 @click.stop="prepareApp(app)"
                 @change="(value) => setSelectedVersion(app.id, value)"
-              >
-                <el-option
-                  v-for="version in getVersionOptions(app)"
-                  :key="`${app.id}-${version.version_id}`"
-                  :label="version.version || version.version_id"
-                  :value="version.version_id"
-                />
-              </el-select>
-              <el-button
+                :options="getVersionOptions(app).map(version => ({ label: version.version || version.version_id, value: version.version_id }))"
+              />
+              <MobileButton
                 type="primary"
                 size="small"
                 :loading="downloadingAppId === app.id"
                 @click.stop="downloadArchivedApp(app)"
               >
-                <template #icon>
-                  <el-icon><Download /></el-icon>
-                </template>
                 下载
-              </el-button>
+              </MobileButton>
             </div>
           </div>
         </div>
+        </div>
       </div>
     </section>
+
+    <!-- 发布对话框 -->
+    <MobileDialog v-model="publishDialog.visible" title="发布到 GitHub">
+      <div class="space-y-3">
+        <div class="text-sm text-secondary">
+          将 <strong>{{ publishDialog.appName }}</strong> 发布到 GitHub 仓库
+        </div>
+        <MobileInput v-model="publishDialog.owner" label="Owner" placeholder="ruanrrn" />
+        <MobileInput v-model="publishDialog.repo" label="Repo" placeholder="ipa-archive" />
+        <div class="flex items-center gap-2">
+          <input id="pub-pr" v-model="publishDialog.createPr" type="checkbox" class="accent-[var(--accent-9)]" />
+          <label for="pub-pr" class="text-sm">创建 PR（推荐）</label>
+        </div>
+        <MobileInput v-model="publishDialog.commitMessage" label="Commit Message" :placeholder="`Publish ${publishDialog.appName}`" />
+        <div v-if="publishDialog.result" class="text-sm" :class="publishDialog.result.ok ? 'text-success' : 'text-danger'">
+          {{ publishDialog.result.msg }}
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex gap-2 justify-end">
+          <MobileButton size="small" @click="publishDialog.visible = false">取消</MobileButton>
+          <MobileButton type="primary" size="small" :loading="publishDialog.loading" @click="doPublish">确认发布</MobileButton>
+        </div>
+      </template>
+    </MobileDialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Delete, Download } from '@element-plus/icons-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Toast } from './MobileToast.vue'
 import AppArtwork from './AppArtwork.vue'
 import { useAppStore } from '../stores/app'
 import { formatRegion } from '../utils/region.js'
+import MobileButton from './MobileButton.vue'
+import MobileDialog from './MobileDialog.vue'
+import MobileInput from './MobileInput.vue'
+import MobileSelect from './MobileSelect.vue'
+import MobileTag from './MobileTag.vue'
 
 const API_BASE = '/api'
 const appStore = useAppStore()
@@ -338,7 +345,7 @@ const loadFavorites = async () => {
     applyVersionDefaults(favorites.value)
   } catch (error) {
     favorites.value = []
-    ElMessage.error(error.message || '加载收藏失败')
+    Toast.error(error.message || '加载收藏失败')
   } finally {
     favoritesLoading.value = false
   }
@@ -354,7 +361,7 @@ const loadDelistedApps = async () => {
     applyVersionDefaults(delistedApps.value)
   } catch (error) {
     delistedApps.value = []
-    ElMessage.error(error.message || '加载下架应用失败')
+    Toast.error(error.message || '加载下架应用失败')
   } finally {
     delistedLoading.value = false
   }
@@ -385,11 +392,11 @@ const prepareApp = async (app) => {
         setSelectedVersion(app.id, versions[0].version_id)
       }
     } else if (!getVersionOptions(app).length) {
-      ElMessage.warning('未获取到可用版本')
+      Toast.warning('未获取到可用版本')
     }
   } catch (error) {
     if (!getVersionOptions(app).length) {
-      ElMessage.warning(error.message || '加载版本失败')
+      Toast.warning(error.message || '加载版本失败')
     }
   } finally {
     loadingVersions.value = { ...loadingVersions.value, [app.id]: false }
@@ -414,9 +421,9 @@ const removeFavorite = async (app) => {
     const data = await response.json()
     if (!data.ok) throw new Error(data.error || '取消收藏失败')
     favorites.value = favorites.value.filter((item) => item.id !== app.id)
-    ElMessage.success('已取消收藏')
+    Toast.success('已取消收藏')
   } catch (error) {
-    ElMessage.error(error.message || '取消收藏失败')
+    Toast.error(error.message || '取消收藏失败')
   }
 }
 
@@ -468,9 +475,9 @@ const downloadArchivedApp = async (app) => {
       timestamp: new Date().toISOString()
     })
     appStore.activeTab = 'ipa'
-    ElMessage.success('已加入下载队列')
+    Toast.success('已加入下载队列')
   } catch (error) {
-    ElMessage.error(error.message || '下载失败')
+    Toast.error(error.message || '下载失败')
   } finally {
     downloadingAppId.value = ''
   }
@@ -481,6 +488,64 @@ const formatDateTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+// ---- Publish ----
+const publishDialog = reactive({
+  visible: false,
+  appId: '',
+  appName: '',
+  owner: 'ruanrrn',
+  repo: 'ipa-archive',
+  createPr: true,
+  commitMessage: '',
+  loading: false,
+  result: null,
+})
+
+const openPublishDialog = (app) => {
+  publishDialog.appId = app.id
+  publishDialog.appName = app.name
+  publishDialog.commitMessage = ''
+  publishDialog.result = null
+  publishDialog.loading = false
+  publishDialog.visible = true
+}
+
+const doPublish = async () => {
+  if (!publishDialog.owner || !publishDialog.repo) {
+    Toast.error('请填写 Owner 和 Repo')
+    return
+  }
+  publishDialog.loading = true
+  publishDialog.result = null
+  try {
+    const res = await fetch(`${API_BASE}/community/publish`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_id: publishDialog.appId,
+        owner: publishDialog.owner,
+        repo: publishDialog.repo,
+        create_pr: publishDialog.createPr,
+        commit_message: publishDialog.commitMessage || undefined,
+      }),
+    })
+    const data = await res.json()
+    if (!data.ok) throw new Error(data.error || '发布失败')
+    const d = data.data
+    const msg = d.pr_url
+      ? `✅ PR 已创建: ${d.pr_url}`
+      : `✅ 已推送到 ${d.branch}: ${d.html_url || d.path}`
+    publishDialog.result = { ok: true, msg }
+    Toast.success('发布成功')
+  } catch (e) {
+    publishDialog.result = { ok: false, msg: e.message || '发布失败' }
+    Toast.error(e.message || '发布失败')
+  } finally {
+    publishDialog.loading = false
+  }
 }
 
 onMounted(refreshAll)
@@ -555,7 +620,7 @@ onMounted(refreshAll)
   flex-wrap: wrap;
 }
 
-.archive-actions :deep(.el-button) {
+.archive-actions :deep(.mobile-button) {
   margin: 0;
 }
 
@@ -590,7 +655,7 @@ onMounted(refreshAll)
     align-items: stretch;
   }
 
-  .archive-actions :deep(.el-button) {
+  .archive-actions :deep(.mobile-button) {
     width: 100%;
     justify-content: center;
   }

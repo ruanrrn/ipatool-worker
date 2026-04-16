@@ -21,6 +21,15 @@
   --font-size-lg: 16px;
   --font-size-xl: 17px;
   --font-size-2xl: 20px;
+  /* 移动端专用字体大小 */
+  --font-size-xs-mobile: 11px;
+  --font-size-sm-mobile: 12px;
+  --font-size-base-mobile: 14px;
+  --font-size-lg-mobile: 16px;
+
+  /* 移动端触摸目标尺寸 */
+  --size-touch-mobile: 48px;
+  --size-control-mobile: 48px;
 
   /* Surfaces */
   --color-bg: var(--slate-2);
@@ -97,15 +106,19 @@
 
   /* Size */
   --size-icon-xs: 16px;
-  --size-icon-sm: 18px;
-  --size-icon-md: 20px;
-  --size-icon-lg: 22px;
-  --size-icon-xl: 24px;
-  --size-control-sm: 32px;
-  --size-control-md: 36px;
-  --size-control-lg: 40px;
-  --size-control-xl: 44px;
-  --size-tab-mobile: 56px;
+  --size-icon-sm: 20px;
+  --size-icon-md: 22px;
+  --size-icon-lg: 24px;
+  --size-icon-xl: 28px;
+
+  /* 移动端触摸目标 */
+  --size-touch-mobile: 48px;
+  --size-control-mobile: 48px;
+  --size-control-sm: 40px;
+  --size-control-md: 44px;
+  --size-control-lg: 48px;
+  --size-control-xl: 52px;
+  --size-tab-mobile: 60px;
   --size-artwork-sm: 40px;
   --size-artwork-md: 56px;
   --size-artwork-lg: 64px;
@@ -120,6 +133,7 @@
   --size-12: 48px;
   --size-16: 64px;
 
+  --radius-sheet: 16px;
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-field: 12px;
@@ -220,4 +234,78 @@
   --el-color-primary-light-7: var(--blue-5);
   --el-color-primary-light-8: var(--blue-4);
   --el-color-primary-light-9: var(--blue-3);
+}
+
+
+/* ==================== 移动端适配 ==================== */
+@media (max-width: 767px) {
+  :root {
+    /* 移动端使用更大的触摸目标 */
+    --size-control-md: var(--size-control-mobile);
+    --size-control-lg: var(--size-touch-mobile);
+
+    /* 移动端增加标签栏高度 */
+    --size-tab-mobile: 64px;
+
+    /* 移动端使用更大的间距 */
+    --space-3: 16px;
+    --space-4: 20px;
+  }
+
+  /* ===== Element Plus 移动端触摸目标覆盖 ===== */
+
+  /* 所有 el-button 最小高度 44px */
+  .el-button {
+    min-height: var(--size-control-md);
+  }
+  .el-button--small {
+    min-height: var(--size-control-md);
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  /* el-select 最小高度 44px */
+  .el-select .el-input__wrapper,
+  .el-select--small .el-input__wrapper {
+    min-height: var(--size-control-md);
+  }
+
+  /* el-input 最小高度 44px */
+  .el-input--small .el-input__wrapper {
+    min-height: var(--size-control-md);
+  }
+
+  /* Radio / Checkbox 最小点击区域 44×44px */
+  .el-radio,
+  .el-checkbox {
+    min-height: var(--size-control-md);
+    min-width: var(--size-control-md);
+  }
+  .el-radio__inner,
+  .el-checkbox__inner {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* el-switch 最小点击区域 */
+  .el-switch {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Dialog 移动端全宽 */
+  .el-dialog {
+    --el-dialog-width: 92vw !important;
+    margin: 4vh auto !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* MessageBox 移动端全宽 */
+  .el-message-box {
+    width: 90vw !important;
+    max-width: 420px;
+  }
 }

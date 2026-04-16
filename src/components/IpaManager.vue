@@ -9,7 +9,7 @@
         <div class="flex items-center space-x-3">
           <div class="hero-icon">
             <svg
-              class="w-6 h-6"
+              class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -48,26 +48,31 @@
                 <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
               </div>
             </div>
-            <el-tag :type="statusTagType(task.status)" size="small">{{ statusLabel(task.status) }}</el-tag>
+            <MobileTag :type="statusTagType(task.status)" size="small">{{ statusLabel(task.status) }}</MobileTag>
           </div>
           <div class="task-info">
             <span v-if="task.fileSize">大小 {{ formatFileSize(task.fileSize) }}</span>
             <span v-if="task.progress !== undefined">进度 {{ task.progress }}%</span>
             <span v-if="task.stage">阶段 {{ task.stage }}</span>
           </div>
-          <el-progress
+          <div
             v-if="task.status !== 'completed' && task.status !== 'failed' && task.progress !== undefined"
-            :percentage="task.progress"
-            :stroke-width="6"
-          />
+            class="mobile-progress"
+            role="progressbar"
+            :aria-valuenow="task.progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div class="mobile-progress__bar" :style="{ width: `${task.progress}%` }" />
+          </div>
           <div v-if="task.error" class="task-error">{{ task.error }}</div>
           <div class="task-actions">
-            <el-button v-if="task.status === 'completed' && task.downloadUrl" type="primary" size="small" @click="download(task.downloadUrl)">下载</el-button>
-            <el-button v-if="task.status === 'completed' && task.otaInstallable && task.installUrl" type="primary" size="small" @click="install(task.installUrl)">安装</el-button>
-            <el-button v-else-if="task.status === 'completed' && task.installMethod === 'download_only'" size="small" type="primary" plain disabled>仅下载</el-button>
-            <el-button size="small" type="danger" plain @click="removeTask(task.id)">
+            <MobileButton v-if="task.status === 'completed' && task.downloadUrl" type="primary" size="small" @click="download(task.downloadUrl)">下载</MobileButton>
+            <MobileButton v-if="task.status === 'completed' && task.otaInstallable && task.installUrl" type="primary" size="small" @click="install(task.installUrl)">安装</MobileButton>
+            <MobileButton v-else-if="task.status === 'completed' && task.installMethod === 'download_only'" size="small" type="primary" disabled>仅下载</MobileButton>
+            <MobileButton size="small" type="danger" @click="removeTask(task.id)">
               {{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}
-            </el-button>
+            </MobileButton>
           </div>
         </div>
       </div>
@@ -77,7 +82,7 @@
     <div class="card flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="hero-icon">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
             <rect x="14" y="3" width="7" height="7" rx="1.5" />
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
@@ -90,35 +95,40 @@
         </div>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <el-button v-if="selectedCount > 0" size="small" type="danger" plain @click="removeSelectedArtifacts">
+        <MobileButton v-if="selectedCount > 0" size="small" type="danger" @click="removeSelectedArtifacts">
           清理{{ selectedCount }}个
-        </el-button>
-        <el-upload
-          class="inline-upload"
-          :action="uploadUrl"
-          :show-file-list="false"
-          accept=".ipa"
-          :auto-upload="true"
-          :on-success="handleUploadSuccess"
-          :on-error="handleUploadError"
-          :on-progress="handleUploadProgress"
-          :before-upload="beforeUpload"
-        >
-          <template #trigger>
-            <el-button size="small" :loading="uploading" plain>
-              <template #icon><el-icon><UploadFilled /></el-icon></template>
-              {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
-            </el-button>
-          </template>
-        </el-upload>
-        <el-button size="small" :loading="ipaLoading" plain @click="loadArtifacts">刷新</el-button>
+        </MobileButton>
+
+        <label class="inline-upload">
+          <input
+            ref="uploadInputRef"
+            type="file"
+            accept=".ipa"
+            class="sr-only"
+            :disabled="uploading"
+            @change="onUploadFileSelected"
+          />
+          <MobileButton size="small" :loading="uploading" :disabled="uploading">
+            <template #icon>
+              <!-- upload icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+                <path d="M12 3v12" />
+                <path d="M7 8l5-5 5 5" />
+                <path d="M21 21H3" />
+              </svg>
+            </template>
+            {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
+          </MobileButton>
+        </label>
+
+        <MobileButton size="small" :loading="ipaLoading" @click="loadArtifacts">刷新</MobileButton>
       </div>
     </div>
 
     <div v-if="artifacts.length > 0" class="space-y-4">
       <div v-for="item in artifacts" :key="item.id" class="artifact-row">
         <div class="artifact-check">
-          <el-checkbox :model-value="selectedIds.includes(item.id)" @change="(checked) => toggleArtifact(item.id, checked)" />
+          <MobileCheckbox :model-value="selectedIds.includes(item.id)" @update:modelValue="(checked) => toggleArtifact(item.id, checked)" />
         </div>
         <AppArtwork :src="item.artworkUrl" :alt="item.appName" :label="item.appName" />
         <div class="artifact-main">
@@ -133,14 +143,14 @@
             </div>
           </div>
           <div class="artifact-actions">
-            <el-button type="primary" size="small" @click="download(item.downloadUrl)">下载</el-button>
-            <el-button v-if="item.otaInstallable && item.installUrl" type="primary" size="small" @click="install(item.installUrl)">安装</el-button>
-            <el-tooltip v-else-if="item.installMethod === 'download_only' && item.inspection" :content="item.inspection.summary" placement="top">
-              <span><el-button size="small" type="primary" plain disabled>仅下载</el-button></span>
-            </el-tooltip>
-            <el-button v-else-if="item.installMethod === 'download_only'" size="small" type="primary" plain disabled>仅下载</el-button>
-            <el-button v-else type="primary" size="small" disabled>安装</el-button>
-            <el-button type="danger" size="small" plain @click="removeArtifact(item)">删除</el-button>
+            <MobileButton type="primary" size="small" @click="download(item.downloadUrl)">下载</MobileButton>
+            <MobileButton v-if="item.otaInstallable && item.installUrl" type="primary" size="small" @click="install(item.installUrl)">安装</MobileButton>
+            <span v-else-if="item.installMethod === 'download_only' && item.inspection" :title="item.inspection.summary">
+              <MobileButton size="small" type="primary" disabled>仅下载</MobileButton>
+            </span>
+            <MobileButton v-else-if="item.installMethod === 'download_only'" size="small" type="primary" disabled>仅下载</MobileButton>
+            <MobileButton v-else type="primary" size="small" disabled>安装</MobileButton>
+            <MobileButton type="danger" size="small" @click="removeArtifact(item)">删除</MobileButton>
           </div>
         </div>
       </div>
@@ -158,18 +168,16 @@
     </div>
 
     <div v-if="uploading" class="-mt-2">
-      <el-progress :percentage="uploadProgress" :stroke-width="8" />
+      <div class="mobile-progress mobile-progress--thick" role="progressbar" :aria-valuenow="uploadProgress" aria-valuemin="0" aria-valuemax="100">
+        <div class="mobile-progress__bar" :style="{ width: `${uploadProgress}%` }" />
+      </div>
     </div>
 
-    <el-dialog
-      v-model="deleteDialogVisible"
+    <MobileDialog
+      :model-value="deleteDialogVisible"
       title="确认删除 IPA"
-      width="min(92vw, 420px)"
-      :close-on-click-modal="false"
-      :close-on-press-escape="!deletingArtifact"
-      :show-close="!deletingArtifact"
-      :lock-scroll="false"
-      destroy-on-close
+      :close-on-click-overlay="false"
+      @update:modelValue="onDeleteDialogUpdate"
     >
       <div class="space-y-3 text-sm">
         <p class="text-primary">确定删除这个 IPA 文件吗？</p>
@@ -179,18 +187,22 @@
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <el-button :disabled="deletingArtifact" @click="closeDeleteDialog">取消</el-button>
-          <el-button type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">删除</el-button>
+          <MobileButton :disabled="deletingArtifact" @click="closeDeleteDialog">取消</MobileButton>
+          <MobileButton type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">删除</MobileButton>
         </div>
       </template>
-    </el-dialog>
+    </MobileDialog>
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import MobileButton from './MobileButton.vue'
+import MobileCheckbox from './MobileCheckbox.vue'
+import MobileDialog from './MobileDialog.vue'
+import MobileTag from './MobileTag.vue'
+import { Toast } from './MobileToast.vue'
+import { Confirm } from './MobileConfirm.vue'
 import AppArtwork from './AppArtwork.vue'
 import { useAppStore } from '../stores/app'
 
@@ -351,13 +363,14 @@ const removeTask = async (id) => {
   if (!task) { stopTaskPolling(id); emit('remove-item', id); return }
   const isActive = !isFinalStatus(task.status)
   if (isActive) {
-    try {
-      await ElMessageBox.confirm(
-        `任务「${task.appName || '未知'}」仍在进行中，确定取消吗？`,
-        '确认取消任务',
-        { type: 'error', confirmButtonText: '取消任务', cancelButtonText: '继续等待', confirmButtonClass: 'danger-confirm-button', lockScroll: false }
-      )
-    } catch { return }
+    const confirmed = await Confirm.show({
+      title: '确认取消任务',
+      message: `任务「${task.appName || '未知'}」仍在进行中，确定取消吗？`,
+      confirmText: '取消任务',
+      cancelText: '继续等待',
+      type: 'danger'
+    })
+    if (!confirmed) return
   }
   stopTaskPolling(id)
   emit('remove-item', id)
@@ -373,6 +386,7 @@ const deletingArtifact = ref(false)
 const pendingDeleteItem = ref(null)
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const uploadInputRef = ref(null)
 
 const ipaStorageBytes = computed(() => artifacts.value.reduce((sum, item) => sum + Number(item.fileSize || 0), 0))
 const selectedCount = computed(() => selectedIds.value.length)
@@ -387,7 +401,7 @@ const loadArtifacts = async () => {
     const validIds = new Set(artifacts.value.map(item => item.id))
     selectedIds.value = selectedIds.value.filter(id => validIds.has(id))
   } catch (error) {
-    ElMessage.error(error.message || '加载失败')
+    Toast.error(error.message || '加载失败')
   } finally {
     ipaLoading.value = false
   }
@@ -422,13 +436,13 @@ const confirmDeleteArtifact = async () => {
     deleteDialogVisible.value = false
     pendingDeleteItem.value = null
     if (result.missing) {
-      ElMessage.warning('文件已不存在，列表已刷新')
+      Toast.warning('文件已不存在，列表已刷新')
     } else {
-      ElMessage.success('IPA 已删除')
+      Toast.success('IPA 已删除')
     }
     await loadArtifacts()
   } catch (error) {
-    ElMessage.error(error.message || '删除失败')
+    Toast.error(error.message || '删除失败')
   } finally {
     deletingArtifact.value = false
   }
@@ -436,16 +450,22 @@ const confirmDeleteArtifact = async () => {
 
 const removeSelectedArtifacts = async () => {
   if (selectedIds.value.length === 0) return
+  const confirmed = await Confirm.show({
+    title: '确认批量清理',
+    message: `确定批量清理 ${selectedIds.value.length} 个安装包吗？`,
+    confirmText: '批量清理',
+    cancelText: '取消',
+    type: 'danger'
+  })
+  if (!confirmed) return
+
   try {
-    await ElMessageBox.confirm(`确定批量清理 ${selectedIds.value.length} 个安装包吗？`, '确认批量清理', {
-      type: 'error', confirmButtonText: '批量清理', cancelButtonText: '取消', confirmButtonClass: 'danger-confirm-button', lockScroll: false
-    })
     for (const id of [...selectedIds.value]) { await deleteArtifactById(id) }
-    ElMessage.success(`已清理 ${selectedIds.value.length} 个安装包`)
+    Toast.success(`已清理 ${selectedIds.value.length} 个安装包`)
     selectedIds.value = []
     await loadArtifacts()
   } catch (error) {
-    if (error !== 'cancel') ElMessage.error(error.message || '批量清理失败')
+    Toast.error(error?.message || '批量清理失败')
   }
 }
 
@@ -459,8 +479,8 @@ const toggleArtifact = (id, checked) => {
 const beforeUpload = (file) => {
   const isIPA = file.name.endsWith('.ipa')
   const isLt2G = file.size / 1024 / 1024 / 1024 < 2
-  if (!isIPA) { ElMessage.error('只能上传 .ipa 格式的文件'); return false }
-  if (!isLt2G) { ElMessage.error('上传文件大小不能超过 2GB'); return false }
+  if (!isIPA) { Toast.error('只能上传 .ipa 格式的文件'); return false }
+  if (!isLt2G) { Toast.error('上传文件大小不能超过 2GB'); return false }
   uploading.value = true
   uploadProgress.value = 0
   return true
@@ -472,17 +492,75 @@ const handleUploadSuccess = (response) => {
   uploading.value = false
   uploadProgress.value = 100
   if (response.ok) {
-    ElMessage.success('文件上传成功')
+    Toast.success('文件上传成功')
     loadArtifacts()
   } else {
-    ElMessage.error(response.error || '上传失败')
+    Toast.error(response.error || '上传失败')
   }
 }
 
 const handleUploadError = (error) => {
   uploading.value = false
   uploadProgress.value = 0
-  ElMessage.error('上传失败：' + error.message)
+  Toast.error('上传失败：' + (error?.message || '未知错误'))
+}
+
+const uploadFileViaXHR = (file) => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', uploadUrl, true)
+    xhr.withCredentials = true
+
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return
+      const percent = evt.total ? (evt.loaded / evt.total) * 100 : 0
+      handleUploadProgress({ percent })
+    }
+
+    xhr.onerror = () => reject(new Error('网络错误'))
+
+    xhr.onload = () => {
+      try {
+        const text = xhr.responseText || '{}'
+        const json = JSON.parse(text)
+        resolve(json)
+      } catch {
+        reject(new Error('上传响应解析失败'))
+      }
+    }
+
+    const form = new FormData()
+    form.append('file', file, file.name)
+    xhr.send(form)
+  })
+}
+
+const onUploadFileSelected = async (e) => {
+  const file = e?.target?.files?.[0]
+  if (!file) return
+
+  const ok = beforeUpload(file)
+  if (!ok) {
+    if (e?.target) e.target.value = ''
+    return
+  }
+
+  try {
+    const response = await uploadFileViaXHR(file)
+    handleUploadSuccess(response)
+  } catch (err) {
+    handleUploadError(err)
+  } finally {
+    if (e?.target) e.target.value = ''
+  }
+}
+
+const onDeleteDialogUpdate = (v) => {
+  if (v) {
+    deleteDialogVisible.value = true
+    return
+  }
+  closeDeleteDialog()
 }
 
 // ── Lifecycle ──
@@ -554,10 +632,6 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.task-actions :deep(.el-button) {
-  margin: 0;
-}
-
 .task-error {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
@@ -622,8 +696,35 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.artifact-actions :deep(.el-button) {
-  margin: 0;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mobile-progress {
+  width: 100%;
+  height: 10px;
+  background: color-mix(in srgb, var(--separator) 55%, transparent);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.mobile-progress--thick {
+  height: 12px;
+}
+
+.mobile-progress__bar {
+  height: 100%;
+  background: var(--accent-blue);
+  border-radius: var(--radius-full);
+  transition: width 0.15s ease;
 }
 
 @media (max-width: 767px) {
@@ -638,7 +739,7 @@ onBeforeUnmount(() => {
     align-items: stretch;
   }
 
-  .task-actions :deep(.el-button) {
+  .task-actions :deep(.mobile-button) {
     width: 100%;
     justify-content: center;
   }

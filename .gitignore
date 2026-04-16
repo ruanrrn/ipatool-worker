@@ -57,3 +57,15 @@ coverage/
 downloads/
 server/*.db
 artifacts/
+
+# Mobile fix exploration artifacts
+mobile_fix_backup/
+apply-mobile-fix.sh
+mobile-element-plus-solution.css
+mobile-tablayout-solution.css
+mobile-tailwind-config-solution.js
+mobile-tokens-solution.css
+COMPONENT_SPEC.md
+MOBILE_FIX_GUIDE.md
+MOBILE_QUICK_REFERENCE.md
+MOBILE_SOLUTIONS_SUMMARY.md

@@ -5,7 +5,7 @@
         <div class="mb-6 flex items-start gap-4">
           <div class="hero-icon">
             <svg
-              class="h-6 w-6"
+              class="h-[var(--size-icon-lg)] w-[var(--size-icon-lg)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -28,158 +28,146 @@
           </div>
         </div>
 
-        <el-form
-          ref="loginFormRef"
-          :model="loginForm"
-          :rules="loginRules"
-          label-position="top"
-          class="login-form"
-        >
-          <el-form-item
-            label="用户名"
-            prop="username"
-          >
-            <el-input
+        <form class="login-form" @submit.prevent="handleLogin">
+          <div class="form-item" :class="{ 'is-error': !!loginErrors.username }">
+            <MobileInput
               v-model="loginForm.username"
+              label="用户名"
+              required
               autocomplete="username"
               placeholder="请输入用户名"
-              size="large"
+              :error="loginErrors.username"
               @keyup.enter="handleLogin"
             />
-          </el-form-item>
+          </div>
 
-          <el-form-item
-            label="密码"
-            prop="password"
-          >
-            <el-input
+          <div class="form-item" :class="{ 'is-error': !!loginErrors.password }">
+            <MobileInput
               v-model="loginForm.password"
               type="password"
-              show-password
+              label="密码"
+              required
               autocomplete="current-password"
               placeholder="请输入密码"
-              size="large"
+              :error="loginErrors.password"
               @keyup.enter="handleLogin"
             />
-          </el-form-item>
+          </div>
 
-          <el-button
+          <MobileButton
             type="primary"
             size="large"
+            native-type="submit"
+            block
             class="mt-4 !h-11 w-full !rounded-[var(--radius-control)]"
             :loading="loginLoading"
-            @click="handleLogin"
           >
             登录
-          </el-button>
-        </el-form>
+          </MobileButton>
+
+          <!-- hidden submit to improve mobile enter-to-submit -->
+          <button type="submit" class="hidden" aria-hidden="true"></button>
+        </form>
 
         <div
           v-if="appStore.authState.user?.is_default"
           class="status-panel warning mt-6 p-4"
         >
-          <el-alert
-            type="warning"
-            show-icon
-            :closable="false"
-            title="检测到仍在使用默认密码，必须先修改密码后才能进入系统"
-          />
+          <p class="text-sm text-secondary">
+            检测到仍在使用默认密码，必须先修改密码后才能进入系统
+          </p>
         </div>
       </div>
 
-      <el-dialog
+      <MobileDialog
         v-model="showChangePassword"
         title="首次登录：请修改用户名和密码"
-        width="min(92vw, 420px)"
-        :close-on-click-modal="false"
-        :close-on-press-escape="false"
+        :close-on-click-overlay="false"
+        :close-on-esc="false"
         :show-close="false"
-        :lock-scroll="false"
-        align-center
       >
-        <el-form
-          ref="pwdFormRef"
-          :model="pwdForm"
-          :rules="pwdRules"
-          label-position="top"
-          class="login-form"
-        >
-          <el-form-item
-            label="新用户名"
-            prop="new_username"
-          >
-            <el-input
+        <form class="login-form" @submit.prevent="handleChangePassword">
+          <div class="form-item" :class="{ 'is-error': !!pwdErrors.new_username }">
+            <MobileInput
               v-model="pwdForm.new_username"
+              label="新用户名"
+              required
               autocomplete="off"
               placeholder="请输入新用户名"
+              :error="pwdErrors.new_username"
               @keyup.enter="handleChangePassword"
             />
-          </el-form-item>
-          <el-form-item
-            label="当前密码"
-            prop="current_password"
-          >
-            <el-input
+          </div>
+
+          <div class="form-item" :class="{ 'is-error': !!pwdErrors.current_password }">
+            <MobileInput
               v-model="pwdForm.current_password"
               type="password"
-              show-password
+              label="当前密码"
+              required
               autocomplete="current-password"
               placeholder="请输入当前密码"
+              :error="pwdErrors.current_password"
               @keyup.enter="handleChangePassword"
             />
-          </el-form-item>
-          <el-form-item
-            label="新密码"
-            prop="new_password"
-          >
-            <el-input
+          </div>
+
+          <div class="form-item" :class="{ 'is-error': !!pwdErrors.new_password }">
+            <MobileInput
               v-model="pwdForm.new_password"
               type="password"
-              show-password
+              label="新密码"
+              required
               autocomplete="new-password"
               placeholder="请输入新密码"
+              :error="pwdErrors.new_password"
               @keyup.enter="handleChangePassword"
             />
-          </el-form-item>
-          <el-form-item
-            label="确认新密码"
-            prop="confirm_password"
-          >
-            <el-input
+          </div>
+
+          <div class="form-item" :class="{ 'is-error': !!pwdErrors.confirm_password }">
+            <MobileInput
               v-model="pwdForm.confirm_password"
               type="password"
-              show-password
+              label="确认新密码"
+              required
               autocomplete="new-password"
               placeholder="请再次输入新密码"
+              :error="pwdErrors.confirm_password"
               @keyup.enter="handleChangePassword"
             />
-          </el-form-item>
-        </el-form>
+          </div>
+
+          <button type="submit" class="hidden" aria-hidden="true"></button>
+        </form>
 
         <template #footer>
-          <el-button
+          <MobileButton
             type="primary"
+            native-type="submit"
             class="!rounded-[var(--radius-control)]"
             :loading="pwdLoading"
             @click="handleChangePassword"
           >
             修改密码
-          </el-button>
+          </MobileButton>
         </template>
-      </el-dialog>
+      </MobileDialog>
     </div>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
+import MobileButton from './MobileButton.vue'
+import MobileInput from './MobileInput.vue'
+import MobileDialog from './MobileDialog.vue'
+import { Toast } from './MobileToast.vue'
 
 const emit = defineEmits(['login-success'])
 const appStore = useAppStore()
 
-const loginFormRef = ref(null)
 const loginLoading = ref(false)
 
 const loginForm = reactive({
@@ -187,13 +175,29 @@ const loginForm = reactive({
  password: ''
 })
 
-const loginRules = {
- username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
- password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+const loginErrors = reactive({
+ username: '',
+ password: ''
+})
+
+function clearLoginErrors() {
+ loginErrors.username = ''
+ loginErrors.password = ''
+}
+
+async function validateLoginForm() {
+ clearLoginErrors()
+ if (!loginForm.username) {
+ loginErrors.username = '请输入用户名'
+ throw new Error('请输入用户名')
+ }
+ if (!loginForm.password) {
+ loginErrors.password = '请输入密码'
+ throw new Error('请输入密码')
+ }
 }
 
 const showChangePassword = ref(false)
-const pwdFormRef = ref(null)
 const pwdLoading = ref(false)
 
 const pwdForm = reactive({
@@ -203,22 +207,43 @@ const pwdForm = reactive({
  confirm_password: ''
 })
 
-const pwdRules = {
- current_password: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
- new_password: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
- confirm_password: [
- { required: true, message: '请确认新密码', trigger: 'blur' },
- {
- validator: (_, value, callback) => {
- if (value !== pwdForm.new_password) {
- callback(new Error('两次输入的新密码不一致'))
- } else {
- callback()
+const pwdErrors = reactive({
+ new_username: '',
+ current_password: '',
+ new_password: '',
+ confirm_password: ''
+})
+
+function clearPwdErrors() {
+ pwdErrors.new_username = ''
+ pwdErrors.current_password = ''
+ pwdErrors.new_password = ''
+ pwdErrors.confirm_password = ''
+}
+
+async function validatePwdForm() {
+ clearPwdErrors()
+
+ if (!pwdForm.new_username) {
+ pwdErrors.new_username = '请输入新用户名'
+ throw new Error('请输入新用户名')
  }
- },
- trigger: 'blur'
+ if (!pwdForm.current_password) {
+ pwdErrors.current_password = '请输入当前密码'
+ throw new Error('请输入当前密码')
  }
- ]
+ if (!pwdForm.new_password) {
+ pwdErrors.new_password = '请输入新密码'
+ throw new Error('请输入新密码')
+ }
+ if (!pwdForm.confirm_password) {
+ pwdErrors.confirm_password = '请确认新密码'
+ throw new Error('请确认新密码')
+ }
+ if (pwdForm.confirm_password !== pwdForm.new_password) {
+ pwdErrors.confirm_password = '两次输入的新密码不一致'
+ throw new Error('两次输入的新密码不一致')
+ }
 }
 
 watch(
@@ -232,10 +257,8 @@ watch(
 )
 
 const handleLogin = async () => {
- if (!loginFormRef.value) return
-
  try {
- await loginFormRef.value.validate()
+ await validateLoginForm()
 
  loginLoading.value = true
  const user = await appStore.loginAdmin(loginForm.username, loginForm.password)
@@ -244,22 +267,21 @@ const handleLogin = async () => {
  showChangePassword.value = true
  pwdForm.current_password = loginForm.password
  pwdForm.new_username = ''
+ clearPwdErrors()
  } else {
- ElMessage.success('登录成功')
+ Toast.success('登录成功')
  emit('login-success')
  }
  } catch (e) {
- ElMessage.error(e?.message || '登录失败')
+ Toast.error(e?.message || '登录失败')
  } finally {
  loginLoading.value = false
  }
 }
 
 const handleChangePassword = async () => {
- if (!pwdFormRef.value) return
-
  try {
- await pwdFormRef.value.validate()
+ await validatePwdForm()
 
  pwdLoading.value = true
 
@@ -287,7 +309,7 @@ const handleChangePassword = async () => {
 
  const json = await res.json()
 
- ElMessage.success('密码修改成功，请使用新密码重新登录')
+ Toast.success('密码修改成功，请使用新密码重新登录')
  showChangePassword.value = false
 
  // Clear form
@@ -295,6 +317,7 @@ const handleChangePassword = async () => {
  pwdForm.current_password = ''
  pwdForm.new_password = ''
  pwdForm.confirm_password = ''
+ clearPwdErrors()
 
  // Properly logout: clear server session + cookie + local state
  await appStore.logoutAdmin()
@@ -304,7 +327,7 @@ const handleChangePassword = async () => {
  // the user sees a blank/broken state instead of the login form.
  window.location.reload()
  } catch (e) {
- ElMessage.error(e?.message || '修改密码失败')
+ Toast.error(e?.message || '修改密码失败')
  } finally {
  pwdLoading.value = false
  }

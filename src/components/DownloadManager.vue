@@ -3,7 +3,7 @@
     <div class="flex items-center space-x-3 mb-6">
       <div class="hero-icon">
         <svg
-          class="w-6 h-6"
+          class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -35,7 +35,7 @@
       >
         <div class="flex items-start space-x-3">
           <svg
-            class="w-5 h-5 text-secondary mt-0.5"
+            class="w-[var(--size-icon-sm)] h-[var(--size-icon-sm)] text-secondary mt-0.5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -54,7 +54,7 @@
             <p class="text-sm text-secondary mt-1">
               请先在"账号"标签页登录 Apple ID 账号，然后才能搜索应用。
             </p>
-            <el-button 
+            <MobileButton 
               type="primary"
               size="small"
               class="mt-2"
@@ -62,7 +62,7 @@
               @click="goToAccountTab"
             >
               前往登录
-            </el-button>
+            </MobileButton>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@
         <div class="account-toolbar">
           <div class="flex items-center space-x-2 min-w-0">
             <svg
-              class="w-4 h-4 flex-shrink-0 text-accent-blue"
+              class="w-[var(--size-icon-xs)] h-[var(--size-icon-xs)] flex-shrink-0 text-accent-blue"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -91,19 +91,14 @@
               搜索区域: <strong>{{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}</strong>
             </span>
           </div>
-          <el-select 
+          <MobileSelect 
             v-model="selectedAccount"
             placeholder="选择账号"
             class="account-quick-select"
             size="small"
             @change="handleAccountChange"
           >
-            <el-option
-              v-for="(account, index) in accounts"
-              :key="index"
-              :label="account.email"
-              :value="index"
-            >
+            
               <div class="account-option-row">
                 <span class="account-option-email">{{ account.email }}</span>
                 <span
@@ -113,34 +108,34 @@
                   {{ getRegionLabel(account.region || 'US') }}
                 </span>
               </div>
-            </el-option>
-          </el-select>
+            
+          </MobileSelect>
         </div>
       </div>
 
       <!-- Search Mode Toggle -->
       <div class="inline-panel search-mode-row">
-        <label class="flex items-center space-x-2 cursor-pointer">
+        <label class="flex items-center space-x-2 cursor-pointer py-1 px-2 rounded-md active:bg-[var(--color-surface-muted)] sm:p-0">
           <input
             v-model="searchMode"
             type="radio"
             value="search"
-            class="w-4 h-4 text-accent-blue focus:ring-primary-500"
+            class="w-[var(--size-icon-xs)] h-[var(--size-icon-xs)] text-accent-blue focus:ring-primary-500"
           >
           <span class="text-sm font-medium text-primary">搜索应用</span>
         </label>
-        <label class="flex items-center space-x-2 cursor-pointer">
+        <label class="flex items-center space-x-2 cursor-pointer py-1 px-2 rounded-md active:bg-[var(--color-surface-muted)] sm:p-0">
           <input
             v-model="searchMode"
             type="radio"
             value="appid"
-            class="w-4 h-4 text-accent-blue focus:ring-primary-500"
+            class="w-[var(--size-icon-xs)] h-[var(--size-icon-xs)] text-accent-blue focus:ring-primary-500"
           >
           <span class="text-sm font-medium text-primary">直接输入 App ID</span>
         </label>
       </div>
 
-      <el-input
+      <MobileInput
         v-model="searchQuery"
         :placeholder="searchMode === 'search' ? '搜索应用名称、Bundle ID 或 App ID...' : '输入 App ID（纯数字）...'"
         :prefix-icon="Search"
@@ -166,18 +161,18 @@
             即使未找到应用信息，也可以继续查询版本号
           </p>
         </div>
-        <el-button
+        <MobileButton
           type="primary"
           size="default"
           @click="confirmDirectAppId"
         >
           确认并继续
-        </el-button>
+        </MobileButton>
       </div>
 
       <!-- Search Results -->
-      <el-scrollbar
-        v-if="searchResults.length > 0"
+      <div
+        v-if="searchResults.length "> 0"
         max-height="256px"
       >
         <div class="space-y-2">
@@ -200,12 +195,12 @@
                 {{ app.artistName }}
               </p>
             </div>
-            <el-icon class="w-5 h-5 text-secondary flex-shrink-0">
+            <i class="w-[var(--size-icon-sm)] h-[var(--size-icon-sm)] text-secondary flex-shrink-0">
               <ArrowRight />
-            </el-icon>
+            </i>
           </div>
         </div>
-      </el-scrollbar>
+      </div>
     </div>
 
     <div
@@ -226,7 +221,7 @@
             class="w-16 h-16 rounded-[var(--radius-artwork)] object-cover border border-[var(--separator)] bg-[var(--card-bg)] flex items-center justify-center"
           >
             <svg
-              class="w-8 h-8"
+              class="w-[var(--size-icon-xl)] h-[var(--size-icon-xl)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -276,19 +271,14 @@
               商店区域: {{ getRegionLabel(accounts[selectedAccount]?.region || 'US') }}
             </span>
           </label>
-          <el-select 
+          <MobileSelect 
             v-model="selectedAccount"
             placeholder="请先登录账号"
             class="w-full form-select"
             :disabled="accounts.length === 0"
             @change="handleAccountChange"
           >
-            <el-option
-              v-for="(account, index) in accounts"
-              :key="index"
-              :label="account.email"
-              :value="index"
-            >
+            
               <div class="flex items-center justify-between w-full">
                 <span class="flex-1 truncate">{{ account.email }}</span>
                 <span
@@ -298,8 +288,8 @@
                   {{ getRegionLabel(account.region || 'US') }}
                 </span>
               </div>
-            </el-option>
-          </el-select>
+            
+          </MobileSelect>
           <p
             v-if="accounts.length === 0"
             class="text-xs text-secondary mt-1"
@@ -316,7 +306,7 @@
 
         <div>
           <label class="block text-sm font-medium text-primary mb-2">版本（历史版本下拉）</label>
-          <el-select
+          <MobileSelect
             v-model="selectedVersion"
             placeholder="请先查询版本"
             class="w-full form-select"
@@ -324,13 +314,8 @@
             :loading="fetchingVersions"
             @change="handleVersionChange"
           >
-            <el-option
-              v-for="version in versions"
-              :key="version.external_identifier"
-              :label="`${version.bundle_version} | ${version.created_at}`"
-              :value="version.external_identifier"
-            />
-          </el-select>
+            
+          </MobileSelect>
         </div>
 
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
@@ -340,13 +325,8 @@
           </span>
         </div>
 
-        <el-space
-          direction="vertical"
-          :size="12"
-          fill
-          style="width: 100%"
-        >
-          <el-button
+        <div class="flex items-center gap-[var(--space-2)]">
+          <MobileButton
             :disabled="!appid || fetchingVersions"
             :loading="fetchingVersions"
             type="primary"
@@ -354,12 +334,12 @@
             @click="fetchVersions"
           >
             <template #icon>
-              <el-icon><Search /></el-icon>
+              <i><Search /></i>
             </template>
             查询版本
-          </el-button>
+          </MobileButton>
 
-          <el-button
+          <MobileButton
             v-if="!claimRequired"
             :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isDirectLinkDownloading"
             :loading="isDirectLinkDownloading"
@@ -370,16 +350,16 @@
             @click="directLinkDownload"
           >
             <template #icon>
-              <el-icon><Download /></el-icon>
+              <i><Download /></i>
             </template>
             直链下载（仅下载文件）
-          </el-button>
+          </MobileButton>
 
           <div
             v-if="!claimRequired"
             class="download-action-row"
           >
-            <el-button
+            <MobileButton
               :loading="favoriteLoading"
               :type="isCurrentAppFavorited ? 'warning' : 'default'"
               :plain="!isCurrentAppFavorited"
@@ -387,12 +367,12 @@
               @click="toggleFavoriteApp"
             >
               <template #icon>
-                <el-icon><component :is="isCurrentAppFavorited ? StarFilled : Star" /></el-icon>
+                <i><component :is="isCurrentAppFavorited ? StarFilled : Star" /></i>
               </template>
               {{ isCurrentAppFavorited ? '已收藏' : '收藏' }}
-            </el-button>
+            </MobileButton>
 
-            <el-button
+            <MobileButton
               :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
               :loading="downloading"
               :class="{ 'purchase-blocked-btn': paidPurchaseRequired }"
@@ -402,10 +382,10 @@
               @click="startDownloadWithProgress"
             >
               <template #icon>
-                <el-icon><Download /></el-icon>
+                <i><Download /></i>
               </template>
               {{ downloading ? '处理中...' : '下载到服务器' }}
-            </el-button>
+            </MobileButton>
           </div>
 
           <div
@@ -415,7 +395,7 @@
             ⚠️ {{ downloadBlockedReason }}
           </div>
 
-          <el-button
+          <MobileButton
             v-if="purchaseRequired"
             :disabled="!selectedAccount && selectedAccount !== 0"
             type="primary"
@@ -423,15 +403,15 @@
             @click="buyOrClaimSelectedApp"
           >
             <template #icon>
-              <el-icon><ArrowRight /></el-icon>
+              <i><ArrowRight /></i>
             </template>
             {{ purchaseActionLabel }}
-          </el-button>
-        </el-space>
+          </MobileButton>
+        </div>
       </div>
 
       <!-- Progress Box -->
-      <el-card
+      <MobileCard
         v-if="showProgress"
         class="mt-4"
         shadow="never"
@@ -440,14 +420,12 @@
           <span class="text-sm font-medium text-primary">{{ progressStage }}</span>
           <span class="text-sm font-bold text-accent-blue">{{ progressPercent }}%</span>
         </div>
-        <el-progress 
-          :percentage="progressPercent"
-          :stroke-width="10"
-          class="mb-3"
-        />
-        <el-scrollbar max-height="160px">
+        <div class="progress-bar mb-3" style="height:10px;border-radius:var(--radius-full);background:var(--color-surface-muted);overflow:hidden">
+          <div class="progress-fill" :style="{width: progressPercent+'%', height:'100%', background:'var(--accent-blue)', borderRadius:'var(--radius-full)', transition:'width 0.3s'}"></div>
+        </div>
+        <div style="overflow-y:auto;max-height:160px">
           <pre class="log-container rounded-[var(--radius-card)] p-3 text-xs whitespace-pre-wrap font-mono">{{ logs }}</pre>
-        </el-scrollbar>
+        </div>
  
         <div
           v-if="showActionButtons && (downloadReadyUrl || downloadInstallUrl)"
@@ -460,7 +438,7 @@
           >
             <div class="flex items-start space-x-2">
               <svg
-                class="w-5 h-5 text-secondary mt-0.5 flex-shrink-0"
+                class="w-[var(--size-icon-sm)] h-[var(--size-icon-sm)] text-secondary mt-0.5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -484,7 +462,7 @@
           </div>
  
           <div class="grid gap-3 sm:grid-cols-2">
-            <el-button
+            <MobileButton
               v-if="downloadReadyUrl"
               type="primary"
               size="large"
@@ -492,27 +470,27 @@
               @click="downloadCompletedIpa"
             >
               <template #icon>
-                <el-icon><Download /></el-icon>
+                <i><Download /></i>
               </template>
               下载 IPA{{ downloadReadyFileSize ? `（${formatFileSize(downloadReadyFileSize)}）` : '' }}
-            </el-button>
+            </MobileButton>
             <a
               v-if="downloadOtaInstallable && downloadInstallUrl && isHttps"
               :href="downloadInstallUrl"
               class="block w-full"
             >
-              <el-button
+              <MobileButton
                 type="primary"
                 size="large"
                 class="w-full"
               >
                 <template #icon>
-                  <el-icon><Download /></el-icon>
+                  <i><Download /></i>
                 </template>
                 安装到设备
-              </el-button>
+              </MobileButton>
             </a>
-            <el-button
+            <MobileButton
               v-else-if="downloadOtaInstallable && downloadInstallUrl"
               type="primary"
               size="large"
@@ -520,31 +498,30 @@
               @click="installDownloadedIpa"
             >
               <template #icon>
-                <el-icon><Download /></el-icon>
+                <i><Download /></i>
               </template>
               安装到设备
-            </el-button>
-            <el-tooltip
+            </MobileButton>
+            <span
               v-else-if="downloadInstallMethod === 'download_only' && downloadInspection && downloadInspection.summary"
-              :content="downloadInspection.summary"
-              placement="top"
+              :title="downloadInspection.summary"
             >
               <span class="block w-full">
-                <el-tag
+                <MobileTag
                   size="large"
                   type="primary"
                   class="w-full text-center"
-                >仅下载</el-tag>
+                >仅下载</MobileTag>
               </span>
-            </el-tooltip>
-            <el-tag
+            </span>
+            <MobileTag
               v-else-if="downloadInstallMethod === 'download_only'"
               size="large"
               type="primary"
               class="w-full text-center"
             >
               仅下载
-            </el-tag>
+            </MobileTag>
           </div>
           <p class="text-xs text-secondary text-center">
             下载和安装已分离，请按需手动操作
@@ -556,7 +533,7 @@
             ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
           </p>
         </div>
-      </el-card>
+      </MobileCard>
     </div>
 
     <!-- Empty State -->
@@ -592,8 +569,9 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useAppStore } from '../stores/app'
 import { useNotifications } from '../composables/useNotifications'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, ArrowRight, Download, Plus, Star, StarFilled } from '@element-plus/icons-vue'
+import { Toast } from './MobileToast.vue'
+import { Confirm } from './MobileConfirm.vue'
+import { Search, ArrowRight, Download, Plus, Star, StarFilled } from './icons'
 import { formatRegion } from '../utils/region.js'
 import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 
@@ -697,12 +675,45 @@ const downloadOtaInstallable = ref(false)
 const downloadInstallMethod = ref('')
 const downloadInspection = ref(null)
 const showActionButtons = ref(false)
-const archivedAppIds = ref(new Set())
+const archivedVersionsByApp = ref({})
 const favoriteLoading = ref(false)
+
+const getArchivedVersionSet = (appId) => {
+ const versions = archivedVersionsByApp.value[String(appId)]
+ return versions instanceof Set ? versions : new Set()
+}
+
+const getCurrentArchiveVersion = () => {
+ const version = versions.value.find(item => item.external_identifier === selectedVersion.value)
+  || versions.value[0]
+
+ const versionId = String(
+  version?.external_identifier
+  ?? version?.version_id
+  ?? version?.id
+  ?? appVerId.value
+  ?? ''
+ )
+
+ const versionLabel = String(
+  version?.bundle_version
+  ?? version?.version
+  ?? version?.name
+  ?? selectedApp.value?.version
+  ?? ''
+ )
+
+ return {
+  versionId,
+  versionLabel
+ }
+}
 
 const isCurrentAppFavorited = computed(() => {
  if (!selectedApp.value?.trackId) return false
- return archivedAppIds.value.has(String(selectedApp.value.trackId))
+ const { versionId } = getCurrentArchiveVersion()
+ if (!versionId) return false
+ return getArchivedVersionSet(selectedApp.value.trackId).has(versionId)
 })
 
 const purchaseRequired = computed(() => !!purchaseStatus.value.needsPurchase)
@@ -778,7 +789,17 @@ const loadArchivedAppIds = async () => {
  const response = await fetch(`${API_BASE}/archive`, { credentials: 'include' })
  const data = await response.json()
  if (!data.ok || !Array.isArray(data.data)) return
- archivedAppIds.value = new Set(data.data.map(item => String(item?.id || item?.app_id || '')).filter(Boolean))
+ archivedVersionsByApp.value = data.data.reduce((acc, item) => {
+  const appId = String(item?.id || item?.app_id || '')
+  if (!appId) return acc
+
+  acc[appId] = new Set(
+   (Array.isArray(item?.versions) ? item.versions : [])
+    .map(version => String(version?.version_id || version?.external_identifier || version?.id || ''))
+    .filter(Boolean)
+  )
+  return acc
+ }, {})
  } catch (error) {
  console.warn('Failed to load archive apps:', error)
  }
@@ -787,7 +808,7 @@ const loadArchivedAppIds = async () => {
 const toggleFavoriteApp = async () => {
  const app = selectedApp.value
  if (!app?.trackId) {
- ElMessage.warning('请先选择应用')
+ Toast.warning('请先选择应用')
  return
  }
  if (favoriteLoading.value) return
@@ -795,37 +816,45 @@ const toggleFavoriteApp = async () => {
  favoriteLoading.value = true
  try {
  const appId = String(app.trackId)
+ const { versionId, versionLabel } = getCurrentArchiveVersion()
 
- if (archivedAppIds.value.has(appId)) {
- const response = await fetch(`${API_BASE}/archive/${encodeURIComponent(appId)}`, {
+ if (!versionId) {
+ Toast.warning('请先查询并选择版本后再收藏')
+ return
+ }
+
+ if (getArchivedVersionSet(appId).has(versionId)) {
+ const response = await fetch(`${API_BASE}/archive/${encodeURIComponent(appId)}/${encodeURIComponent(versionId)}`, {
  method: 'DELETE',
  credentials: 'include'
  })
  const data = await response.json()
  if (!data.ok) throw new Error(data.error || '取消收藏失败')
- const nextIds = new Set(archivedAppIds.value)
- nextIds.delete(appId)
- archivedAppIds.value = nextIds
- ElMessage.success('已取消收藏')
+
+ const nextMap = { ...archivedVersionsByApp.value }
+ const nextVersions = new Set(getArchivedVersionSet(appId))
+ nextVersions.delete(versionId)
+
+ if (nextVersions.size === 0) {
+  delete nextMap[appId]
+ } else {
+  nextMap[appId] = nextVersions
+ }
+
+ archivedVersionsByApp.value = nextMap
+ Toast.success(`已取消收藏版本 ${versionLabel || versionId}`)
  return
  }
 
- const versionResponse = await fetch(`${API_BASE}/versions?appid=${encodeURIComponent(appId)}&region=US`, { credentials: 'include' })
- const versionData = await versionResponse.json()
- if (!versionData.ok) {
- throw new Error(versionData.error || '获取版本列表失败')
- }
-
- const versionsPayload = Array.isArray(versionData.data) ? versionData.data : []
  const payload = {
  app_id: appId,
  app_name: app.trackName || `App ID: ${appId}`,
  icon_url: app.artworkUrl100 || app.artworkUrl60 || null,
  bundle_id: app.bundleId || null,
- versions: versionsPayload.map((version) => ({
- version_id: String(version?.external_identifier ?? version?.version_id ?? version?.id ?? ''),
- version: String(version?.bundle_version ?? version?.version ?? version?.name ?? '')
- })).filter((version) => version.version_id)
+ versions: [{
+  version_id: versionId,
+  version: versionLabel || versionId
+ }]
  }
 
  const response = await fetch(`${API_BASE}/archive`, {
@@ -836,14 +865,17 @@ const toggleFavoriteApp = async () => {
  },
  body: JSON.stringify(payload)
  })
+ if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
  const data = await response.json()
  if (!data.ok) throw new Error(data.error || '收藏失败')
- const nextIds = new Set(archivedAppIds.value)
- nextIds.add(appId)
- archivedAppIds.value = nextIds
- ElMessage.success('已加入收藏')
+ const nextMap = { ...archivedVersionsByApp.value }
+ const nextVersions = new Set(getArchivedVersionSet(appId))
+ nextVersions.add(versionId)
+ nextMap[appId] = nextVersions
+ archivedVersionsByApp.value = nextMap
+ Toast.success(`已收藏版本 ${versionLabel || versionId}`)
  } catch (error) {
- ElMessage.error(error.message || '收藏失败')
+ Toast.error(error.message || '收藏失败')
  } finally {
  favoriteLoading.value = false
  }
@@ -1087,12 +1119,12 @@ watch(
 
 const fetchVersions = async () => {
  if (!appid.value) {
- ElMessage.warning('请填写 APPID')
+ Toast.warning('请填写 APPID')
  return
  }
 
  if (selectedAccount.value === '' || selectedAccount.value === null) {
- ElMessage.warning('请先选择账号')
+ Toast.warning('请先选择账号')
  return
  }
 
@@ -1107,7 +1139,7 @@ const fetchVersions = async () => {
  const data = await response.json()
 
  if (!data.ok) {
- ElMessage.error(`查询失败：${data.error || '未知错误'}`)
+ Toast.error(`查询失败：${data.error || '未知错误'}`)
  addLog(`[查询] 失败：${data.error || '未知错误'}`)
  return
  }
@@ -1116,7 +1148,7 @@ const fetchVersions = async () => {
  versionsFetched.value = true
  addLog(`[查询] 获取到 ${versions.value.length} 条版本记录`)
  } catch (error) {
- ElMessage.error(`查询失败：${error.message}`)
+ Toast.error(`查询失败：${error.message}`)
  addLog(`[查询] 失败：${error.message}`)
  } finally {
  fetchingVersions.value = false
@@ -1281,32 +1313,16 @@ const preflightPurchaseGate = async (account, modeLabel, retryFn) => {
 
  if (payload.needsPurchase) {
  purchaseStatusText.value = price !== null && price > 0 ? '当前账号未购买' : '当前账号未领取'
- ElMessage.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
+ Toast.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
  return false
  }
 
  purchaseStatusText.value = payload.error ? `检测失败：${payload.error}` : '状态未知'
- await ElMessageBox.alert(
- `下载前购买状态校验失败：${payload.error || '状态未知'}。为避免错误下载，已中止。`,
- '无法开始下载',
- {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- }
- )
+ Toast.show(`下载前购买状态校验失败：${payload.error || '状态未知'}。为避免错误下载，已中止。`)
  return false
  } catch (error) {
  purchaseStatusText.value = '检测失败'
- await ElMessageBox.alert(
- `下载前购买状态校验失败：${error.message || error}`,
- '无法开始下载',
- {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- }
- )
+ Toast.show(`下载前购买状态校验失败：${error.message || error}`)
  return false
  } finally {
  checkingPurchaseStatus.value = false
@@ -1319,39 +1335,23 @@ const buyOrClaimSelectedApp = async () => {
  const price = getSelectedAppPrice()
 
  if (price === null) {
- await ElMessageBox.alert('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。', '无法领取', {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- })
+ Toast.show('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。')
  return
  }
 
  if (price > 0) {
- await ElMessageBox.alert('这是付费应用，请先在 App Store 购买。购买完成后页面会自动恢复下载按钮。', '需要先购买', {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- })
+ Toast.show('这是付费应用，请先在 App Store 购买。购买完成后页面会自动恢复下载按钮。')
  return
  }
 
  const appName = props.selectedApp?.trackName || appid.value || '当前应用'
  const appStoreUrl = props.selectedApp?.trackViewUrl || `https://apps.apple.com/app/id${props.selectedApp.trackId}`
- await ElMessageBox.alert(
- `免费应用「${appName}」请先在官方 App Store 点击“获取”。完成后回到此页面刷新状态，再选择“直链下载”或“下载到服务器”。`,
- '请先到 App Store 获取',
- {
- confirmButtonText: '打开 App Store',
- type: 'info',
- lockScroll: false
- }
- ).catch(() => {})
+ Toast.show(`免费应用「${appName}」请先在官方 App Store 点击“获取”。完成后回到此页面刷新状态，再选择“直链下载”或“下载到服务器”。`).catch(() => {})
 
  window.open(appStoreUrl, '_blank', 'noopener')
  await refreshPurchaseStatus()
  } catch (error) {
- ElMessage.warning(error.message || '领取失败')
+ Toast.warning(error.message || '领取失败')
  }
 }
 
@@ -1362,43 +1362,23 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
  const accountRegion = getRegionLabel(account?.region || accounts.value[selectedAccount.value]?.region || 'US')
 
  if (price === null) {
- await ElMessageBox.alert(
- `应用：${appName}\n价格：未知\n账号：${accountEmail}\n区域：${accountRegion}\n\n当前无法确认该应用是否免费。为避免误触发付费购买，请先在搜索结果中确认价格；若为付费应用，请先在 App Store 完成购买。`,
- '无法自动购买',
- {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- }
- )
+ Toast.show(`应用：${appName}\n价格：未知\n账号：${accountEmail}\n区域：${accountRegion}\n\n当前无法确认该应用是否免费。为避免误触发付费购买，请先在搜索结果中确认价格；若为付费应用，请先在 App Store 完成购买。`)
  addLog(`[${modeLabel}] 未购买，但价格未知，已阻止自动购买`)
  return
  }
 
  if (price > 0) {
- await ElMessageBox.alert(
- `应用：${appName}\n价格：${getSelectedAppPriceLabel()}\n账号：${accountEmail}\n区域：${accountRegion}\n\n这是付费应用，当前不会自动触发购买。请先在 App Store 完成购买后，再回来下载。`,
- '付费应用无法自动购买',
- {
- confirmButtonText: '知道了',
- type: 'warning',
- lockScroll: false
- }
- )
+ Toast.show(`应用：${appName}\n价格：${getSelectedAppPriceLabel()}\n账号：${accountEmail}\n区域：${accountRegion}\n\n这是付费应用，当前不会自动触发购买。请先在 App Store 完成购买后，再回来下载。`)
  addLog(`[${modeLabel}] 未购买的付费应用，已提示先去 App Store 购买`)
  return
  }
 
- const confirmed = await ElMessageBox.confirm(
- `应用：${appName}\n价格：免费\n账号：${accountEmail}\n区域：${accountRegion}\n\n该应用是免费应用，但当前账号尚未领取。是否现在触发购买（领取）并继续下载？`,
- '免费应用需要先领取',
- {
- confirmButtonText: '领取并下载',
- cancelButtonText: '取消',
- type: 'warning',
- lockScroll: false
- }
- ).then(() => true).catch(() => false)
+ const confirmed = await Confirm.show({
+ title: '免费应用需要先领取',
+ message: `应用：${appName}\n价格：免费\n账号：${accountEmail}\n区域：${accountRegion}\n\n该应用是免费应用，但当前账号尚未领取。是否现在触发购买（领取）并继续下载？`,
+ confirmText: '领取并下载',
+ cancelText: '取消'
+ })
 
  if (confirmed) {
  addLog(`[${modeLabel}] 免费应用未购买，用户确认触发购买逻辑`)
@@ -1410,11 +1390,11 @@ const handleNeedsPurchase = async (retryFn, modeLabel, account = null) => {
 
 const directLinkDownload = async (autoPurchase = false) => {
  if (!selectedAccount.value && selectedAccount.value !== 0) {
- ElMessage.warning('请选择登录账号')
+ Toast.warning('请选择登录账号')
  return
  }
  if (!appid.value) {
- ElMessage.warning('请填写 APPID')
+ Toast.warning('请填写 APPID')
  return
  }
 
@@ -1436,10 +1416,10 @@ const directLinkDownload = async (autoPurchase = false) => {
 
  if (!data.ok) {
  if (data.needsPurchase && !autoPurchase) {
- ElMessage.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
+ Toast.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
  return
  }
- ElMessage.error(`直链获取失败：${data.error || '未知错误'}`)
+ Toast.error(`直链获取失败：${data.error || '未知错误'}`)
  addLog(`[直链] 失败：${data.error || '未知错误'}`)
  return
  }
@@ -1456,7 +1436,7 @@ const directLinkDownload = async (autoPurchase = false) => {
  a.click()
  a.remove()
  } catch (error) {
- ElMessage.error(`直链获取失败：${error.message}`)
+ Toast.error(`直链获取失败：${error.message}`)
  addLog(`[直链] 失败：${error.message}`)
  } finally {
  isDirectLinkDownloading.value = false
@@ -1465,11 +1445,11 @@ const directLinkDownload = async (autoPurchase = false) => {
 
 const startDownloadWithProgress = async (autoPurchase = false) => {
  if (!selectedAccount.value && selectedAccount.value !== 0) {
- ElMessage.warning('请选择登录账号')
+ Toast.warning('请选择登录账号')
  return
  }
  if (!appid.value) {
- ElMessage.warning('请填写 APPID')
+ Toast.warning('请填写 APPID')
  return
  }
 
@@ -1519,10 +1499,10 @@ const startDownloadWithProgress = async (autoPurchase = false) => {
  if (!data.ok) {
  if (data.needsPurchase && !autoPurchase) {
  showProgress.value = false
- ElMessage.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
+ Toast.warning(downloadBlockedReason.value || '当前账号未购买/未领取')
  return
  }
- ElMessage.error(`创建任务失败：${data.error || '未知错误'}`)
+ Toast.error(`创建任务失败：${data.error || '未知错误'}`)
  addLog(`[进度] 创建任务失败：${data.error || '未知错误'}`)
  return
  }
@@ -1551,7 +1531,7 @@ const startDownloadWithProgress = async (autoPurchase = false) => {
  // Connect to SSE / fallback polling
  connectToSSE(jobId, queueItem)
  } catch (error) {
- ElMessage.error(`创建任务失败：${error.message}`)
+ Toast.error(`创建任务失败：${error.message}`)
  addLog(`[进度] 创建任务失败：${error.message}`)
  }
 }
@@ -1804,19 +1784,19 @@ const connectToSSE = (jobId, queueItem) => {
 
 // 监听账号更新
 watch(() => props.accountsUpdated, async () => {
- ElMessage.info('检测到账号状态变化，正在刷新账号与购买状态…')
+ Toast.show('检测到账号状态变化，正在刷新账号与购买状态…')
  await loadAccounts()
  await refreshSelectedAppMetadata()
  await refreshPurchaseStatus()
  if (appid.value && selectedAccount.value !== null && selectedAccount.value !== undefined && selectedAccount.value !== '') {
  await fetchVersions()
  }
- ElMessage.success('账号刷新完成，页面状态已同步')
+ Toast.success('账号刷新完成，页面状态已同步')
 })
 
 const openInstallUrl = (url) => {
  if (!url) {
- ElMessage.warning('安装链接未生成')
+ Toast.warning('安装链接未生成')
  return
  }
 
@@ -1825,7 +1805,7 @@ const openInstallUrl = (url) => {
 
 const installDownloadedIpa = async () => {
  if (!downloadInstallUrl.value) {
- ElMessage.warning('安装链接未生成')
+ Toast.warning('安装链接未生成')
  return
  }
 
@@ -1833,18 +1813,7 @@ const installDownloadedIpa = async () => {
  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
  if (!isHttpsEnvironment && !isLocalhost) {
- const action = await ElMessageBox.confirm(
- '按 OpenList / Oplist 的现成方案，OTA 安装必须使用 HTTPS + 有效证书；当前环境不是 HTTPS，iOS 不会响应安装。您现在可以先直接下载 IPA，或改用 HTTPS 域名后再试。',
- '无法开始 OTA 安装',
- {
- distinguishCancelAndClose: true,
- confirmButtonText: '直接下载文件',
- cancelButtonText: '取消操作',
- type: 'warning',
- center: true,
- lockScroll: false
- }
- ).then(
+ const action = await Confirm.show({ title: '无法开始 OTA 安装', message: '按 OpenList / Oplist 的现成方案，OTA 安装必须使用 HTTPS + 有效证书；当前环境不是 HTTPS，iOS 不会响应安装。您现在可以先直接下载 IPA，或改用 HTTPS 域名后再试。' }).then(
  () => 'download',
  () => 'cancel'
  ).catch(
@@ -1858,19 +1827,10 @@ const installDownloadedIpa = async () => {
  }
 
  if (isHttpsEnvironment) {
- ElMessage.success('正在打开安装链接...')
+ Toast.success('正在打开安装链接...')
  openInstallUrl(downloadInstallUrl.value)
  } else if (isLocalhost) {
- const confirmed = await ElMessageBox.confirm(
- '当前是 localhost 环境。按 OpenList / Oplist 文档，OTA 安装需要 HTTPS + 有效证书；localhost 基本不会成功。若你只是想继续试一把可以继续，否则请先切到 HTTPS 域名。',
- '安装前检查',
- {
- confirmButtonText: '继续尝试',
- cancelButtonText: '取消',
- type: 'info',
- lockScroll: false
- }
- ).then(() => true).catch(() => false)
+ const confirmed = await Confirm.show({ title: '安装前检查', message: '当前是 localhost 环境。按 OpenList / Oplist 文档，OTA 安装需要 HTTPS + 有效证书；localhost 基本不会成功。若你只是想继续试一把可以继续，否则请先切到 HTTPS 域名。' }).then(() => true).catch(() => false)
 
  if (confirmed) {
  openInstallUrl(downloadInstallUrl.value)
@@ -1880,7 +1840,7 @@ const installDownloadedIpa = async () => {
 
 const downloadCompletedIpa = () => {
  if (!downloadReadyUrl.value) {
- ElMessage.warning('下载链接未生成')
+ Toast.warning('下载链接未生成')
  return
  }
 
