@@ -393,8 +393,7 @@ const Toast = {
   }
 }
 
-// 导出组件和服务
-export default MobileToast
+// Toast 服务导出（组件 default export 由 <script setup> 自动处理）
 export { Toast }
 </script>
 
