@@ -570,7 +570,7 @@ pub fn inspect_ipa_path(
         }
     }
 
-    for plugin_dir in ordered_unique_paths(plugin_dirs.into_iter()) {
+    for plugin_dir in ordered_unique_paths(plugin_dirs) {
         let info_path = format!("{}/Info.plist", plugin_dir);
         if let Ok(Value::Dictionary(info)) = read_zip_plist(&mut zip, &info_path) {
             if let Some(executable) = info
