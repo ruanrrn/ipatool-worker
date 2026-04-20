@@ -317,6 +317,20 @@ impl Database {
             [],
         )?;
 
+        conn.execute(
+            "
+            CREATE TABLE IF NOT EXISTS purchase_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL,
+                adam_id TEXT NOT NULL,
+                source TEXT NOT NULL DEFAULT 'apple_api',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(account_id, adam_id)
+            )
+            ",
+            [],
+        )?;
+
         Ok(())
     }
 
@@ -491,6 +505,12 @@ impl Database {
         );
 
         let _ = conn.execute("DELETE FROM encryption_keys WHERE key_id IS NULL", []);
+
+        // purchase_records index for fast lookups by (account_id, adam_id)
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_purchase_records_account_app ON purchase_records(account_id, adam_id)",
+            [],
+        );
 
         Ok(())
     }
@@ -1478,6 +1498,66 @@ impl Database {
             params![batch_id],
         )?;
         Ok(())
+    }
+
+    // ===== Purchase Records =====
+
+    /// Record that an app is owned by an account (INSERT OR IGNORE - idempotent)
+    pub fn record_purchase(&self, account_id: &str, adam_id: &str, source: &str) -> Result<()> {
+        let conn = self.connection.lock().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO purchase_records (account_id, adam_id, source) VALUES (?, ?, ?)",
+            params![account_id, adam_id, source],
+        )?;
+        Ok(())
+    }
+
+    /// Check if a specific app is owned by an account
+    pub fn is_purchased(&self, account_id: &str, adam_id: &str) -> Result<bool> {
+        let conn = self.connection.lock().unwrap();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM purchase_records WHERE account_id = ? AND adam_id = ?",
+            params![account_id, adam_id],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    /// Get all purchased adam_ids for an account
+    pub fn get_purchased_app_ids(&self, account_id: &str) -> Result<Vec<String>> {
+        let conn = self.connection.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT adam_id FROM purchase_records WHERE account_id = ?")?;
+        let rows = stmt.query_map(params![account_id], |row| row.get(0))?;
+        let mut ids = Vec::new();
+        for id in rows {
+            ids.push(id?);
+        }
+        Ok(ids)
+    }
+
+    /// Batch check: given a list of adam_ids, return the set that are purchased
+    pub fn batch_check_purchased(&self, account_id: &str, adam_ids: &[String]) -> Result<std::collections::HashSet<String>> {
+        if adam_ids.is_empty() {
+            return Ok(std::collections::HashSet::new());
+        }
+        let conn = self.connection.lock().unwrap();
+        let placeholders: Vec<String> = adam_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 2)).collect();
+        let sql = format!(
+            "SELECT adam_id FROM purchase_records WHERE account_id = ?1 AND adam_id IN ({})",
+            placeholders.join(",")
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let mut params_vec: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(account_id.to_string())];
+        for id in adam_ids {
+            params_vec.push(Box::new(id.clone()));
+        }
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let rows = stmt.query_map(param_refs.as_slice(), |row| row.get(0))?;
+        let mut result = std::collections::HashSet::new();
+        for id in rows {
+            result.insert(id?);
+        }
+        Ok(result)
     }
 }
 
