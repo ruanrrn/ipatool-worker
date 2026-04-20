@@ -1,84 +1,110 @@
 /*
-  ipaTool Design Tokens (Route 1: token-first, Tamagui-style philosophy)
+  ipaTool Orbit v3 Design Tokens
 
   Layers:
-    1) Primitive palette: Radix Colors (imported in src/main.js)
-    2) Semantic tokens: defined here
-    3) Component mapping: Element Plus + app components consume semantic
+    1) Primitive palette: Radix Colors (imported in src/main.js) — retained for Element Plus mapping
+    2) Orbit semantic tokens: defined here — all components reference these
+    3) Component mapping: Element Plus + app components consume semantic tokens
 
-  Rules:
-    - No hardcoded colors outside this file (enforced by scripts/check-no-hardcoded-colors.sh)
+  Key change: Brand color switched from Radix blue → Orbit green (#10a37f)
+  Design spec: /root/ipatool/design-spec.md
 */
 
 :root {
   color-scheme: light;
 
-  /* Typography */
-  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
-  --font-size-xs: 10px;
-  --font-size-sm: 13px;
-  --font-size-md: 15px;
-  --font-size-lg: 16px;
-  --font-size-xl: 17px;
-  --font-size-2xl: 20px;
-  /* 移动端专用字体大小 */
-  --font-size-xs-mobile: 11px;
-  --font-size-sm-mobile: 12px;
-  --font-size-base-mobile: 14px;
-  --font-size-lg-mobile: 16px;
+  /* ===== Typography ===== */
+  --font-body: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 
-  /* 移动端触摸目标尺寸 */
-  --size-touch-mobile: 48px;
-  --size-control-mobile: 48px;
+  /* Orbit v3 Font Size Scale */
+  --font-size-nano: 10px;
+  --font-size-micro: 11px;
+  --font-size-caption: 12px;
+  --font-size-label: 13px;
+  --font-size-body: 14px;
+  --font-size-section: 15px;
+  --font-size-heading: 17px;
+  --font-size-title: 26px;
+  --font-size-status-bar: 15px;
 
-  /* Surfaces */
-  --color-bg: var(--slate-2);
-  --color-surface: var(--slate-1);
-  --color-surface-muted: var(--slate-3);
+  /* Legacy aliases (for gradual migration) */
+  --font-size-xs: var(--font-size-nano);
+  --font-size-sm: var(--font-size-label);
+  --font-size-md: var(--font-size-body);
+  --font-size-lg: var(--font-size-section);
+  --font-size-xl: var(--font-size-heading);
+  --font-size-2xl: var(--font-size-title);
 
-  /* Text */
-  --color-text: var(--slate-12);
-  --color-text-muted: var(--slate-11);
-  --color-text-tertiary: var(--slate-10);
+  /* ===== Orbit v3 Brand Colors ===== */
+  --color-primary: #10a37f;
+  --color-primary-hover: #0e8c6b;
+  --color-primary-active: #0c7a5e;
+  --color-primary-soft: #ecfdf5;
+  --color-primary-border: #a7f3d0;
+
+  /* ===== Semantic Status Colors ===== */
+  --color-success: #10a37f;
+  --color-success-soft: #ecfdf5;
+  --color-success-border: #a7f3d0;
+  --color-success-hover: #0e8c6b;
+
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef3c7;
+  --color-warning-border: #fde68a;
+  --color-warning-bg: #fff8e1;
+  --color-warning-dark: #d97706;
+  --color-warning-hover: #d97706;
+
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-danger-active: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  /* Info/Blue color for price tags and info badges */
+  --color-blue: #2563eb;
+  --color-blue-soft: rgba(59, 130, 246, 0.1);
+  --color-blue-bg: #dbeafe;
+  --color-blue-hover: #1d4ed8;
+
+  /* Spinner border for action buttons */
+  --color-spinner-border: rgba(255, 255, 255, 0.3);
+
+  --color-info: #6e6e80;
+
+  /* ===== Text Colors ===== */
+  --color-text: #0d0d0d;
+  --color-text-muted: #6e6e80;
+  --color-text-tertiary: #c0c0c0;
+  --color-text-disabled: #d1d5db;
   --color-text-inverse: #ffffff;
+  --color-text-link: #10a37f;
+  --color-text-tag: #065f46;
 
-  /* Border */
-  --color-border: var(--slate-6);
-  --color-border-strong: var(--slate-7);
+  /* ===== Border Colors ===== */
+  --color-border: #ebebeb;
+  --color-border-light: #f0f0f0;
+  --color-border-divider: #d1d1d6;
+  --color-border-strong: #d1d5db;
 
-  /* Brand / Status */
-  --color-primary: var(--blue-9);
-  --color-primary-hover: var(--blue-10);
-  --color-primary-active: var(--blue-11);
-  --color-primary-soft: var(--blue-4);
-  --color-primary-border-soft: var(--blue-7);
-  --color-primary-border-strong: var(--blue-8);
+  /* ===== Background Colors ===== */
+  --color-bg: #f0f0f0;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f7f8;
+  --color-surface-hover: #ececec;
+  --color-bg-tag: #e5e7eb;
 
-  --color-success: var(--grass-9);
-  --color-success-hover: var(--grass-10);
-  --color-success-soft: var(--grass-4);
-  --color-success-border-soft: var(--grass-7);
+  /* ===== Overlay ===== */
+  --overlay-sheet: rgba(0, 0, 0, 0.4);
+  --overlay-dialog: rgba(0, 0, 0, 0.5);
 
-  --color-warning: var(--amber-9);
-  --color-warning-hover: var(--amber-10);
-  --color-warning-soft: var(--amber-4);
-  --color-warning-border-soft: var(--amber-7);
+  /* ===== Selection ===== */
+  --selection-bg: #ecfdf5;
 
-  --color-info: var(--slate-9);
-  --color-info-hover: var(--slate-10);
+  /* ===== Scrollbar ===== */
+  --surface-scrollbar: #d1d5db;
 
-  /* Danger overall = B (restrained) */
-  --color-danger: var(--red-8);
-  --color-danger-hover: var(--red-9);
-  --color-danger-active: var(--red-10);
-  --color-danger-soft: var(--red-4);
-  --color-danger-border-soft: var(--red-7);
-
-  /* Interaction */
-  --selection-bg: var(--blue-4);
-  --surface-scrollbar: var(--slate-8);
-
-  /* Spacing / radius / motion (keep the existing scale) */
+  /* ===== Spacing (4px grid) ===== */
   --space-0-5: 2px;
   --space-1: 4px;
   --space-2: 8px;
@@ -86,10 +112,13 @@
   --space-3: 12px;
   --space-3-5: 14px;
   --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
 
-  /* Semantic spacing / layout aliases */
+  /* Semantic spacing aliases */
   --space-inline-xs: var(--space-1);
   --space-inline-sm: var(--space-2);
   --space-inline-md: var(--space-3);
@@ -99,31 +128,31 @@
   --space-stack-md: var(--space-3);
   --space-stack-lg: var(--space-4);
   --space-stack-xl: var(--space-5);
-  --space-panel-padding: var(--space-4);
+  --space-panel-padding: var(--space-5);
   --space-section-gap: var(--space-4);
 
+  /* ===== Sizes ===== */
   --hero-icon-size: 48px;
 
-  /* Size */
   --size-icon-xs: 16px;
   --size-icon-sm: 20px;
   --size-icon-md: 22px;
   --size-icon-lg: 24px;
   --size-icon-xl: 28px;
 
-  /* 移动端触摸目标 */
+  /* Touch targets */
   --size-touch-mobile: 48px;
   --size-control-mobile: 48px;
   --size-control-sm: 40px;
   --size-control-md: 44px;
   --size-control-lg: 48px;
   --size-control-xl: 52px;
-  --size-tab-mobile: 60px;
+  --size-tab-mobile: 72px;
   --size-artwork-sm: 40px;
-  --size-artwork-md: 56px;
+  --size-artwork-md: 52px;
   --size-artwork-lg: 64px;
 
-  /* Utility size aliases for common tailwind classes */
+  /* Utility size aliases */
   --size-4: 16px;
   --size-5: 20px;
   --size-6: 24px;
@@ -133,28 +162,52 @@
   --size-12: 48px;
   --size-16: 64px;
 
-  --radius-sheet: 16px;
-  --radius-card: 12px;
-  --radius-control: 10px;
-  --radius-field: 12px;
-  --radius-artwork: 10px;
+  /* ===== Border Radius ===== */
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-base: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+  --radius-sheet: 20px;
+  --radius-full: 50%;
+  --radius-pill: 20px;
+
+  /* Legacy aliases */
+  --radius-card: var(--radius-xl);
+  --radius-control: var(--radius-lg);
+  --radius-field: var(--radius-xl);
+  --radius-artwork: var(--radius-lg);
   --radius-artwork-lg: 20px;
-  --radius-full: 999px;
 
   --border-width-thin: 0.5px;
 
+  /* ===== Transition ===== */
   --transition-default: all 0.2s ease;
+  --transition-sheet: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  --transition-dialog: opacity 0.2s ease-out, transform 0.2s ease-out;
+  --transition-toggle: all 0.2s ease;
 
-  /* Shadows / overlays */
-  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* ===== Shadows ===== */
   --shadow-none: none;
-  --mask-overlay: rgba(0, 0, 0, 0.48);
+  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-dialog: 0 20px 40px rgba(0, 0, 0, 0.15);
+  --shadow-search-focus: 0 0 0 3px rgba(16, 163, 127, 0.1);
+  --shadow-segment-active: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-annotation: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-  /* Gradients (avoid hardcoded colors; use semantic) */
-  --gradient-notification: linear-gradient(135deg, var(--color-warning) 0%, var(--color-danger) 100%);
-  --gradient-version: linear-gradient(135deg, var(--slate-9) 0%, var(--slate-11) 100%);
+  /* ===== Gradients (app icon placeholders) ===== */
+  --gradient-icon-1: linear-gradient(135deg, #667eea, #764ba2);
+  --gradient-icon-2: linear-gradient(135deg, #f093fb, #f5576c);
+  --gradient-icon-3: linear-gradient(135deg, #4facfe, #00f2fe);
+  --gradient-icon-4: linear-gradient(135deg, #43e97b, #38f9d7);
+  --gradient-icon-5: linear-gradient(135deg, #fa709a, #fee140);
+  --gradient-icon-6: linear-gradient(135deg, #a18cd1, #fbc2eb);
 
-  /* Legacy aliases (existing code uses these names) */
+  /* ===== Legacy Aliases (existing code) ===== */
   --bg-primary: var(--color-bg);
   --card-bg: var(--color-surface);
   --separator: var(--color-border);
@@ -172,140 +225,137 @@
 
   --surface-muted: var(--color-surface-muted);
 
-  --accent-blue-border-soft: var(--color-primary-border-soft);
-  --accent-blue-border-strong: var(--color-primary-border-strong);
+  --accent-blue-border-soft: var(--color-primary-border);
+  --accent-blue-border-strong: var(--color-primary);
   --accent-blue-fill-soft: var(--color-primary-soft);
 
-  /* Element Plus semantic mapping */
-  --el-bg-color: var(--card-bg);
-  --el-bg-color-overlay: var(--card-bg);
-  --el-fill-color: var(--slate-3);
-  --el-fill-color-light: var(--slate-2);
-  --el-fill-color-lighter: var(--slate-2);
-  --el-fill-color-blank: var(--card-bg);
+  --color-primary-soft-legacy: var(--color-primary-soft);
+  --color-primary-border-soft: var(--color-primary-border);
+  --color-primary-border-strong: var(--color-primary);
+  --color-danger-soft-legacy: var(--color-danger-soft);
+  --color-danger-border-soft: var(--color-danger-border);
+  --color-warning-soft-legacy: var(--color-warning-soft);
+  --color-warning-border-soft: var(--color-warning-border);
+  --color-success-soft-legacy: var(--color-success-soft);
+  --color-success-border-soft: var(--color-success-border);
 
-  --el-border-color: var(--separator);
-  --el-border-color-light: var(--separator);
-  --el-border-color-lighter: var(--separator);
-  --el-border-color-dark: var(--separator);
-  --el-border-color-darker: var(--color-border-strong);
 
-  --el-text-color-primary: var(--text-primary);
-  --el-text-color-regular: var(--text-primary);
-  --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-tertiary);
+  /* ===== Migration aliases for legacy component tokens ===== */
+  --font-size-xs-mobile: var(--font-size-caption);
+  --font-size-sm-mobile: var(--font-size-label);
+  --font-size-base-mobile: var(--font-size-body);
+  --font-size-lg-mobile: var(--font-size-section);
 
-  --el-color-primary: var(--accent-blue);
-  --el-color-success: var(--accent-green);
-  --el-color-warning: var(--accent-amber);
-  --el-color-danger: var(--accent-red);
-  --el-color-error: var(--accent-red);
-  --el-color-info: var(--accent-info);
+  --mask-overlay: var(--overlay-sheet);
+  --color-bg-page: var(--color-bg);
+  --color-bg-white: var(--color-surface);
+  --color-bg-surface: var(--color-surface-muted);
+  --color-bg-surface-hover: var(--color-surface-hover);
+  --color-bg-primary: var(--color-primary-soft);
+  --color-bg-secondary: var(--color-surface-muted);
 
-  /* Primary light variants (used by some Element components) */
-  --el-color-primary-light-3: var(--blue-8);
-  --el-color-primary-light-5: var(--blue-7);
-  --el-color-primary-light-7: var(--blue-6);
-  --el-color-primary-light-8: var(--blue-4);
-  --el-color-primary-light-9: var(--blue-3);
+  --color-text-primary: var(--color-text);
+  --color-text-secondary: var(--color-text-muted);
+  --color-txt: var(--color-text);
+  --color-txt-secondary: var(--color-text-muted);
 
-  --el-mask-color: var(--mask-overlay);
-  --el-box-shadow: var(--shadow-none);
-  --el-box-shadow-light: var(--shadow-none);
-  --el-box-shadow-lighter: var(--shadow-none);
-  --el-box-shadow-dark: var(--shadow-none);
-  --el-border-radius-base: var(--radius-card);
-  --el-border-radius-small: var(--radius-control);
+  --color-border-default: var(--color-border);
+  --color-border-subtle: var(--color-border-divider);
+  --color-border-warning: var(--color-warning-border);
+
+  --color-overlay-dialog: var(--overlay-dialog);
+  --color-surface-soft: var(--color-warning-bg);
+  --color-primary-rgb: 16, 163, 127;
 }
 
 
+/* ===== Dark Mode ===== */
 :root.dark {
   color-scheme: dark;
-  --selection-bg: var(--blue-5);
-  --surface-scrollbar: var(--slate-9);
-  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
-  --gradient-notification: linear-gradient(135deg, var(--color-warning-hover) 0%, var(--color-danger-hover) 100%);
-  --gradient-version: linear-gradient(135deg, var(--slate-8) 0%, var(--slate-11) 100%);
-  --mask-overlay: rgba(0, 0, 0, 0.64);
 
-  --el-mask-color: var(--mask-overlay);
-  --el-color-primary-light-3: var(--blue-7);
-  --el-color-primary-light-5: var(--blue-6);
-  --el-color-primary-light-7: var(--blue-5);
-  --el-color-primary-light-8: var(--blue-4);
-  --el-color-primary-light-9: var(--blue-3);
+  --selection-bg: #065f46;
+  --surface-scrollbar: #374151;
+  --shadow-elevated-hover: 0 4px 12px rgba(0, 0, 0, 0.36);
+  --shadow-dialog: 0 20px 40px rgba(0, 0, 0, 0.4);
+  --shadow-search-focus: 0 0 0 3px rgba(16, 163, 127, 0.2);
+  --shadow-segment-active: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  --overlay-sheet: rgba(0, 0, 0, 0.6);
+  --overlay-dialog: rgba(0, 0, 0, 0.7);
+
+  /* Text */
+  --color-text: #f5f5f5;
+  --color-text-muted: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  --color-text-disabled: #52525b;
+  --color-text-inverse: #0d0d0d;
+  --color-text-link: #34d399;
+  --color-text-tag: #6ee7b7;
+
+  /* Surface */
+  --color-bg: #09090b;
+  --color-surface: #18181b;
+  --color-surface-muted: #27272a;
+  --color-surface-hover: #3f3f46;
+  --color-bg-tag: #3f3f46;
+
+  /* Border */
+  --color-border: #3f3f46;
+  --color-border-light: #27272a;
+  --color-border-divider: #52525b;
+  --color-border-strong: #52525b;
+  --color-border-handle: #52525b; /* For sheet handle and radio borders */
+  --color-border-radio: #52525b; /* For radio button borders */
+
+  /* Status */
+  --color-primary: #34d399;
+  --color-primary-hover: #6ee7b7;
+  --color-primary-active: #10b981;
+  --color-primary-soft: rgba(16, 163, 127, 0.15);
+  --color-primary-border: rgba(16, 163, 127, 0.3);
+
+
+  --dark-color-bg-primary: var(--color-primary-soft);
+  --dark-color-bg-secondary: var(--color-surface-muted);
+  --dark-color-primary: var(--color-primary);
+  --dark-color-primary-rgb: 52, 211, 153;
+  --dark-color-border: var(--color-border);
+  --dark-color-txt: var(--color-text);
+  --dark-color-txt-secondary: var(--color-text-muted);
+
+  --color-success: #34d399;
+  --color-success-soft: rgba(16, 163, 127, 0.15);
+  --color-success-border: rgba(16, 163, 127, 0.3);
+
+  /* Info/Blue color for dark mode */
+  --color-blue: #60a5fa;
+  --color-blue-soft: rgba(37, 99, 235, 0.15);
+  --color-blue-bg: rgba(37, 99, 235, 0.15);
+  --color-blue-hover: #3b82f6;
+
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(245, 158, 11, 0.15);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-warning-dark: #fbbf24;
+  --color-warning-hover: #f59e0b;
+
+  --color-danger: #f87171;
+  --color-danger-hover: #ef4444;
+  --color-danger-active: #dc2626;
+  --color-danger-soft: rgba(239, 68, 68, 0.15);
+  --color-danger-border: rgba(239, 68, 68, 0.3);
+  --color-danger-bg-dark: #2d0f0f; /* Dark mode danger background */
 }
 
 
-/* ==================== 移动端适配 ==================== */
+/* ==================== Mobile Adaptations ==================== */
 @media (max-width: 767px) {
   :root {
-    /* 移动端使用更大的触摸目标 */
     --size-control-md: var(--size-control-mobile);
     --size-control-lg: var(--size-touch-mobile);
-
-    /* 移动端增加标签栏高度 */
-    --size-tab-mobile: 64px;
-
-    /* 移动端使用更大的间距 */
-    --space-3: 16px;
-    --space-4: 20px;
-  }
-
-  /* ===== Element Plus 移动端触摸目标覆盖 ===== */
-
-  /* 所有 el-button 最小高度 44px */
-  .el-button {
-    min-height: var(--size-control-md);
-  }
-  .el-button--small {
-    min-height: var(--size-control-md);
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-
-  /* el-select 最小高度 44px */
-  .el-select .el-input__wrapper,
-  .el-select--small .el-input__wrapper {
-    min-height: var(--size-control-md);
-  }
-
-  /* el-input 最小高度 44px */
-  .el-input--small .el-input__wrapper {
-    min-height: var(--size-control-md);
-  }
-
-  /* Radio / Checkbox 最小点击区域 44×44px */
-  .el-radio,
-  .el-checkbox {
-    min-height: var(--size-control-md);
-    min-width: var(--size-control-md);
-  }
-  .el-radio__inner,
-  .el-checkbox__inner {
-    width: 20px;
-    height: 20px;
-  }
-
-  /* el-switch 最小点击区域 */
-  .el-switch {
-    min-height: 44px;
-    min-width: 44px;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  /* Dialog 移动端全宽 */
-  .el-dialog {
-    --el-dialog-width: 92vw !important;
-    margin: 4vh auto !important;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  /* MessageBox 移动端全宽 */
-  .el-message-box {
-    width: 90vw !important;
-    max-width: 420px;
+    --size-tab-mobile: 72px;
+    --space-3: 14px;
+    --space-4: 16px;
   }
 }

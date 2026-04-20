@@ -1,7 +1,7 @@
 <template>
   <!-- 移动端角标组件：图标的数字角标（如 tab 上的未读数） -->
   <span class="mobile-badge">
-    <slot></slot>
+    <slot />
     <sup
       v-if="!hidden && (content !== '' && content !== undefined && content !== null)"
       :class="[

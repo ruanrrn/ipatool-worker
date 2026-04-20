@@ -8,7 +8,7 @@
       { 'mobile-tag--round': round }
     ]"
   >
-    <slot></slot>
+    <slot />
   </span>
 </template>
 

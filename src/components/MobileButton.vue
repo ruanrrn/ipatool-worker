@@ -1,5 +1,5 @@
 <template>
-  <!-- 移动端优化的按钮组件 -->
+  <!-- 移动端优化的按钮组件 — Orbit v3 -->
   <button
     :type="nativeType"
     :disabled="disabled || loading"
@@ -15,28 +15,57 @@
     ]"
     @click="handleClick"
   >
-    <span v-if="loading" class="mobile-button__loading">
-      <svg class="loading-spinner" viewBox="0 0 50 50">
-        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4">
-          <animate attributeName="stroke-dasharray" from="1 100" to="89 100" dur="1.5s" repeatCount="indefinite" />
-          <animate attributeName="stroke-dashoffset" from="0" to="-35" dur="1.5s" repeatCount="indefinite" />
+    <span
+      v-if="loading"
+      class="mobile-button__loading"
+    >
+      <svg
+        class="loading-spinner"
+        viewBox="0 0 50 50"
+      >
+        <circle
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="4"
+        >
+          <animate
+            attributeName="stroke-dasharray"
+            from="1 100"
+            to="89 100"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke-dashoffset"
+            from="0"
+            to="-35"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
         </circle>
       </svg>
     </span>
 
-    <span v-if="$slots.icon && !loading" class="mobile-button__icon">
-      <slot name="icon"></slot>
+    <span
+      v-if="$slots.icon && !loading"
+      class="mobile-button__icon"
+    >
+      <slot name="icon" />
     </span>
 
-    <span v-if="$slots.default" class="mobile-button__content">
-      <slot></slot>
+    <span
+      v-if="$slots.default"
+      class="mobile-button__content"
+    >
+      <slot />
     </span>
   </button>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
 const props = defineProps({
   type: {
     type: String,
@@ -81,10 +110,10 @@ const handleClick = (e) => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--separator);
-  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border-default, #ebebeb);
+  border-radius: var(--radius-xl, 12px);
   font-family: var(--font-body);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -95,24 +124,24 @@ const handleClick = (e) => {
 
 /* 尺寸变体 */
 .mobile-button--small {
-  min-height: 40px;
-  min-width: 40px;
-  padding: 8px 16px;
-  font-size: var(--font-size-xs-mobile);
+  min-height: 32px;
+  min-width: 32px;
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 .mobile-button--medium {
   min-height: 48px;
   min-width: 48px;
   padding: 12px 20px;
-  font-size: var(--font-size-sm-mobile);
+  font-size: 14px;
 }
 
 .mobile-button--large {
   min-height: 56px;
   min-width: 56px;
-  padding: 16px 24px;
-  font-size: var(--font-size-base-mobile);
+  padding: 14px 24px;
+  font-size: 15px;
 }
 
 /* 全宽 */
@@ -120,35 +149,35 @@ const handleClick = (e) => {
   width: 100%;
 }
 
-/* 类型变体 */
+/* 类型变体 — Orbit v3 色板 */
 .mobile-button--default {
-  background: var(--card-bg);
-  color: var(--accent-blue);
-  border-color: var(--accent-blue-border-soft);
+  background: var(--color-bg-surface, #f7f7f8);
+  color: var(--color-text-primary, #0d0d0d);
+  border-color: var(--color-border-default, #ebebeb);
 }
 
 .mobile-button--primary {
-  background: var(--accent-blue);
-  color: var(--text-inverse);
-  border-color: var(--accent-blue);
+  background: var(--color-primary, #10a37f);
+  color: var(--color-text-inverse, #fff);
+  border-color: var(--color-primary, #10a37f);
 }
 
 .mobile-button--success {
-  background: var(--accent-green);
-  color: var(--text-inverse);
-  border-color: var(--accent-green);
+  background: var(--color-primary, #10a37f);
+  color: var(--color-text-inverse, #fff);
+  border-color: var(--color-primary, #10a37f);
 }
 
 .mobile-button--warning {
-  background: var(--accent-amber);
-  color: var(--text-inverse);
-  border-color: var(--accent-amber);
+  background: var(--color-warning, #f59e0b);
+  color: var(--color-text-inverse, #fff);
+  border-color: var(--color-warning, #f59e0b);
 }
 
 .mobile-button--danger {
-  background: var(--accent-red);
-  color: var(--text-inverse);
-  border-color: var(--accent-red);
+  background: var(--color-danger, #ef4444);
+  color: var(--color-text-inverse, #fff);
+  border-color: var(--color-danger, #ef4444);
 }
 
 /* 状态 */
@@ -161,28 +190,29 @@ const handleClick = (e) => {
 .mobile-button.is-loading {
   cursor: wait;
   pointer-events: none;
+  opacity: 0.7;
 }
 
 /* 悬停效果（仅桌面） */
 @media (hover: hover) and (pointer: fine) {
   .mobile-button--default:hover {
-    background: rgba(10, 132, 255, 0.05);
+    background: var(--color-bg-surface-hover, #ececec);
   }
 
   .mobile-button--primary:hover {
-    background: var(--color-primary-hover);
+    background: var(--color-primary-hover, #0e8c6b);
   }
 
   .mobile-button--success:hover {
-    background: var(--color-success-hover);
+    background: var(--color-primary-hover, #0e8c6b);
   }
 
   .mobile-button--warning:hover {
-    background: var(--color-warning-hover);
+    background: var(--color-warning-hover, #d97706);
   }
 
   .mobile-button--danger:hover {
-    background: var(--color-danger-hover);
+    background: var(--color-danger-hover, #dc2626);
   }
 }
 
@@ -193,11 +223,23 @@ const handleClick = (e) => {
   }
 
   .mobile-button--default:active {
-    background: rgba(10, 132, 255, 0.1);
+    background: var(--color-surface-hover);
   }
 
   .mobile-button--primary:active {
     background: var(--color-primary-active);
+  }
+
+  .mobile-button--success:active {
+    background: var(--color-primary-active);
+  }
+
+  .mobile-button--warning:active {
+    background: var(--color-warning-dark);
+  }
+
+  .mobile-button--danger:active {
+    background: var(--color-danger-active);
   }
 }
 
@@ -234,14 +276,31 @@ const handleClick = (e) => {
 }
 
 /* 深色模式 */
+:root.dark .mobile-button--default,
 .dark .mobile-button--default {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--accent-blue);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--color-surface-muted, #27272a);
+  color: var(--color-text, #f5f5f5);
+  border-color: var(--color-border, #3f3f46);
 }
 
+:root.dark .mobile-button--default:hover,
 .dark .mobile-button--default:hover {
-  background: rgba(10, 132, 255, 0.1);
+  background: var(--color-surface-hover, #3f3f46);
+}
+
+:root.dark .mobile-button--primary:hover,
+.dark .mobile-button--primary:hover {
+  background: var(--color-primary-hover, #6ee7b7);
+}
+
+:root.dark .mobile-button--success:hover,
+.dark .mobile-button--success:hover {
+  background: var(--color-primary-hover, #6ee7b7);
+}
+
+:root.dark .mobile-button--default:active,
+.dark .mobile-button--default:active {
+  background: var(--color-surface-hover, #3f3f46);
 }
 
 /* 高对比度模式 */

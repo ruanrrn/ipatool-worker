@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { STORAGE_KEYS } from '../utils/storage.js'
 
 // --- Singleton state shared across all consumers ---
 const permission = ref(
@@ -11,11 +12,9 @@ const defaultSettings = {
   downloadFailed: true
 }
 
-const settingsKey = 'ipa_notification_settings'
-
 function loadSettings() {
   try {
-    const raw = localStorage.getItem(settingsKey)
+    const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATION_SETTINGS)
     if (raw) {
       const parsed = JSON.parse(raw)
       return { ...defaultSettings, ...parsed }
@@ -27,7 +26,7 @@ function loadSettings() {
 const settings = ref(loadSettings())
 
 watch(settings, (val) => {
-  localStorage.setItem(settingsKey, JSON.stringify(val))
+  localStorage.setItem(STORAGE_KEYS.NOTIFICATION_SETTINGS, JSON.stringify(val))
 }, { deep: true })
 
 // --- Interval-based version check ---
@@ -93,50 +92,6 @@ function send(title, body, options = {}) {
 }
 
 /**
- * Request notification permission from the browser.
- * Returns the new permission state.
- */
-async function requestPermission() {
-  if (typeof Notification === 'undefined') return 'denied'
-  if (permission.value === 'granted') return 'granted'
-  const result = await Notification.requestPermission()
-  permission.value = result
-  return result
-}
-
-/**
- * Check if a specific notification type is enabled.
- */
-function isEnabled(type) {
-  return settings.value[type] === true
-}
-
-/**
- * Toggle a specific notification type.
- */
-function toggle(type, value) {
-  if (type in settings.value) {
-    settings.value[type] = value
-  }
-}
-
-/**
- * Enable all notifications (convenience).
- */
-function enableAll() {
-  settings.value = { ...defaultSettings }
-}
-
-/**
- * Disable all notifications (convenience).
- */
-function disableAll() {
-  settings.value.versionUpdate = false
-  settings.value.downloadComplete = false
-  settings.value.downloadFailed = false
-}
-
-/**
  * Initialize: start version polling if enabled.
  * Call once from App.vue on mount.
  */
@@ -167,33 +122,11 @@ function notifyDownloadFailed(appName, error) {
   )
 }
 
-function notifyVersionUpdate(appName, fromVersion, toVersion) {
-  if (!settings.value.versionUpdate) return
-  send(
-    `🔄 发现新版本`,
-    `${appName}：${fromVersion} → ${toVersion}`,
-    { tag: `version-${appName}` }
-  )
-}
-
 export function useNotifications() {
   return {
-    permission,
-    settings,
-    // Core
-    send,
-    requestPermission,
-    isEnabled,
-    toggle,
-    enableAll,
-    disableAll,
     init,
-    // Version polling
-    startVersionPolling,
     stopVersionPolling,
-    // Event helpers
     notifyDownloadComplete,
-    notifyDownloadFailed,
-    notifyVersionUpdate
+    notifyDownloadFailed
   }
 }

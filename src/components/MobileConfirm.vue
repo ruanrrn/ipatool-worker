@@ -1,20 +1,53 @@
 <template>
-  <!-- 确认对话框：可组件化使用，也支持 Confirm.show 服务式调用 -->
+  <!-- 确认对话框：可组件化使用，也支持 Confirm.show 服务式调用 — Orbit v3 -->
   <Teleport to="body">
-    <Transition name="mobile-confirm" @after-leave="emitAfterLeave">
-      <div v-if="modelValue" class="mobile-confirm" @click="onOverlayClick">
-        <div class="mobile-confirm__panel" role="dialog" aria-modal="true" @click.stop>
-          <header v-if="title" class="mobile-confirm__header">
-            <div class="mobile-confirm__title">{{ title }}</div>
+    <Transition
+      name="mobile-confirm"
+      @after-leave="emitAfterLeave"
+    >
+      <div
+        v-if="modelValue"
+        class="mobile-confirm"
+        @click="onOverlayClick"
+      >
+        <div
+          class="mobile-confirm__panel"
+          role="dialog"
+          aria-modal="true"
+          @click.stop
+        >
+          <div
+            v-if="icon"
+            class="mobile-confirm__icon"
+            :style="{ background: iconColor }"
+          >
+            <span class="mobile-confirm__icon-emoji">{{ icon }}</span>
+          </div>
+
+          <header
+            v-if="title"
+            class="mobile-confirm__header"
+          >
+            <div class="mobile-confirm__title">
+              {{ title }}
+            </div>
           </header>
 
-          <div v-if="message" class="mobile-confirm__message">{{ message }}</div>
+          <div
+            v-if="message"
+            class="mobile-confirm__message"
+          >
+            {{ message }}
+          </div>
 
           <div class="mobile-confirm__actions">
-            <button class="mobile-confirm__btn mobile-confirm__btn--cancel" type="button" @click="onCancel">
+            <button
+              class="mobile-confirm__btn mobile-confirm__btn--cancel"
+              type="button"
+              @click="onCancel"
+            >
               {{ cancelTextComputed }}
             </button>
-            <div class="mobile-confirm__divider" />
             <button
               class="mobile-confirm__btn"
               :class="confirmBtnClass"
@@ -41,6 +74,8 @@ const MobileConfirm = {
     message: { type: String, default: '' },
     confirmText: { type: String, default: '' },
     cancelText: { type: String, default: '' },
+    icon: { type: String, default: '' },
+    iconColor: { type: String, default: 'var(--color-danger-soft)' },
     type: {
       type: String,
       default: 'default',
@@ -91,7 +126,7 @@ export default MobileConfirm
 
 export const Confirm = {
   /**
-   * Confirm.show({ title, message, confirmText, cancelText, type }) -> Promise<boolean>
+   * Confirm.show({ title, message, confirmText, cancelText, type, icon, iconColor }) -> Promise<boolean>
    */
   show(options = {}) {
     return new Promise((resolve) => {
@@ -165,82 +200,109 @@ export const Confirm = {
   align-items: center;
   justify-content: center;
 
-  padding: var(--space-4);
-  background: var(--mask-overlay);
-  backdrop-filter: blur(var(--radius-sheet));
+  padding: 40px;
+  background: var(--color-overlay-dialog, rgba(0, 0, 0, 0.5));
   -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-confirm__panel {
-  width: 90vw;
-  max-width: 420px;
-  border-radius: var(--radius-card);
-  border: var(--border-width-thin) solid var(--separator);
+  width: 100%;
+  max-width: 320px;
+  border-radius: var(--radius-3xl, 18px);
+  border: none;
 
-  background: color-mix(in srgb, var(--card-bg) 84%, transparent);
-  backdrop-filter: blur(var(--radius-sheet));
+  background: var(--color-surface, #fff);
+  box-shadow: var(--shadow-dialog, 0 20px 40px rgba(0, 0, 0, 0.15));
 
   overflow: hidden;
+  padding: 24px;
+}
+
+.mobile-confirm__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+}
+
+.mobile-confirm__icon-emoji {
+  font-size: 24px;
+  line-height: 1;
 }
 
 .mobile-confirm__header {
-  padding: var(--space-4) var(--space-4) var(--space-3);
+  padding: 0 0 6px;
 }
 
 .mobile-confirm__title {
   font-family: var(--font-body);
-  font-size: var(--font-size-lg-mobile);
+  font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-primary, #0d0d0d);
   text-align: center;
   line-height: 1.3;
 }
 
 .mobile-confirm__message {
-  padding: 0 var(--space-4) var(--space-4);
+  padding: 0 0 20px;
   font-family: var(--font-body);
-  font-size: var(--font-size-base-mobile);
-  color: var(--text-secondary);
+  font-size: 14px;
+  color: var(--color-text-secondary, #6e6e80);
   text-align: center;
   white-space: pre-wrap;
+  line-height: 1.5;
 }
 
 .mobile-confirm__actions {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: stretch;
-  border-top: var(--border-width-thin) solid var(--separator);
-}
-
-.mobile-confirm__divider {
-  width: 1px;
-  background: var(--separator);
+  display: flex;
+  gap: 8px;
 }
 
 .mobile-confirm__btn {
-  min-height: var(--size-control-md);
-  padding: var(--space-3) var(--space-4);
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--radius-lg, 10px);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
   border: none;
-  background: transparent;
   cursor: pointer;
   font-family: var(--font-body);
-  font-size: var(--font-size-lg-mobile);
-  font-weight: 600;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
 }
 
 .mobile-confirm__btn--cancel {
-  color: var(--text-secondary);
+  background: var(--color-bg-surface, #f7f7f8);
+  color: var(--color-text-primary, #0d0d0d);
+}
+
+.mobile-confirm__btn--cancel:active {
+  opacity: 0.7;
 }
 
 .mobile-confirm__btn--primary {
-  color: var(--accent-blue);
+  background: var(--color-primary, #10a37f);
+  color: var(--color-text-inverse, #fff);
+}
+
+.mobile-confirm__btn--primary:active {
+  background: var(--color-primary-active, #0c7a5e);
 }
 
 .mobile-confirm__btn--danger {
-  color: var(--accent-red);
+  background: var(--color-danger, #ef4444);
+  color: var(--color-text-inverse, #fff);
 }
 
+.mobile-confirm__btn--danger:active {
+  background: var(--color-danger-hover, #dc2626);
+}
+
+/* 触摸反馈 */
 @media (hover: none) and (pointer: coarse) {
   .mobile-confirm__btn:active {
     transform: scale(0.98);
@@ -248,21 +310,46 @@ export const Confirm = {
 }
 
 /* 深色模式 */
+.dark .mobile-confirm {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .dark .mobile-confirm__panel {
-  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  background: var(--color-surface, #18181b);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dark .mobile-confirm__title {
+  color: var(--color-text, #f5f5f5);
+}
+
+.dark .mobile-confirm__message {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .mobile-confirm__btn--cancel {
+  background: var(--color-surface-muted, #27272a);
+  color: var(--color-text, #f5f5f5);
+}
+
+.dark .mobile-confirm__btn--primary:hover {
+  background: var(--color-primary-hover, #6ee7b7);
 }
 
 /* 高对比度 */
 @media (prefers-contrast: high) {
   .mobile-confirm__panel {
-    border-width: 2px;
+    border: 2px solid var(--color-border-default, #ebebeb);
   }
 }
 
-/* 动画：轻微底部滑入 */
-.mobile-confirm-enter-active,
+/* 动画：Dialog 弹出 — Orbit v3: 200ms ease-out enter, 150ms ease-out leave */
+.mobile-confirm-enter-active {
+  transition: opacity 250ms ease-out, transform 200ms ease-out;
+}
+
 .mobile-confirm-leave-active {
-  transition: var(--transition-default);
+  transition: opacity 200ms ease-in, transform 150ms ease-in;
 }
 
 .mobile-confirm-enter-from,
@@ -270,14 +357,12 @@ export const Confirm = {
   opacity: 0;
 }
 
-.mobile-confirm-enter-from .mobile-confirm__panel,
-.mobile-confirm-leave-to .mobile-confirm__panel {
-  transform: translateY(var(--space-2));
+.mobile-confirm-enter-from .mobile-confirm__panel {
+  transform: scale(0.95);
 }
 
-.mobile-confirm-enter-to .mobile-confirm__panel,
-.mobile-confirm-leave-from .mobile-confirm__panel {
-  transform: translateY(0);
+.mobile-confirm-leave-to .mobile-confirm__panel {
+  transform: scale(0.95);
 }
 
 /* 减少动画 */

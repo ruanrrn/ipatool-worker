@@ -30,6 +30,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -94,6 +95,20 @@ struct ClaimRequest {
     token: String,
     appid: String,
     appVerId: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct PurchaseStatusBatchRequest {
+    token: String,
+    appids: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct ConfirmPurchaseRequest {
+    token: String,
+    appid: String,
 }
 
 #[derive(Deserialize)]
@@ -274,6 +289,22 @@ lazy_static::lazy_static! {
     static ref ACCOUNTS: RwLock<HashMap<String, AccountStore>> = RwLock::new(HashMap::new());
     // MFA 第一轮失败后暂存 AccountStore（保留 GUID），等待用户提交验证码后复用
     static ref PENDING_MFA: RwLock<HashMap<String, PendingMfaSession>> = RwLock::new(HashMap::new());
+}
+
+struct PurchaseCacheEntry {
+    purchased: bool,
+    needs_purchase: bool,
+    cached_at: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref PURCHASE_CACHE: RwLock<std::collections::HashMap<(String, String), PurchaseCacheEntry>> = RwLock::new(std::collections::HashMap::new());
+}
+
+const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+
+fn get_account_id_for_token(token: &str) -> String {
+    format!("tok_{}", &token[..token.len().min(16)])
 }
 
 fn hash_password(password: &str) -> String {
@@ -562,6 +593,149 @@ async fn health() -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::<String>::success("OK".to_string()))
 }
 
+fn extract_version_array(json: &Value) -> Vec<Value> {
+    if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
+        data.clone()
+    } else if let Some(array) = json.as_array() {
+        array.clone()
+    } else {
+        vec![]
+    }
+}
+
+fn parse_json_i64(value: Option<&Value>) -> Option<i64> {
+    match value? {
+        Value::Number(number) => number
+            .as_i64()
+            .or_else(|| number.as_u64().and_then(|v| i64::try_from(v).ok()))
+            .or_else(|| number.as_f64().map(|v| v as i64)),
+        Value::String(text) => text.trim().parse::<i64>().ok(),
+        _ => None,
+    }
+}
+
+fn extract_version_label(item: &Value) -> String {
+    item.get("bundle_version")
+        .or(item.get("version"))
+        .or(item.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+fn extract_version_external_identifier(item: &Value) -> i64 {
+    parse_json_i64(
+        item.get("external_identifier")
+            .or(item.get("externalVersionId"))
+            .or(item.get("version_id"))
+            .or(item.get("appVersionId"))
+            .or(item.get("id")),
+    )
+    .unwrap_or(0)
+}
+
+fn extract_version_size(item: &Value) -> i64 {
+    parse_json_i64(item.get("size"))
+        .or_else(|| parse_json_i64(item.get("fileSizeBytes")))
+        .or_else(|| parse_json_i64(item.get("size_bytes")))
+        .or_else(|| parse_json_i64(item.get("bundleSizeBytes")))
+        .or_else(|| parse_json_i64(item.get("downloadSize")))
+        .or_else(|| parse_json_i64(item.get("download_size")))
+        .or_else(|| parse_json_i64(item.get("file_size")))
+        .or_else(|| parse_json_i64(item.get("appSize")))
+        .or_else(|| parse_json_i64(item.get("app_size")))
+        .or_else(|| parse_json_i64(item.get("asset").and_then(|v| v.get("size"))))
+        .or_else(|| parse_json_i64(item.get("metadata").and_then(|v| v.get("fileSizeBytes"))))
+        .unwrap_or(0)
+}
+
+fn extract_version_created_at(item: &Value) -> String {
+    item.get("created_at")
+        .or(item.get("date"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+fn format_version_item(item: &Value) -> Value {
+    serde_json::json!({
+        "bundle_version": extract_version_label(item),
+        "external_identifier": extract_version_external_identifier(item),
+        "size": extract_version_size(item),
+        "created_at": extract_version_created_at(item),
+    })
+}
+
+fn merge_version_records(primary: &mut Value, fallback: &Value) {
+    let primary_size = extract_version_size(primary);
+    if primary_size <= 0 {
+        let fallback_size = extract_version_size(fallback);
+        if fallback_size > 0 {
+            if let Some(primary_obj) = primary.as_object_mut() {
+                primary_obj.insert("size".to_string(), serde_json::json!(fallback_size));
+            }
+        }
+    }
+
+    let primary_created_at = extract_version_created_at(primary);
+    if primary_created_at.is_empty() {
+        let fallback_created_at = extract_version_created_at(fallback);
+        if !fallback_created_at.is_empty() {
+            if let Some(primary_obj) = primary.as_object_mut() {
+                primary_obj.insert(
+                    "created_at".to_string(),
+                    serde_json::json!(fallback_created_at),
+                );
+            }
+        }
+    }
+}
+
+fn version_merge_key(item: &Value) -> Option<String> {
+    let external_identifier = extract_version_external_identifier(item);
+    if external_identifier > 0 {
+        return Some(format!("id:{}", external_identifier));
+    }
+
+    let bundle_version = extract_version_label(item);
+    if bundle_version.is_empty() {
+        return None;
+    }
+
+    let created_at = extract_version_created_at(item);
+    if !created_at.is_empty() {
+        Some(format!("ver:{}@{}", bundle_version, created_at))
+    } else {
+        Some(format!("ver:{}", bundle_version))
+    }
+}
+
+fn merge_version_lists(primary: Vec<Value>, secondary: Vec<Value>) -> Vec<Value> {
+    let mut merged = primary;
+    let mut index_by_key: HashMap<String, usize> = HashMap::new();
+
+    for (index, item) in merged.iter().enumerate() {
+        if let Some(key) = version_merge_key(item) {
+            index_by_key.insert(key, index);
+        }
+    }
+
+    for item in secondary {
+        if let Some(key) = version_merge_key(&item) {
+            if let Some(existing_index) = index_by_key.get(&key).copied() {
+                merge_version_records(&mut merged[existing_index], &item);
+            } else {
+                index_by_key.insert(key, merged.len());
+                merged.push(item);
+            }
+        } else {
+            merged.push(item);
+        }
+    }
+
+    merged
+}
+
 // 查询版本
 async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
     let appid = &query.appid;
@@ -569,76 +743,44 @@ async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
 
     let client = Client::new();
 
-    // 尝试第一个 API
     let url1 = format!(
         "https://api.timbrd.com/apple/app-version/index.php?id={}&country={}",
         appid, region
     );
+    let url2 = format!(
+        "https://apis.bilin.eu.org/history/{}?country={}",
+        appid, region
+    );
 
-    let response1 = client.get(&url1).send().await;
-    let versions = if let Ok(resp) = response1 {
+    let response1 = client.get(&url1).send();
+    let response2 = client.get(&url2).send();
+    let (response1, response2) = futures_util::future::join(response1, response2).await;
+
+    let versions1 = if let Ok(resp) = response1 {
         if let Ok(json) = resp.json::<serde_json::Value>().await {
-            // Handle both {data: [...]} and direct [...] formats
-            if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
-                Some(data.clone())
-            } else if json.is_array() {
-                Some(json.as_array().cloned().unwrap_or_default())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let final_versions = if let Some(vers) = versions {
-        vers
-    } else {
-        // 尝试第二个 API
-        let url2 = format!(
-            "https://apis.bilin.eu.org/history/{}?country={}",
-            appid, region
-        );
-
-        let response2 = client.get(&url2).send().await;
-        if let Ok(resp) = response2 {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
-                    data.clone()
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            }
+            extract_version_array(&json)
         } else {
             vec![]
         }
+    } else {
+        vec![]
     };
+
+    let versions2 = if let Ok(resp) = response2 {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            extract_version_array(&json)
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
+    let final_versions = merge_version_lists(versions1, versions2);
 
     let formatted_versions: Vec<serde_json::Value> = final_versions
         .iter()
-        .map(|item| {
-            serde_json::json!({
-                "bundle_version": item.get("bundle_version")
-                    .or(item.get("version"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(""),
-                "external_identifier": item.get("external_identifier")
-                    .or(item.get("id"))
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(0),
-                "size": item.get("size")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(0),
-                "created_at": item.get("created_at")
-                    .or(item.get("date"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(""),
-            })
-        })
+        .map(format_version_item)
         .filter(|v| {
             v.get("bundle_version")
                 .and_then(|bv| bv.as_str())
@@ -1006,7 +1148,7 @@ fn scan_download_artifacts(downloads_dir: &Path) -> Vec<DownloadArtifact> {
     let mut artifacts = Vec::new();
     if downloads_dir.exists() {
         visit(downloads_dir, downloads_dir, &mut artifacts);
-        artifacts.sort_by(|left, right| right.modified_at.cmp(&left.modified_at));
+        artifacts.sort_by_key(|a| std::cmp::Reverse(a.modified_at));
     }
     artifacts
 }
@@ -1817,7 +1959,7 @@ async fn get_download_url(query: web::Query<DownloadUrlQuery>) -> impl Responder
     }
 }
 
-async fn claim_app(req: web::Json<ClaimRequest>) -> impl Responder {
+async fn claim_app(req: web::Json<ClaimRequest>, data: web::Data<AppState>) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = match accounts.get(&req.token) {
         Some(account) => account,
@@ -1861,6 +2003,24 @@ async fn claim_app(req: web::Json<ClaimRequest>) -> impl Responder {
                             .unwrap_or("failure");
 
                         if verify_state == "success" {
+                            // Record the purchase in DB
+                            let account_id = get_account_id_for_token(&req.token);
+                            {
+                                let db = data.db.lock().unwrap();
+                                let _ = db.record_purchase(&account_id, &req.appid, "claim");
+                            }
+                            // Update memory cache
+                            {
+                                let mut cache = PURCHASE_CACHE.write().await;
+                                cache.insert(
+                                    (account_id, req.appid.clone()),
+                                    PurchaseCacheEntry {
+                                        purchased: true,
+                                        needs_purchase: false,
+                                        cached_at: Instant::now(),
+                                    },
+                                );
+                            }
                             return HttpResponse::Ok().json(ApiResponse::success(
                                 serde_json::json!({
                                     "claimed": true,
@@ -1915,7 +2075,10 @@ async fn claim_app(req: web::Json<ClaimRequest>) -> impl Responder {
     }
 }
 
-async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>) -> impl Responder {
+async fn get_purchase_status(
+    query: web::Query<PurchaseStatusQuery>,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = match accounts.get(&query.token) {
         Some(account) => account,
@@ -1924,7 +2087,38 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>) -> impl Res
                 .json(ApiResponse::<String>::error("无效的 token".to_string()))
         }
     };
+    let account_id = get_account_id_for_token(&query.token);
+    let appid = query.appid.clone();
 
+    // L1: Check DB for known purchased apps
+    {
+        let db = data.db.lock().unwrap();
+        if let Ok(true) = db.is_purchased(&account_id, &appid) {
+            return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                "purchased": true,
+                "needsPurchase": false,
+                "status": "owned",
+                "error": null,
+            })));
+        }
+    }
+
+    // L2: Check in-memory cache
+    {
+        let cache = PURCHASE_CACHE.read().await;
+        if let Some(entry) = cache.get(&(account_id.clone(), appid.clone())) {
+            if entry.cached_at.elapsed().as_secs() < PURCHASE_CACHE_TTL_SECS {
+                return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                    "purchased": entry.purchased,
+                    "needsPurchase": entry.needs_purchase,
+                    "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
+                    "error": null,
+                })));
+            }
+        }
+    }
+
+    // L3: Call Apple API
     match account_store
         .download_product(&query.appid, query.appVerId.as_deref())
         .await
@@ -1936,6 +2130,22 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>) -> impl Res
                 .unwrap_or("failure");
 
             if state == "success" {
+                // Write to DB (permanent record)
+                if let Ok(db) = data.db.lock() {
+                    let _ = db.record_purchase(&account_id, &appid, "apple_api");
+                }
+                // Update memory cache
+                {
+                    let mut cache = PURCHASE_CACHE.write().await;
+                    cache.insert(
+                        (account_id, appid),
+                        PurchaseCacheEntry {
+                            purchased: true,
+                            needs_purchase: false,
+                            cached_at: Instant::now(),
+                        },
+                    );
+                }
                 return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                     "purchased": true,
                     "needsPurchase": false,
@@ -1961,6 +2171,19 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>) -> impl Res
                 || error_msg.contains("未领取")
                 || error_msg.contains("未找到");
 
+            // Update memory cache (not purchased, with TTL)
+            {
+                let mut cache = PURCHASE_CACHE.write().await;
+                cache.insert(
+                    (account_id.clone(), appid.clone()),
+                    PurchaseCacheEntry {
+                        purchased: false,
+                        needs_purchase: is_license_error,
+                        cached_at: Instant::now(),
+                    },
+                );
+            }
+
             HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                 "purchased": false,
                 "needsPurchase": is_license_error,
@@ -1970,6 +2193,282 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>) -> impl Res
         }
         Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
             "查询购买状态失败: {}",
+            e
+        ))),
+    }
+}
+
+// Batch purchase status check
+async fn purchase_status_batch(
+    req: web::Json<PurchaseStatusBatchRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let accounts = ACCOUNTS.read().await;
+    let account_store = match accounts.get(&req.token) {
+        Some(account) => account,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ApiResponse::<String>::error("无效的 token".to_string()))
+        }
+    };
+    let account_id = get_account_id_for_token(&req.token);
+
+    if req.appids.is_empty() {
+        return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "results": {}
+        })));
+    }
+
+    let mut results = serde_json::Map::new();
+
+    // L1: Batch check DB
+    let db_purchased: std::collections::HashSet<String> = {
+        let db = data.db.lock().unwrap();
+        db.batch_check_purchased(&account_id, &req.appids)
+            .unwrap_or_default()
+    };
+
+    let mut need_check: Vec<String> = Vec::new();
+
+    for appid in &req.appids {
+        if db_purchased.contains(appid) {
+            results.insert(
+                appid.clone(),
+                serde_json::json!({
+                    "purchased": true,
+                    "needsPurchase": false,
+                    "status": "owned",
+                    "error": null,
+                }),
+            );
+        } else {
+            need_check.push(appid.clone());
+        }
+    }
+
+    if need_check.is_empty() {
+        return HttpResponse::Ok().json(ApiResponse::success(
+            serde_json::json!({ "results": results }),
+        ));
+    }
+
+    // L2: Check in-memory cache for remaining
+    let mut still_need_apple: Vec<String> = Vec::new();
+    {
+        let cache = PURCHASE_CACHE.read().await;
+        for appid in &need_check {
+            if let Some(entry) = cache.get(&(account_id.clone(), appid.clone())) {
+                if entry.cached_at.elapsed().as_secs() < PURCHASE_CACHE_TTL_SECS {
+                    results.insert(appid.clone(), serde_json::json!({
+                        "purchased": entry.purchased,
+                        "needsPurchase": entry.needs_purchase,
+                        "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
+                        "error": null,
+                    }));
+                    continue;
+                }
+            }
+            still_need_apple.push(appid.clone());
+        }
+    }
+
+    if still_need_apple.is_empty() {
+        return HttpResponse::Ok().json(ApiResponse::success(
+            serde_json::json!({ "results": results }),
+        ));
+    }
+
+    // L3: Call Apple API for remaining apps concurrently
+    let apple_futures: Vec<_> = still_need_apple
+        .iter()
+        .map(|appid| {
+            let appid = appid.clone();
+            async {
+                let result = account_store.download_product(&appid, None).await;
+                (appid, result)
+            }
+        })
+        .collect();
+
+    let apple_results = futures::future::join_all(apple_futures).await;
+
+    // Process Apple results
+    {
+        let mut cache = PURCHASE_CACHE.write().await;
+        for (appid, apple_result) in apple_results {
+            match apple_result {
+                Ok(result) => {
+                    let state = result
+                        .get("_state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("failure");
+                    if state == "success" {
+                        // Write to DB
+                        if let Ok(db) = data.db.lock() {
+                            let _ = db.record_purchase(&account_id, &appid, "apple_api");
+                        }
+                        cache.insert(
+                            (account_id.clone(), appid.clone()),
+                            PurchaseCacheEntry {
+                                purchased: true,
+                                needs_purchase: false,
+                                cached_at: Instant::now(),
+                            },
+                        );
+                        results.insert(
+                            appid,
+                            serde_json::json!({
+                                "purchased": true,
+                                "needsPurchase": false,
+                                "status": "owned",
+                                "error": null,
+                            }),
+                        );
+                    } else {
+                        let error_msg = result
+                            .get("customerMessage")
+                            .or(result.get("failureType"))
+                            .or(result.get("message"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("下载失败")
+                            .to_string();
+                        let lowered = error_msg.to_lowercase();
+                        let is_license_error = lowered.contains("license")
+                            || lowered.contains("not found")
+                            || lowered.contains("not purchased")
+                            || lowered.contains("not owned")
+                            || error_msg.contains("未购买")
+                            || error_msg.contains("未领取")
+                            || error_msg.contains("未找到");
+                        cache.insert(
+                            (account_id.clone(), appid.clone()),
+                            PurchaseCacheEntry {
+                                purchased: false,
+                                needs_purchase: is_license_error,
+                                cached_at: Instant::now(),
+                            },
+                        );
+                        results.insert(
+                            appid,
+                            serde_json::json!({
+                                "purchased": false,
+                                "needsPurchase": is_license_error,
+                                "status": if is_license_error { "not_owned" } else { "unknown" },
+                                "error": error_msg,
+                            }),
+                        );
+                    }
+                }
+                Err(e) => {
+                    results.insert(
+                        appid,
+                        serde_json::json!({
+                            "purchased": false,
+                            "needsPurchase": false,
+                            "status": "error",
+                            "error": format!("查询失败: {}", e),
+                        }),
+                    );
+                }
+            }
+        }
+    }
+
+    HttpResponse::Ok().json(ApiResponse::success(
+        serde_json::json!({ "results": results }),
+    ))
+}
+
+// Confirm purchase - force check Apple API
+async fn confirm_purchase(
+    req: web::Json<ConfirmPurchaseRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let accounts = ACCOUNTS.read().await;
+    let account_store = match accounts.get(&req.token) {
+        Some(account) => account,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ApiResponse::<String>::error("无效的 token".to_string()))
+        }
+    };
+    let account_id = get_account_id_for_token(&req.token);
+
+    // Force call Apple API - ignore cache TTL
+    match account_store.download_product(&req.appid, None).await {
+        Ok(result) => {
+            let state = result
+                .get("_state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("failure");
+
+            if state == "success" {
+                // Write to DB (permanent)
+                {
+                    let db = data.db.lock().unwrap();
+                    let _ = db.record_purchase(&account_id, &req.appid, "paid_confirm");
+                }
+                // Update memory cache
+                {
+                    let mut cache = PURCHASE_CACHE.write().await;
+                    cache.insert(
+                        (account_id.clone(), req.appid.clone()),
+                        PurchaseCacheEntry {
+                            purchased: true,
+                            needs_purchase: false,
+                            cached_at: Instant::now(),
+                        },
+                    );
+                }
+                return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                    "purchased": true,
+                    "needsPurchase": false,
+                    "status": "owned",
+                    "error": null,
+                    "message": "已确认购买",
+                })));
+            }
+
+            let error_msg = result
+                .get("customerMessage")
+                .or(result.get("failureType"))
+                .or(result.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("下载失败")
+                .to_string();
+
+            let lowered = error_msg.to_lowercase();
+            let is_license_error = lowered.contains("license")
+                || lowered.contains("not found")
+                || lowered.contains("not purchased")
+                || lowered.contains("not owned")
+                || error_msg.contains("未购买")
+                || error_msg.contains("未领取")
+                || error_msg.contains("未找到");
+
+            // Update memory cache even for not-purchased result
+            {
+                let mut cache = PURCHASE_CACHE.write().await;
+                cache.insert(
+                    (account_id.clone(), req.appid.clone()),
+                    PurchaseCacheEntry {
+                        purchased: false,
+                        needs_purchase: is_license_error,
+                        cached_at: Instant::now(),
+                    },
+                );
+            }
+
+            HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                "purchased": false,
+                "needsPurchase": is_license_error,
+                "status": if is_license_error { "not_owned" } else { "unknown" },
+                "error": error_msg,
+                "message": "未检测到购买记录，请确认购买已完成",
+            })))
+        }
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
+            "确认购买状态失败: {}",
             e
         ))),
     }
@@ -2198,13 +2697,49 @@ async fn upload_ipa(mut payload: Multipart, data: web::Data<AppState>) -> impl R
     })))
 }
 
+fn extract_itunes_track_id(app: &serde_json::Value) -> String {
+    app.get("trackId")
+        .and_then(|v| v.as_i64().map(|n| n.to_string()))
+        .or_else(|| {
+            app.get("trackId")
+                .and_then(|v| v.as_u64().map(|n| n.to_string()))
+        })
+        .or_else(|| {
+            app.get("trackId")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string())
+        })
+        .or_else(|| {
+            app.get("id")
+                .and_then(|v| v.as_i64().map(|n| n.to_string()))
+        })
+        .or_else(|| {
+            app.get("id")
+                .and_then(|v| v.as_u64().map(|n| n.to_string()))
+        })
+        .or_else(|| {
+            app.get("id")
+                .and_then(|v| v.as_str())
+                .map(|v| v.to_string())
+        })
+        .or_else(|| {
+            app.get("trackViewUrl")
+                .and_then(|v| v.as_str())
+                .and_then(|url| {
+                    url.split("/id").nth(1).map(|rest| {
+                        rest.chars()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>()
+                    })
+                })
+                .filter(|id| !id.is_empty())
+        })
+        .unwrap_or_default()
+}
+
 fn format_itunes_app(app: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({
-        "trackId": app.get("trackId")
-            .and_then(|v| v.as_i64())
-            .map(|v| v.to_string())
-            .or_else(|| app.get("trackId").and_then(|v| v.as_str()).map(|v| v.to_string()))
-            .unwrap_or_default(),
+        "trackId": extract_itunes_track_id(app),
         "trackName": app.get("trackName").and_then(|v| v.as_str()).unwrap_or(""),
         "bundleId": app.get("bundleId").and_then(|v| v.as_str()).unwrap_or(""),
         "artistName": app.get("artistName").and_then(|v| v.as_str()).unwrap_or(""),
@@ -2215,8 +2750,7 @@ fn format_itunes_app(app: &serde_json::Value) -> serde_json::Value {
         "price": app.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0),
         "formattedPrice": app.get("formattedPrice").and_then(|v| v.as_str()).unwrap_or(""),
         "fileSizeBytes": app.get("fileSizeBytes")
-            .and_then(|v| v.as_str())
-            .and_then(|v| v.parse::<u64>().ok())
+            .map(|v| parse_json_i64(Some(v)).unwrap_or(0) as u64)
             .unwrap_or(0),
         "genres": app.get("genres").and_then(|v| v.as_array()).cloned().unwrap_or(vec![]),
     })
@@ -4072,8 +4606,8 @@ fn load_archive_app_from_path(file_path: &Path) -> Result<Option<ArchiveApp>, St
 }
 
 fn save_archive_app(file_path: &Path, app: &ArchiveApp) -> Result<(), String> {
-    let json = serde_json::to_string_pretty(app)
-        .map_err(|error| format!("序列化收藏失败: {}", error))?;
+    let json =
+        serde_json::to_string_pretty(app).map_err(|error| format!("序列化收藏失败: {}", error))?;
 
     std::fs::write(file_path, json).map_err(|error| format!("保存收藏失败: {}", error))
 }
@@ -4133,7 +4667,9 @@ async fn ensure_archive_icon_base64(app: &mut ArchiveApp) -> Result<(), String> 
     app.icon_base64 = Some(base64::engine::general_purpose::STANDARD.encode(&bytes));
     app.icon_content_type = content_type.clone();
     // Set icon_bak_url as data URI for community publishing
-    let ct = content_type.as_deref().unwrap_or("application/octet-stream");
+    let ct = content_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
     app.icon_bak_url = Some(format!(
         "data:{};base64,{}",
         ct,
@@ -4181,7 +4717,12 @@ async fn save_github_token(
             .json(ApiResponse::<()>::error("GitHub PAT 不能为空".to_string()));
     }
 
-    match data.db.lock().unwrap().upsert_github_token(&admin.username, token) {
+    match data
+        .db
+        .lock()
+        .unwrap()
+        .upsert_github_token(&admin.username, token)
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(GitHubTokenResponse {
             configured: true,
             username: admin.username,
@@ -4195,7 +4736,10 @@ async fn save_github_token(
     }
 }
 
-async fn delete_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
+async fn delete_github_token(
+    admin: AuthenticatedAdmin,
+    data: web::Data<AppState>,
+) -> impl Responder {
     match data.db.lock().unwrap().delete_github_token(&admin.username) {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
         Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
@@ -4204,7 +4748,6 @@ async fn delete_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState
         ))),
     }
 }
-
 
 async fn publish_community_archive(
     admin: AuthenticatedAdmin,
@@ -4291,11 +4834,14 @@ async fn publish_community_archive(
             .send()
             .await
         {
-            Ok(response) if response.status().is_success() => response
-                .json::<Value>()
-                .await
-                .ok()
-                .and_then(|p| p.get("object").and_then(|o| o.get("sha")).and_then(|v| v.as_str()).map(String::from)),
+            Ok(response) if response.status().is_success() => {
+                response.json::<Value>().await.ok().and_then(|p| {
+                    p.get("object")
+                        .and_then(|o| o.get("sha"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                })
+            }
             _ => {
                 return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
                     "无法获取默认分支信息，请检查仓库和 PAT 权限".to_string(),
@@ -4312,10 +4858,7 @@ async fn publish_community_archive(
         let feature_branch = format!("publish/{}-{}", app_id, timestamp);
 
         // Create branch
-        let create_ref_url = format!(
-            "https://api.github.com/repos/{}/{}/git/refs",
-            owner, repo
-        );
+        let create_ref_url = format!("https://api.github.com/repos/{}/{}/git/refs", owner, repo);
         let create_resp = match client
             .post(&create_ref_url)
             .bearer_auth(&github_token)
@@ -4330,10 +4873,8 @@ async fn publish_community_archive(
         {
             Ok(r) => r,
             Err(e) => {
-                return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
-                    "创建分支失败: {}",
-                    e
-                )));
+                return HttpResponse::BadGateway()
+                    .json(ApiResponse::<()>::error(format!("创建分支失败: {}", e)));
             }
         };
 
@@ -4371,15 +4912,18 @@ async fn publish_community_archive(
         .send()
         .await
     {
-        Ok(r) if r.status().is_success() => r.json::<Value>().await.ok().and_then(|p| {
-            p.get("sha").and_then(|v| v.as_str()).map(String::from)
-        }),
+        Ok(r) if r.status().is_success() => r
+            .json::<Value>()
+            .await
+            .ok()
+            .and_then(|p| p.get("sha").and_then(|v| v.as_str()).map(String::from)),
         Ok(r) if r.status().as_u16() == 404 => None,
         Ok(r) => {
             let s = r.status();
             let t = r.text().await.unwrap_or_default();
             return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
-                "查询文件失败: HTTP {} {}", s, t
+                "查询文件失败: HTTP {} {}",
+                s, t
             )));
         }
         Err(e) => {
@@ -4435,9 +4979,18 @@ async fn publish_community_archive(
     };
 
     let content = put_payload.get("content").cloned().unwrap_or(Value::Null);
-    let file_sha = content.get("sha").and_then(|v| v.as_str()).map(String::from);
-    let file_html_url = content.get("html_url").and_then(|v| v.as_str()).map(String::from);
-    let file_download_url = content.get("download_url").and_then(|v| v.as_str()).map(String::from);
+    let file_sha = content
+        .get("sha")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let file_html_url = content
+        .get("html_url")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let file_download_url = content
+        .get("download_url")
+        .and_then(|v| v.as_str())
+        .map(String::from);
 
     // Step 4: If PR mode, create pull request
     let (final_pr_url, final_pr_number) = if use_pr {
@@ -4467,7 +5020,10 @@ async fn publish_community_archive(
         {
             Ok(r) if r.status().is_success() => match r.json::<Value>().await {
                 Ok(pr_data) => (
-                    pr_data.get("html_url").and_then(|v| v.as_str()).map(String::from),
+                    pr_data
+                        .get("html_url")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
                     pr_data.get("number").and_then(|v| v.as_i64()),
                 ),
                 Err(_) => (None, None),
@@ -4580,9 +5136,12 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             .iter_mut()
             .find(|existing| existing.version_id == version.version_id)
         {
-            if !version.version.trim().is_empty() {
-                existing_version.version = version.version.clone();
-            }
+            existing_version.version = if version.version.trim().is_empty() {
+                existing_version.version.clone()
+            } else {
+                version.version.clone()
+            };
+            existing_version.description = version.description.clone();
         } else {
             app.versions.push(version.clone());
         }
@@ -4607,7 +5166,8 @@ async fn remove_archive_app_version(path: web::Path<(String, String)>) -> impl R
         return HttpResponse::Ok().json(ApiResponse::success(true));
     };
 
-    app.versions.retain(|version| version.version_id != version_id);
+    app.versions
+        .retain(|version| version.version_id != version_id);
 
     if app.versions.is_empty() {
         if let Err(error) = std::fs::remove_file(&file_path) {
@@ -4746,6 +5306,8 @@ async fn main() -> std::io::Result<()> {
                             .route("/download-url", web::get().to(get_download_url))
                             .route("/purchase-status", web::get().to(get_purchase_status))
                             .route("/claim", web::post().to(claim_app))
+                            .route("/purchase-status-batch", web::post().to(purchase_status_batch))
+                            .route("/confirm-purchase", web::post().to(confirm_purchase))
                             .route("/start-download-direct", web::post().to(start_download_direct))
                             .route("/progress-sse", web::get().to(progress_sse))
                             .route("/job-info", web::get().to(get_job_info))

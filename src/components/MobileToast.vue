@@ -7,6 +7,7 @@
     @after-enter="onAfterEnter"
     @before-leave="onBeforeLeave"
     @leave="onLeave"
+    @after-leave="emit('close')"
   >
     <div
       v-if="visible"
@@ -19,17 +20,57 @@
     >
       <!-- 图标 -->
       <span class="mobile-toast__icon">
-        <svg v-if="type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        <svg
+          v-if="type === 'success'"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
-        <svg v-else-if="type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <svg
+          v-else-if="type === 'error'"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
-        <svg v-else-if="type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        <svg
+          v-else-if="type === 'warning'"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
         </svg>
-        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          v-else
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
       </span>
 
@@ -42,11 +83,20 @@
       <button
         v-if="closeable"
         class="mobile-toast__close"
-        @click="close"
         aria-label="关闭"
+        @click="close"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
     </div>
@@ -54,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, h } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps({
   message: {
@@ -104,7 +154,7 @@ const onEnter = (el, done) => {
   })
 }
 
-const onAfterEnter = (el) => {
+const onAfterEnter = () => {
   // 动画结束后启动自动消失定时器
   if (props.duration > 0) {
     timer = setTimeout(() => {
@@ -138,17 +188,18 @@ onBeforeUnmount(() => {
   }
 })
 
-// 监听关闭事件，完成后触发 emit
-const onTransitionEnd = () => {
-  if (!visible.value) {
-    emit('close')
-  }
-}
 </script>
 
 <script>
 // ==================== Toast 服务 ====================
-import { createApp, h, ref, onMounted, onBeforeUnmount } from 'vue'
+import {
+  createApp,
+  h as serviceH,
+  nextTick,
+  onBeforeUnmount as serviceOnBeforeUnmount,
+  onMounted as serviceOnMounted,
+  ref as serviceRef
+} from 'vue'
 
 let toastContainer = null
 const toastInstances = []
@@ -161,10 +212,16 @@ function getContainer() {
     toastContainer.className = 'mobile-toast-container'
     toastContainer.style.cssText = `
       position: fixed;
-      top: 0;
+      top: max(env(safe-area-inset-top, 0px), 12px);
       left: 0;
       width: 100%;
-      height: 100%;
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 0 var(--space-4);
+      box-sizing: border-box;
       pointer-events: none;
       z-index: 9999;
     `
@@ -183,15 +240,20 @@ function createToast(options) {
   mountPoint.style.cssText = `
     position: relative;
     pointer-events: auto;
-    margin-top: var(--space-3);
+    width: min(100%, 420px);
+    max-width: 420px;
   `
   container.appendChild(mountPoint)
 
+  const message = options.message || ''
+  const isLongMessage = message.includes('\n') || message.length > 72
+  const defaultDuration = isLongMessage ? 5200 : 2000
+
   // Toast 配置
   const toastOptions = {
-    message: options.message || '',
+    message,
     type: options.type || 'info',
-    duration: options.duration !== undefined ? options.duration : 2000,
+    duration: options.duration !== undefined ? options.duration : defaultDuration,
     closeable: options.closeable !== undefined ? options.closeable : true
   }
 
@@ -206,15 +268,46 @@ function createToast(options) {
     },
     emits: ['close'],
     setup(props, { emit }) {
-      const visible = ref(false)
+      const visible = serviceRef(false)
+      const toastRef = serviceRef(null)
       let timer = null
 
-      const close = () => {
-        visible.value = false
+      const animateIn = () => {
+        const el = toastRef.value
+        if (!el) return
+        el.style.opacity = '0'
+        el.style.transform = 'translateY(-20px)'
+        el.style.transition = 'opacity 300ms ease, transform 300ms ease'
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.opacity = '1'
+            el.style.transform = 'translateY(0)'
+          })
+        })
       }
 
-      onMounted(() => {
+      const close = () => {
+        const el = toastRef.value
+        if (!el || !visible.value) {
+          emit('close')
+          return
+        }
+
+        visible.value = false
+        if (timer) {
+          clearTimeout(timer)
+          timer = null
+        }
+
+        el.style.transition = 'opacity 200ms ease, transform 200ms ease'
+        el.style.opacity = '0'
+        el.style.transform = 'translateY(-20px)'
+        window.setTimeout(() => emit('close'), 200)
+      }
+
+      serviceOnMounted(() => {
         visible.value = true
+        nextTick(animateIn)
         if (props.duration > 0) {
           timer = setTimeout(() => {
             close()
@@ -222,34 +315,33 @@ function createToast(options) {
         }
       })
 
-      onBeforeUnmount(() => {
+      serviceOnBeforeUnmount(() => {
         if (timer) clearTimeout(timer)
       })
 
       return () => {
         if (!visible.value) return null
 
-        return h('div', {
+        return serviceH('div', {
+          ref: toastRef,
           class: ['mobile-toast', `mobile-toast--${props.type}`],
           role: 'alert',
           'aria-live': 'polite'
         }, [
           // 图标
-          h('span', { class: 'mobile-toast__icon' }, getIcon(props.type)),
+          serviceH('span', { class: 'mobile-toast__icon' }, getIcon(props.type)),
           // 内容
-          h('span', { class: 'mobile-toast__message' }, props.message),
+          serviceH('span', { class: 'mobile-toast__message' }, props.message),
           // 关闭按钮
-          props.closeable ? h('button', {
+          props.closeable ? serviceH('button', {
             class: 'mobile-toast__close',
-            onClick: () => {
-              emit('close')
-            },
+            onClick: close,
             'aria-label': '关闭'
-          }, h('svg', {
+          }, serviceH('svg', {
             viewBox: '0 0 24 24',
             fill: 'none',
             stroke: 'currentColor'
-          }, h('path', {
+          }, serviceH('path', {
             'stroke-linecap': 'round',
             'stroke-linejoin': 'round',
             'stroke-width': '2',
@@ -263,7 +355,7 @@ function createToast(options) {
   // 创建应用
   const app = createApp({
     render() {
-      return h(MobileToastInline, {
+      return serviceH(MobileToastInline, {
         ...toastOptions,
         onClose: () => {
           // 关闭动画完成后卸载
@@ -276,7 +368,7 @@ function createToast(options) {
   })
 
   // 挂载
-  const instance = app.mount(mountPoint)
+  app.mount(mountPoint)
 
   // 保存实例引用
   const toastInstance = {
@@ -304,17 +396,17 @@ function createToast(options) {
 // 获取图标
 function getIcon(type) {
   const icons = {
-    success: h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M5 13l4 4L19 7' })
+    success: serviceH('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
+      serviceH('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M5 13l4 4L19 7' })
     ),
-    error: h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M6 18L18 6M6 6l12 12' })
+    error: serviceH('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
+      serviceH('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M6 18L18 6M6 6l12 12' })
     ),
-    warning: h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' })
+    warning: serviceH('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
+      serviceH('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' })
     ),
-    info: h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' })
+    info: serviceH('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor' },
+      serviceH('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' })
     )
   }
   return icons[type] || icons.info
@@ -397,18 +489,16 @@ const Toast = {
 export { Toast }
 </script>
 
-<style scoped>
+<style>
 .mobile-toast {
-  position: fixed;
-  top: var(--space-4);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-2);
-  min-width: 280px;
-  max-width: calc(100vw - var(--space-4) * 2);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  max-height: min(60vh, 420px);
   padding: var(--space-3) var(--space-4);
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
@@ -421,6 +511,7 @@ export { Toast }
   color: var(--text-primary);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
 }
 
 /* 图标 */
@@ -431,6 +522,7 @@ export { Toast }
   flex-shrink: 0;
   width: var(--size-icon-md);
   height: var(--size-icon-md);
+  margin-top: 2px;
 }
 
 .mobile-toast__icon svg {
@@ -458,8 +550,14 @@ export { Toast }
 /* 消息内容 */
 .mobile-toast__message {
   flex: 1;
+  min-width: 0;
+  max-height: calc(min(60vh, 420px) - 24px);
+  overflow-y: auto;
   line-height: 1.5;
+  white-space: pre-line;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  padding-right: var(--space-1);
 }
 
 /* 关闭按钮 */
@@ -468,6 +566,7 @@ export { Toast }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  align-self: flex-start;
   width: var(--size-icon-md);
   height: var(--size-icon-md);
   margin-left: var(--space-1);
