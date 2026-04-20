@@ -1148,7 +1148,7 @@ fn scan_download_artifacts(downloads_dir: &Path) -> Vec<DownloadArtifact> {
     let mut artifacts = Vec::new();
     if downloads_dir.exists() {
         visit(downloads_dir, downloads_dir, &mut artifacts);
-        artifacts.sort_by(|left, right| right.modified_at.cmp(&left.modified_at));
+        artifacts.sort_by_key(|a| std::cmp::Reverse(a.modified_at.clone()));
     }
     artifacts
 }
