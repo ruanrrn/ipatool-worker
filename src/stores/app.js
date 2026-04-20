@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { apiFetch } from '../utils/api.js'
 
 export const useAppStore = defineStore('app', () => {
   // 下载任务状态
@@ -14,7 +15,13 @@ export const useAppStore = defineStore('app', () => {
     showProgressPanel: false,
     progressPercentage: 0,
     progressMessage: '',
-    progressLogs: ''
+    progressLogs: '',
+    activeDownloadAppId: '',
+    activeDownloadVersionId: '',
+    activeDownloadAccountEmail: '',
+    searchQuery: '',
+    searchResults: [],
+    searchResultPurchaseStatusMap: {}
   })
 
   // 下载任务队列
@@ -22,6 +29,10 @@ export const useAppStore = defineStore('app', () => {
 
   // 当前激活的页面标签
   const activeTab = ref('download')
+
+  // 子页面标签状态
+  const queueTab = ref('completed')
+  const archiveTab = ref('favorites')
 
   // 账号更新计数器
   const accountsUpdateCounter = ref(0)
@@ -40,7 +51,7 @@ export const useAppStore = defineStore('app', () => {
   const checkAuth = async () => {
     authState.value.loading = true
     try {
-      const res = await fetch('/api/auth/me', {
+      const { response: res, data: json } = await apiFetch('/api/auth/me', {
         method: 'GET',
         credentials: 'include'
       })
@@ -50,7 +61,6 @@ export const useAppStore = defineStore('app', () => {
         return false
       }
 
-      const json = await res.json()
       authState.value.user = json?.data || null
       return !!authState.value.user
     } catch {
@@ -63,7 +73,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   const loginAdmin = async (username, password) => {
-    const res = await fetch('/api/auth/login', {
+    const { response: res, data: json } = await apiFetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -74,14 +84,10 @@ export const useAppStore = defineStore('app', () => {
 
     if (!res.ok) {
       let msg = '登录失败'
-      try {
-        const json = await res.json()
-        msg = json?.error || msg
-      } catch {}
+      msg = json?.error || msg
       throw new Error(msg)
     }
 
-    const json = await res.json()
     authState.value.user = json?.data || null
     authState.value.checked = true
     return authState.value.user
@@ -89,7 +95,7 @@ export const useAppStore = defineStore('app', () => {
 
   const logoutAdmin = async () => {
     try {
-      await fetch('/api/auth/logout', {
+      await apiFetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       })
@@ -115,13 +121,17 @@ export const useAppStore = defineStore('app', () => {
 
   // 添加任务到队列
   const addToQueue = (item) => {
-    const existingIndex = taskQueue.value.findIndex(q => q.id === item.id)
+    const nextItem = {
+      ...item,
+      updatedAt: item?.updatedAt || new Date().toISOString()
+    }
+    const existingIndex = taskQueue.value.findIndex(q => q.id === nextItem.id)
     if (existingIndex >= 0) {
       // 更新现有任务
-      taskQueue.value[existingIndex] = { ...taskQueue.value[existingIndex], ...item }
+      taskQueue.value[existingIndex] = { ...taskQueue.value[existingIndex], ...nextItem }
     } else {
       // 添加新任务
-      taskQueue.value.push(item)
+      taskQueue.value.push(nextItem)
     }
   }
 
@@ -129,7 +139,11 @@ export const useAppStore = defineStore('app', () => {
   const updateQueueItem = (id, updates) => {
     const index = taskQueue.value.findIndex(q => q.id === id)
     if (index >= 0) {
-      taskQueue.value[index] = { ...taskQueue.value[index], ...updates }
+      taskQueue.value[index] = {
+        ...taskQueue.value[index],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      }
     }
   }
 
@@ -160,6 +174,8 @@ export const useAppStore = defineStore('app', () => {
     downloadState,
     taskQueue,
     activeTab,
+    queueTab,
+    archiveTab,
     accountsUpdateCounter,
     authState,
     setSelectedApp,

@@ -14,22 +14,31 @@
     @click="handleClick"
   >
     <!-- 卡片头部 -->
-    <div v-if="$slots.header" class="mobile-card__header">
-      <slot name="header"></slot>
+    <div
+      v-if="$slots.header"
+      class="mobile-card__header"
+    >
+      <slot name="header" />
     </div>
 
     <!-- 卡片主体 -->
     <div class="mobile-card__body">
-      <slot></slot>
+      <slot />
     </div>
 
     <!-- 卡片底部 -->
-    <div v-if="$slots.footer" class="mobile-card__footer">
-      <slot name="footer"></slot>
+    <div
+      v-if="$slots.footer"
+      class="mobile-card__footer"
+    >
+      <slot name="footer" />
     </div>
 
     <!-- 点击时的触摸反馈层 -->
-    <div v-if="clickable" class="mobile-card__ripple"></div>
+    <div
+      v-if="clickable"
+      class="mobile-card__ripple"
+    />
   </div>
 </template>
 
@@ -220,6 +229,10 @@ const handleClick = (e) => {
 .dark .mobile-card--danger {
   background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+.dark .mobile-card__ripple {
+  background: rgba(52, 211, 153, 0.1);
 }
 
 /* 高对比度模式 */

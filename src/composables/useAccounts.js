@@ -1,4 +1,7 @@
 import { ref } from 'vue'
+import { API_BASE } from '../config.js'
+import { apiFetch } from '../utils/api.js'
+import { STORAGE_KEYS } from '../utils/storage.js'
 
 /**
  * Shared account identity key — deduplicates by email/dsid/token.
@@ -30,9 +33,6 @@ const normaliseAccount = (acc) => ({
   hasSavedCredentials: !!acc.hasSavedCredentials,
 })
 
-const API_BASE = '/api'
-const STORAGE_KEY = 'ipa_accounts'
-
 // --- Singleton state (shared across all consumers) ---
 const accounts = ref([])
 
@@ -41,7 +41,7 @@ const accounts = ref([])
  */
 function persistAccounts() {
   accounts.value = dedupeAccounts(accounts.value)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts.value))
+  localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts.value))
 }
 
 /**
@@ -50,14 +50,13 @@ function persistAccounts() {
  */
 async function loadAccounts() {
   // Optimistic local load first
-  const saved = localStorage.getItem(STORAGE_KEY)
+  const saved = localStorage.getItem(STORAGE_KEYS.ACCOUNTS)
   if (saved) {
     try { accounts.value = dedupeAccounts(JSON.parse(saved)) } catch { accounts.value = [] }
   }
 
   try {
-    const response = await fetch(`${API_BASE}/accounts`, { credentials: 'include' })
-    const data = await response.json()
+    const { data } = await apiFetch(`${API_BASE}/accounts`, { credentials: 'include' })
 
     if (data.ok && data.data && data.data.length > 0) {
       accounts.value = dedupeAccounts(data.data.map(normaliseAccount))
@@ -65,11 +64,9 @@ async function loadAccounts() {
     } else if (data.ok && (!data.data || data.data.length === 0)) {
       // Server has no sessions — try auto-login restore
       try {
-        const autoRes = await fetch(`${API_BASE}/auto-login`, { credentials: 'include', method: 'POST' })
-        const autoData = await autoRes.json()
+        const { data: autoData } = await apiFetch(`${API_BASE}/auto-login`, { credentials: 'include', method: 'POST' })
         if (autoData.ok && autoData.data?.succeeded?.length > 0) {
-          const retryRes = await fetch(`${API_BASE}/accounts`, { credentials: 'include' })
-          const retryData = await retryRes.json()
+          const { data: retryData } = await apiFetch(`${API_BASE}/accounts`, { credentials: 'include' })
           if (retryData.ok && retryData.data) {
             accounts.value = dedupeAccounts(retryData.data.map(normaliseAccount))
             persistAccounts()
@@ -90,15 +87,14 @@ async function loadAccounts() {
  */
 async function autoLoginAll() {
   try {
-    const response = await fetch(`${API_BASE}/auto-login`, {
+    const { data } = await apiFetch(`${API_BASE}/auto-login`, {
       credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })
-    const data = await response.json()
     if (!data.ok || !data.results) return data
 
-    const { success = [], needCode = [], failed = [] } = data.results
+    const { success = [] } = data.results
 
     // Add newly logged-in accounts
     for (const result of success) {
@@ -124,8 +120,7 @@ async function autoLoginAll() {
  */
 async function loadSavedCredentials() {
   try {
-    const response = await fetch(`${API_BASE}/credentials`, { credentials: 'include' })
-    const data = await response.json()
+    const { data } = await apiFetch(`${API_BASE}/credentials`, { credentials: 'include' })
     return (data.ok && data.data) ? data.data : []
   } catch (error) {
     console.error('Failed to load saved credentials:', error)
@@ -139,7 +134,7 @@ async function loadSavedCredentials() {
  * @param {object} [options]
  * @param {boolean} [options.autoLogin=false] — Run autoLoginAll after loadAccounts
  */
-export function useAccounts(options = {}) {
+export function useAccounts(_options = {}) {
   return {
     accounts,
     loadAccounts,

@@ -1,5 +1,5 @@
 <template>
-  <!-- 移动端优化的输入框组件 -->
+  <!-- 移动端优化的输入框组件 — Orbit v3 -->
   <div
     :class="[
       'mobile-input',
@@ -12,20 +12,30 @@
       }
     ]"
   >
-    <label v-if="label" class="mobile-input__label" :for="inputId">
+    <label
+      v-if="label"
+      class="mobile-input__label"
+      :for="inputId"
+    >
       {{ label }}
-      <span v-if="required" class="mobile-input__required">*</span>
+      <span
+        v-if="required"
+        class="mobile-input__required"
+      >*</span>
     </label>
 
     <div class="mobile-input__wrapper">
-      <span v-if="$slots.prefix" class="mobile-input__prefix">
-        <slot name="prefix"></slot>
+      <span
+        v-if="$slots.prefix"
+        class="mobile-input__prefix"
+      >
+        <slot name="prefix" />
       </span>
 
       <input
         :id="inputId"
         ref="inputRef"
-        :type="type"
+        :type="currentType"
         :value="modelValue"
         :placeholder="placeholder"
         :disabled="disabled"
@@ -39,38 +49,108 @@
         @blur="handleBlur"
         @change="handleChange"
         @keyup="handleKeyup"
-      />
+      >
 
-      <span v-if="$slots.suffix" class="mobile-input__suffix">
-        <slot name="suffix"></slot>
+      <span
+        v-if="$slots.suffix"
+        class="mobile-input__suffix"
+      >
+        <slot name="suffix" />
       </span>
 
+      <!-- 密码眼睛按钮 -->
       <button
-        v-if="clearable && hasValue && !disabled && !readonly"
-        class="mobile-input__clear"
-        @click="handleClear"
+        v-if="type === 'password' && hasValue && !disabled && !readonly"
+        class="mobile-input__eye"
         type="button"
+        :aria-label="passwordVisible ? '隐藏密码' : '显示密码'"
+        @click="togglePassword"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="15" y1="9" x2="9" y2="15" />
-          <line x1="9" y1="9" x2="15" y2="15" />
+        <svg
+          v-if="!passwordVisible"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle
+            cx="12"
+            cy="12"
+            r="3"
+          />
+        </svg>
+        <svg
+          v-else
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+          <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+          <line
+            x1="1"
+            y1="1"
+            x2="23"
+            y2="23"
+          />
+        </svg>
+      </button>
+
+      <!-- 清除按钮 -->
+      <button
+        v-else-if="clearable && hasValue && !disabled && !readonly"
+        class="mobile-input__clear"
+        type="button"
+        @click="handleClear"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        >
+          <line
+            x1="6"
+            y1="6"
+            x2="18"
+            y2="18"
+          />
+          <line
+            x1="18"
+            y1="6"
+            x2="6"
+            y2="18"
+          />
         </svg>
       </button>
     </div>
 
-    <p v-if="error" class="mobile-input__error">
+    <p
+      v-if="error"
+      class="mobile-input__error"
+    >
       {{ error }}
     </p>
 
-    <p v-if="hint && !error" class="mobile-input__hint">
+    <p
+      v-if="hint && !error"
+      class="mobile-input__hint"
+    >
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useId } from 'vue'
 
 const props = defineProps({
@@ -134,9 +214,17 @@ const emit = defineEmits(['update:modelValue', 'focus', 'blur', 'change', 'clear
 const inputId = useId()
 const inputRef = ref(null)
 const isFocused = ref(false)
+const passwordVisible = ref(false)
 
 const hasValue = computed(() => {
   return props.modelValue !== '' && props.modelValue !== null && props.modelValue !== undefined
+})
+
+const currentType = computed(() => {
+  if (props.type === 'password') {
+    return passwordVisible.value ? 'text' : 'password'
+  }
+  return props.type
 })
 
 const handleInput = (e) => {
@@ -169,14 +257,9 @@ const handleClear = () => {
   inputRef.value?.focus()
 }
 
-// 监听 modelValue 变化，自动聚焦
-watch(() => props.modelValue, () => {
-  // 可以在这里添加自动聚焦逻辑
-})
-
-onMounted(() => {
-  // 组件挂载后可以做一些初始化
-})
+const togglePassword = () => {
+  passwordVisible.value = !passwordVisible.value
+}
 
 // 暴露方法
 defineExpose({
@@ -189,20 +272,20 @@ defineExpose({
 .mobile-input {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mobile-input__label {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-sm-mobile);
+  gap: 2px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--color-text-secondary, #6e6e80);
 }
 
 .mobile-input__required {
-  color: var(--accent-red);
+  color: var(--color-danger, #ef4444);
   font-weight: 600;
 }
 
@@ -212,26 +295,36 @@ defineExpose({
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--separator);
-  border-radius: var(--radius-field);
+  padding: 14px 12px;
+  background: var(--color-bg-surface, #f7f7f8);
+  border: 1px solid var(--color-border-default, #ebebeb);
+  border-radius: 12px;
   transition: all 0.2s ease;
 }
 
 .mobile-input__wrapper.is-focused {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.1);
+  background: var(--color-surface, #fff);
+  border: 2px solid var(--color-primary, #10a37f);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
 }
 
 .mobile-input__wrapper.has-error {
-  border-color: var(--accent-red);
+  background-color: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.mobile-input__wrapper.has-error.is-focused {
+  background-color: var(--color-danger-soft);
+  border: 2px solid var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .mobile-input__wrapper.is-disabled {
-  background: rgba(0, 0, 0, 0.03);
-  color: var(--text-tertiary);
+  background: var(--color-bg-page, #f0f0f0);
+  color: var(--color-text-disabled, #d1d5db);
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .mobile-input__wrapper.is-readonly {
@@ -244,8 +337,12 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
-  font-size: var(--font-size-base-mobile);
+  color: var(--color-text-secondary, #6e6e80);
+  font-size: 15px;
+}
+
+.mobile-input__wrapper.is-focused .mobile-input__prefix {
+  color: var(--color-primary, #10a37f);
 }
 
 .mobile-input__field {
@@ -255,40 +352,41 @@ defineExpose({
   border: none;
   outline: none;
   font-family: var(--font-body);
-  font-size: var(--font-size-base-mobile);
-  color: var(--text-primary);
+  font-size: 15px;
+  color: var(--color-text-primary, #0d0d0d);
   line-height: 1.5;
   width: 100%;
 }
 
 .mobile-input__field::placeholder {
-  color: var(--text-tertiary);
+  color: var(--color-text-tertiary, #c0c0c0);
 }
 
 .mobile-input__field:disabled {
-  color: var(--text-tertiary);
+  color: var(--color-text-disabled, #d1d5db);
   cursor: not-allowed;
 }
 
 .mobile-input__field:-webkit-autofill,
 .mobile-input__field:-webkit-autofill:hover,
 .mobile-input__field:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--text-primary);
-  -webkit-box-shadow: 0 0 0 48px var(--card-bg) inset;
+  -webkit-text-fill-color: var(--color-text-primary, #0d0d0d);
+  -webkit-box-shadow: 0 0 0 48px var(--color-bg-surface, #f7f7f8) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
 
+/* 清除按钮 — Orbit v3: 20x20 圆形 */
 .mobile-input__clear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   padding: 0;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-border-subtle, #d1d5db);
   border: none;
   border-radius: 50%;
-  color: var(--text-secondary);
+  color: var(--color-text-inverse, #fff);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -296,60 +394,121 @@ defineExpose({
 
 .mobile-input__clear:active {
   transform: scale(0.9);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--color-text-tertiary, #c0c0c0);
 }
 
 .mobile-input__clear svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
+}
+
+/* 密码眼睛按钮 */
+.mobile-input__eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary, #6e6e80);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-input__eye:active {
+  color: var(--color-text-primary, #0d0d0d);
+}
+
+.mobile-input__eye svg {
+  width: 18px;
+  height: 18px;
 }
 
 .mobile-input__error,
 .mobile-input__hint {
-  font-size: var(--font-size-xs-mobile);
+  font-size: 12px;
   line-height: 1.4;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .mobile-input__error {
-  color: var(--accent-red);
+  color: var(--color-danger, #ef4444);
 }
 
 .mobile-input__hint {
-  color: var(--text-tertiary);
+  color: var(--color-text-tertiary, #c0c0c0);
 }
 
-/* 深色模式 */
+/* 深色模式 — .dark 在 <html> 上，scoped 会自动将属性加到末尾选择器 */
 .dark .mobile-input__wrapper {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--color-surface-muted, #27272a) !important;
+  border-color: var(--color-border, #3f3f46);
 }
 
 .dark .mobile-input__wrapper.is-focused {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.2);
+  background: var(--color-surface, #18181b) !important;
+  border-color: var(--color-primary, #34d399);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.15);
+}
+
+.dark .mobile-input__wrapper.has-error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--color-danger, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.dark .mobile-input__wrapper.has-error.is-focused {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--color-danger, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
 }
 
 .dark .mobile-input__wrapper.is-disabled {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-bg, #09090b) !important;
 }
 
 .dark .mobile-input__wrapper.is-readonly {
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(255, 255, 255, 0.01) !important;
+}
+
+.dark .mobile-input__field {
+  color: var(--color-text, #f5f5f5) !important;
+}
+
+.dark .mobile-input__field::placeholder {
+  color: var(--color-text-tertiary, #71717a);
 }
 
 .dark .mobile-input__field:-webkit-autofill,
 .dark .mobile-input__field:-webkit-autofill:hover,
 .dark .mobile-input__field:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 48px rgba(255, 255, 255, 0.03) inset;
+  -webkit-box-shadow: 0 0 0 48px var(--color-surface, #18181b) inset;
 }
 
 .dark .mobile-input__clear {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-border-strong, #52525b);
+  color: var(--color-text-inverse, #0d0d0d);
 }
 
-.dark .mobile-input__clear:active {
-  background: rgba(255, 255, 255, 0.2);
+.dark .mobile-input__eye {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .mobile-input__label {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .mobile-input__prefix,
+.dark .mobile-input__suffix {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .mobile-input__hint {
+  color: var(--color-text-tertiary, #71717a);
 }
 
 /* 高对比度模式 */
@@ -366,7 +525,8 @@ defineExpose({
 /* 减少动画 */
 @media (prefers-reduced-motion: reduce) {
   .mobile-input__wrapper,
-  .mobile-input__clear {
+  .mobile-input__clear,
+  .mobile-input__eye {
     transition: none;
   }
 
@@ -377,8 +537,8 @@ defineExpose({
 
 /* 触摸优化 */
 @media (hover: none) and (pointer: coarse) {
-  .mobile-input__wrapper:active {
-    background: rgba(10, 132, 255, 0.03);
+  .mobile-input__clear:active {
+    transform: scale(0.9);
   }
 }
 </style>

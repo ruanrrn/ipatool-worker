@@ -1,0 +1,261 @@
+<template>
+  <MobileCard
+    v-if="showActionCard"
+    class="progress-panel"
+    shadow="never"
+  >
+    <!-- Progress Bar (if downloading) -->
+    <div
+      v-if="downloading && progressPercent !== undefined && progressPercent < 100"
+      class="progress-panel__progress"
+    >
+      <ProgressBar
+        :percent="progressPercent"
+        size="default"
+      />
+      <div class="progress-panel__info">
+        <span>{{ progressStage || '下载中' }} {{ progressPercent }}%</span>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div
+      v-if="logs"
+      class="log-container"
+    >
+      <pre class="log-text">{{ logs }}</pre>
+    </div>
+
+    <!-- Environment Warning -->
+    <div
+      v-if="!isHttps && currentProtocol !== 'http:'"
+      class="status-panel mb-3 p-3"
+    >
+      <div class="flex items-start space-x-2">
+        <svg
+          class="w-4 h-4 text-txt-secondary mt-0.5 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <div class="flex-1">
+          <p class="text-caption text-txt-secondary font-medium">
+            环境检测
+          </p>
+          <p class="text-nano text-warning mt-1">
+            当前协议: {{ currentProtocol || '未知' }} | iOS 安装需要 HTTPS 环境
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download/Install Actions (when completed) -->
+    <div
+      v-if="downloadUrl || installUrl"
+      class="grid gap-3 sm:grid-cols-2"
+    >
+      <MobileButton
+        v-if="downloadUrl"
+        type="primary"
+        size="large"
+        class="w-full"
+        @click="$emit('download-ipa')"
+      >
+        <template #icon>
+          <i><Download /></i>
+        </template>
+        下载 IPA{{ fileSize ? `（${formatFileSize(fileSize)}）` : '' }}
+      </MobileButton>
+      <a
+        v-if="otaInstallable && installUrl && isHttps"
+        :href="installUrl"
+        class="block w-full"
+      >
+        <MobileButton
+          type="primary"
+          size="large"
+          class="w-full"
+        >
+          <template #icon><i><Install /></i></template>
+          安装到设备
+        </MobileButton>
+      </a>
+      <MobileButton
+        v-else-if="otaInstallable && installUrl"
+        type="primary"
+        size="large"
+        class="w-full"
+        @click="$emit('install-ipa')"
+      >
+        <template #icon>
+          <i><Install /></i>
+        </template>
+        安装到设备
+      </MobileButton>
+      <MobileTag
+        v-else-if="installMethod === 'download_only' && inspection && inspection.summary"
+        size="large"
+        type="primary"
+        class="w-full text-center"
+      >
+        仅下载
+      </MobileTag>
+      <MobileTag
+        v-else-if="installMethod === 'download_only'"
+        size="large"
+        type="primary"
+        class="w-full text-center"
+      >
+        仅下载
+      </MobileTag>
+    </div>
+
+    <p class="text-nano text-txt-secondary text-center">
+      下载和安装已分离，请按需手动操作
+    </p>
+    <p
+      v-if="installUrl && !isHttps"
+      class="text-nano text-txt-secondary mt-1 text-center"
+    >
+      ⚠️ 按 OpenList / Oplist 方案，OTA 安装必须满足 HTTPS + 有效证书 + 已签名 IPA；若在 Telegram 内置浏览器中打开，也请改用 Safari
+    </p>
+  </MobileCard>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import ProgressBar from './ProgressBar.vue'
+import MobileButton from './MobileButton.vue'
+import MobileCard from './MobileCard.vue'
+import MobileTag from './MobileTag.vue'
+import { Download, Install } from './icons'
+
+defineEmits(['download-ipa', 'install-ipa'])
+
+const props = defineProps({
+  // Progress state
+  downloading: {
+    type: Boolean,
+    default: false
+  },
+  progressPercent: {
+    type: Number,
+    default: 0
+  },
+  progressStage: {
+    type: String,
+    default: ''
+  },
+  logs: {
+    type: String,
+    default: ''
+  },
+  // Download result state
+  downloadUrl: {
+    type: String,
+    default: ''
+  },
+  installUrl: {
+    type: String,
+    default: ''
+  },
+  fileSize: {
+    type: Number,
+    default: 0
+  },
+  otaInstallable: {
+    type: Boolean,
+    default: false
+  },
+  installMethod: {
+    type: String,
+    default: ''
+  },
+  inspection: {
+    type: Object,
+    default: null
+  },
+  // Environment
+  isHttps: {
+    type: Boolean,
+    default: false
+  },
+  currentProtocol: {
+    type: String,
+    default: ''
+  }
+})
+
+const showActionCard = computed(() => {
+  return props.downloading || props.downloadUrl || props.installUrl
+})
+
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+}
+</script>
+
+<style scoped>
+.progress-panel {
+  margin-top: 16px;
+}
+
+.progress-panel__progress {
+  margin-bottom: 12px;
+}
+
+.progress-panel__info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.log-container {
+  padding: 12px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--color-surface-muted);
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.log-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.status-panel {
+  border-radius: 14px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+}
+
+.dark .log-container {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.dark .status-panel {
+  background: var(--color-surface);
+  border-color: var(--color-surface-muted);
+}
+</style>

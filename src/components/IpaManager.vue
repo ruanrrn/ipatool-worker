@@ -1,219 +1,353 @@
 <template>
-  <div class="space-y-4">
-    <!-- Active download tasks (only visible when tasks exist) -->
-    <section
-      v-if="activeTasks.length > 0"
-      class="space-y-4"
-    >
-      <div class="card flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center space-x-3">
-          <div class="hero-icon">
-            <svg
-              class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-          </div>
-          <div>
-            <h2 class="text-xl font-bold text-primary">下载中</h2>
-            <p class="text-sm text-secondary">{{ activeTasks.length }} 个任务进行中</p>
-          </div>
+  <div class="queue-page space-y-0">
+    <div class="queue-page__fixed px-5">
+      <!-- Page Title + Segment Row -->
+      <div class="queue-header">
+        <div class="queue-header__title-wrap">
+          <h1 class="page-title text-txt dark:text-txt-dark">
+            队列
+          </h1>
+          <span class="queue-header__storage">占用 {{ formatFileSize(ipaStorageBytes) }}</span>
+        </div>
+        <div class="queue-header__right">
+          <button
+            v-if="artifacts.length > 0"
+            class="q-btn q-btn--danger-text"
+            @click="clearAllArtifacts"
+          >
+            一键清除
+          </button>
         </div>
       </div>
+      <div class="queue-segment">
+        <button
+          class="queue-seg"
+          :class="{ active: activeTab === 'completed' }"
+          @click="activeTab = 'completed'"
+        >
+          已完成 ({{ completedCount }})
+        </button>
+        <button
+          class="queue-seg"
+          :class="{ active: activeTab === 'active' }"
+          @click="activeTab = 'active'"
+        >
+          活跃 ({{ activeTasks.length }})
+        </button>
+      </div>
+    </div>
 
-      <div
-        v-for="task in activeTasks"
-        :key="task.id"
-        class="task-row"
-      >
-        <AppArtwork
-          :src="task.artworkUrl"
-          :alt="task.appName"
-          :label="task.appName"
-        />
-        <div class="task-main">
-          <div class="task-top">
-            <div class="min-w-0">
-              <div class="task-title">{{ task.appName }}</div>
-              <div class="task-meta">
-                <span>版本 {{ task.version || '未知' }}</span>
-                <span>账号 {{ task.accountEmail || task.account?.email || '未知账号' }}</span>
-              </div>
-            </div>
-            <MobileTag :type="statusTagType(task.status)" size="small">{{ statusLabel(task.status) }}</MobileTag>
-          </div>
-          <div class="task-info">
-            <span v-if="task.fileSize">大小 {{ formatFileSize(task.fileSize) }}</span>
-            <span v-if="task.progress !== undefined">进度 {{ task.progress }}%</span>
-            <span v-if="task.stage">阶段 {{ task.stage }}</span>
+    <div class="queue-page__scroll">
+      <div class="queue-page__scroll-inner px-5">
+        <!-- Active Tab -->
+        <div
+          v-show="activeTab === 'active'"
+          class="queue-panel"
+        >
+          <!-- Active tasks -->
+          <div
+            v-if="activeTasks.length === 0"
+            class="queue-empty"
+          >
+            <EmptyState
+              type="empty"
+              text="队列为空"
+            />
           </div>
           <div
-            v-if="task.status !== 'completed' && task.status !== 'failed' && task.progress !== undefined"
-            class="mobile-progress"
-            role="progressbar"
-            :aria-valuenow="task.progress"
-            aria-valuemin="0"
-            aria-valuemax="100"
+            v-else
+            class="queue-list"
           >
-            <div class="mobile-progress__bar" :style="{ width: `${task.progress}%` }" />
-          </div>
-          <div v-if="task.error" class="task-error">{{ task.error }}</div>
-          <div class="task-actions">
-            <MobileButton v-if="task.status === 'completed' && task.downloadUrl" type="primary" size="small" @click="download(task.downloadUrl)">下载</MobileButton>
-            <MobileButton v-if="task.status === 'completed' && task.otaInstallable && task.installUrl" type="primary" size="small" @click="install(task.installUrl)">安装</MobileButton>
-            <MobileButton v-else-if="task.status === 'completed' && task.installMethod === 'download_only'" size="small" type="primary" disabled>仅下载</MobileButton>
-            <MobileButton size="small" type="danger" @click="removeTask(task.id)">
-              {{ task.status === 'completed' || task.status === 'failed' ? '移除' : '取消' }}
-            </MobileButton>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- IPA files -->
-    <div class="card flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center space-x-3">
-        <div class="hero-icon">
-          <svg class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)] text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-primary">IPA 管理</h2>
-          <p class="text-sm text-secondary">{{ artifacts.length }} 个文件 · 已占用 {{ formatStorageM(ipaStorageBytes) }}</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <MobileButton v-if="selectedCount > 0" size="small" type="danger" @click="removeSelectedArtifacts">
-          清理{{ selectedCount }}个
-        </MobileButton>
-
-        <label class="inline-upload">
-          <input
-            ref="uploadInputRef"
-            type="file"
-            accept=".ipa"
-            class="sr-only"
-            :disabled="uploading"
-            @change="onUploadFileSelected"
-          />
-          <MobileButton size="small" :loading="uploading" :disabled="uploading">
-            <template #icon>
-              <!-- upload icon -->
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
-                <path d="M12 3v12" />
-                <path d="M7 8l5-5 5 5" />
-                <path d="M21 21H3" />
-              </svg>
-            </template>
-            {{ uploading ? `上传中 ${uploadProgress}%` : '上传 IPA' }}
-          </MobileButton>
-        </label>
-
-        <MobileButton size="small" :loading="ipaLoading" @click="loadArtifacts">刷新</MobileButton>
-      </div>
-    </div>
-
-    <div v-if="artifacts.length > 0" class="space-y-4">
-      <div v-for="item in artifacts" :key="item.id" class="artifact-row">
-        <div class="artifact-check">
-          <MobileCheckbox :model-value="selectedIds.includes(item.id)" @update:modelValue="(checked) => toggleArtifact(item.id, checked)" />
-        </div>
-        <AppArtwork :src="item.artworkUrl" :alt="item.appName" :label="item.appName" />
-        <div class="artifact-main">
-          <div class="artifact-top">
-            <div class="min-w-0">
-              <div class="artifact-title">{{ item.appName }}</div>
-              <div class="artifact-meta">
-                <span>版本 {{ item.version || '未知' }}</span>
-                <span>账号 {{ item.accountEmail || '未知账号' }}</span>
-                <span>{{ formatFileSize(item.fileSize) }}</span>
+            <div
+              v-for="task in activeTasks"
+              :key="task.id"
+              class="queue-item"
+            >
+              <!-- Icon -->
+              <AppArtwork
+                :src="task.artworkUrl"
+                :alt="task.appName"
+                :label="task.appName"
+                class="queue-item__icon"
+              />
+              <!-- Info -->
+              <div class="queue-item__info">
+                <div class="queue-item__name">
+                  {{ task.appName }}
+                </div>
+                <div class="queue-item__meta">
+                  <span>版本 {{ task.version || '未知' }}</span>
+                  <span>{{ task.accountEmail || task.account?.email || '未知账号' }}</span>
+                </div>
+                <!-- Progress -->
+                <div
+                  v-if="task.status !== 'failed' && task.progress !== undefined"
+                  class="queue-item__progress"
+                >
+                  <ProgressBar
+                    :percent="task.progress"
+                    :color="task.stage === 'signing' ? 'var(--color-warning, #f59e0b)' : 'var(--color-primary, #10a37f)'"
+                    size="default"
+                  />
+                  <div class="queue-item__progress-info">
+                    <span>{{ task.stage || '下载中' }} {{ task.progress }}%</span>
+                    <span v-if="task.fileSize">{{ formatFileSize(task.fileSize) }}</span>
+                  </div>
+                </div>
+                <!-- Error -->
+                <div
+                  v-if="task.error"
+                  class="queue-item__error"
+                >
+                  {{ task.error }}
+                </div>
+              </div>
+              <!-- Actions -->
+              <div class="queue-item__actions">
+                <button
+                  class="q-btn q-btn--pause"
+                  :title="pausedTasks.has(task.id) ? '继续任务' : '暂停任务'"
+                  @click="togglePause(task.id)"
+                >
+                  <svg
+                    v-if="!pausedTasks.has(task.id)"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="none"
+                  >
+                    <rect
+                      x="6"
+                      y="4"
+                      width="4"
+                      height="16"
+                      rx="1"
+                    />
+                    <rect
+                      x="14"
+                      y="4"
+                      width="4"
+                      height="16"
+                      rx="1"
+                    />
+                  </svg>
+                  <svg
+                    v-else
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="none"
+                  >
+                    <polygon points="6,4 20,12 6,20" />
+                  </svg>
+                </button>
+                <button
+                  class="q-btn"
+                  title="取消任务"
+                  @click="removeTask(task.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <line
+                      x1="18"
+                      y1="6"
+                      x2="6"
+                      y2="18"
+                    />
+                    <line
+                      x1="6"
+                      y1="6"
+                      x2="18"
+                      y2="18"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-          <div class="artifact-actions">
-            <MobileButton type="primary" size="small" @click="download(item.downloadUrl)">下载</MobileButton>
-            <MobileButton v-if="item.otaInstallable && item.installUrl" type="primary" size="small" @click="install(item.installUrl)">安装</MobileButton>
-            <span v-else-if="item.installMethod === 'download_only' && item.inspection" :title="item.inspection.summary">
-              <MobileButton size="small" type="primary" disabled>仅下载</MobileButton>
-            </span>
-            <MobileButton v-else-if="item.installMethod === 'download_only'" size="small" type="primary" disabled>仅下载</MobileButton>
-            <MobileButton v-else type="primary" size="small" disabled>安装</MobileButton>
-            <MobileButton type="danger" size="small" @click="removeArtifact(item)">删除</MobileButton>
+        </div>
+
+        <!-- Completed Tab -->
+        <div
+          v-show="activeTab === 'completed'"
+          class="queue-panel"
+        >
+          <!-- Completed Items -->
+          <div
+            v-if="artifacts.length === 0"
+            class="queue-empty"
+          >
+            <EmptyState
+              type="empty"
+              text="暂无已完成文件"
+            />
+          </div>
+          <div
+            v-else
+            class="queue-list queue-list--completed"
+          >
+            <div
+              v-for="item in artifacts"
+              :key="item.id"
+              class="queue-item queue-item--done"
+            >
+              <!-- Icon -->
+              <AppArtwork
+                :src="item.artworkUrl"
+                :alt="item.appName"
+                :label="item.appName"
+                class="queue-item__icon"
+              />
+              <!-- Info -->
+              <div class="queue-item__info">
+                <div class="queue-item__name">
+                  {{ item.appName }}
+                </div>
+                <div class="queue-item__meta">
+                  <span>v{{ item.version || '未知' }}</span>
+                  <span>{{ formatFileSize(item.fileSize) }}</span>
+                </div>
+              </div>
+              <!-- Actions -->
+              <div class="queue-item__actions">
+                <button
+                  class="q-btn q-btn--download"
+                  title="下载"
+                  @click="download(item.downloadUrl)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line
+                      x1="12"
+                      y1="15"
+                      x2="12"
+                      y2="3"
+                    />
+                  </svg>
+                </button>
+                <button
+                  v-if="item.otaInstallable && item.installUrl"
+                  class="q-btn q-btn--install"
+                  title="安装"
+                  @click="install(item.installUrl)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                </button>
+                <button
+                  class="q-btn q-btn--danger"
+                  title="删除"
+                  @click="removeArtifact(item)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- Delete Confirm Dialog (MobileConfirm — Orbit v3) -->
+        <MobileConfirm
+          v-model="deleteDialogVisible"
+          icon="🗑️"
+          icon-color="#fef2f2"
+          title="删除 IPA 文件"
+          :message="pendingDeleteItem ? `确定删除「${pendingDeleteItem.appName}」${pendingDeleteItem.version ? 'v' + pendingDeleteItem.version : ''}吗？此操作不可恢复。` : '确定删除这个 IPA 文件吗？'"
+          confirm-text="删除"
+          cancel-text="取消"
+          type="danger"
+          :close-on-click-overlay="false"
+          @confirm="confirmDeleteArtifact"
+          @cancel="closeDeleteDialog"
+        />
       </div>
     </div>
-
-    <div
-      v-if="activeTasks.length === 0 && artifacts.length === 0"
-      class="empty-state py-12 text-center text-secondary"
-    >
-      <svg class="mx-auto h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-      </svg>
-      <p class="text-lg font-medium">暂无 IPA 文件</p>
-      <p class="text-sm mt-2">下载完成后会出现在这里</p>
-    </div>
-
-    <div v-if="uploading" class="-mt-2">
-      <div class="mobile-progress mobile-progress--thick" role="progressbar" :aria-valuenow="uploadProgress" aria-valuemin="0" aria-valuemax="100">
-        <div class="mobile-progress__bar" :style="{ width: `${uploadProgress}%` }" />
-      </div>
-    </div>
-
-    <MobileDialog
-      :model-value="deleteDialogVisible"
-      title="确认删除 IPA"
-      :close-on-click-overlay="false"
-      @update:modelValue="onDeleteDialogUpdate"
-    >
-      <div class="space-y-3 text-sm">
-        <p class="text-primary">确定删除这个 IPA 文件吗？</p>
-        <div v-if="pendingDeleteItem" class="inline-panel text-xs text-secondary break-all">
-          <div class="font-medium text-primary">{{ pendingDeleteItem.appName }}</div>
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <MobileButton :disabled="deletingArtifact" @click="closeDeleteDialog">取消</MobileButton>
-          <MobileButton type="danger" :loading="deletingArtifact" @click="confirmDeleteArtifact">删除</MobileButton>
-        </div>
-      </template>
-    </MobileDialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import MobileButton from './MobileButton.vue'
-import MobileCheckbox from './MobileCheckbox.vue'
-import MobileDialog from './MobileDialog.vue'
-import MobileTag from './MobileTag.vue'
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue'
+import { API_BASE } from '../config.js'
+
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
+import MobileConfirm from './MobileConfirm.vue'
 import AppArtwork from './AppArtwork.vue'
+import ProgressBar from './ProgressBar.vue'
+import EmptyState from './EmptyState.vue'
 import { useAppStore } from '../stores/app'
+import { apiFetch } from '../utils/api.js'
+import { useJobPolling } from '../composables/useJobPolling.js'
 
-const API_BASE = '/api'
-const uploadUrl = `${API_BASE}/upload-ipa`
 
 const props = defineProps({
   queue: { type: Array, default: () => [] }
 })
 const emit = defineEmits(['remove-item'])
 const appStore = useAppStore()
+
+// ── Tab State ──
+const activeTab = computed({
+  get: () => appStore.queueTab || 'completed',
+  set: (value) => {
+    appStore.queueTab = value
+  }
+})
+
+// ── Pause state ──
+const pausedTasks = reactive(new Set())
+
+const togglePause = (taskId) => {
+  if (pausedTasks.has(taskId)) {
+    pausedTasks.delete(taskId)
+  } else {
+    pausedTasks.add(taskId)
+  }
+}
 
 // ── Shared helpers ──
 
@@ -262,105 +396,76 @@ const formatFileSize = (bytes) => {
   return `${value.toFixed(value >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
-const formatStorageM = (bytes) => `${(Number(bytes || 0) / 1024 / 1024).toFixed(1)} M`
-
-const statusTagType = (status) => {
-  if (status === 'completed' || status === 'ready') return 'success'
-  if (status === 'failed' || status === 'error') return 'danger'
-  return 'warning'
-}
-
-const statusLabel = (status) => {
-  if (status === 'completed' || status === 'ready') return '已完成'
-  if (status === 'failed' || status === 'error') return '失败'
-  return '进行中'
-}
-
 // ── Active download tasks ──
-
-const pollTimers = new Map()
-const pollFailureCounts = new Map()
-const MAX_POLL_FAILURES = 5
 
 // Only show tasks that are NOT in a final state
 const activeTasks = computed(() => props.queue.filter(task => !['completed', 'ready'].includes(task?.status)))
 
-const isFinalStatus = (status) => ['completed', 'ready', 'failed', 'error'].includes(status)
+const completedCount = computed(() => artifacts.value.length)
 
-const stopTaskPolling = (taskId) => {
-  const timer = pollTimers.get(taskId)
-  if (timer) { clearInterval(timer); pollTimers.delete(taskId) }
-  pollFailureCounts.delete(taskId)
-}
-
-const markTaskInterrupted = (taskId, message = '任务已失效，可能是服务重启，请重新发起下载') => {
-  stopTaskPolling(taskId)
-  appStore.updateQueueItem(taskId, { status: 'failed', stage: 'interrupted', error: message })
-}
-
-const syncTaskSnapshot = async (taskId, snapshot) => {
-  const updates = {
-    stage: snapshot.stage || '',
-    progress: snapshot.progress ?? 0,
-    error: snapshot.error || '',
-    status: snapshot.status === 'ready' ? 'completed' : snapshot.status,
-    packageKind: snapshot.packageKind,
-    otaInstallable: snapshot.otaInstallable,
-    installMethod: snapshot.installMethod,
-    inspection: snapshot.inspection
-  }
-  if (snapshot.status === 'ready') {
-    updates.progress = 100
-    updates.downloadUrl = snapshot.downloadUrl
-    updates.installUrl = snapshot.installUrl
-    updates.fileSize = snapshot.fileSize || 0
-    stopTaskPolling(taskId)
+// Initialize job polling composable
+const { syncPolling, stopPolling } = useJobPolling({
+  isFinalStatus: (status) => ['completed', 'ready', 'failed', 'error'].includes(status),
+  pollInterval: 1500,
+  maxFailures: 5,
+  onUpdate: (taskId, snapshot) => {
+    // Sync task snapshot
+    const updates = {
+      stage: snapshot.stage || '',
+      progress: snapshot.progress ?? 0,
+      error: snapshot.error || '',
+      status: snapshot.status === 'ready' ? 'completed' : snapshot.status,
+      packageKind: snapshot.packageKind,
+      otaInstallable: snapshot.otaInstallable,
+      installMethod: snapshot.installMethod,
+      inspection: snapshot.inspection
+    }
+    appStore.updateQueueItem(taskId, updates)
+  },
+  onComplete: async (taskId, snapshot) => {
+    // Handle completion
+    const updates = {
+      progress: 100,
+      downloadUrl: snapshot.downloadUrl,
+      installUrl: snapshot.installUrl,
+      fileSize: snapshot.fileSize || 0,
+      packageKind: snapshot.packageKind,
+      otaInstallable: snapshot.otaInstallable,
+      installMethod: snapshot.installMethod,
+      inspection: snapshot.inspection
+    }
+    appStore.updateQueueItem(taskId, updates)
     // Refresh IPA list when download completes
     await loadArtifacts()
-  } else if (snapshot.status === 'failed') {
-    stopTaskPolling(taskId)
+  },
+  onFailed: (taskId, snapshot) => {
+    // Handle failure - polling already stopped by composable
+    appStore.updateQueueItem(taskId, {
+      stage: snapshot.stage || '',
+      error: snapshot.error || '任务失败',
+      status: snapshot.status === 'ready' ? 'completed' : snapshot.status
+    })
+  },
+  onInterrupted: (taskId, message) => {
+    // Handle interrupted task
+    appStore.updateQueueItem(taskId, {
+      status: 'failed',
+      stage: 'interrupted',
+      error: message
+    })
+  },
+  onError: (taskId, message, failureCount) => {
+    // Handle polling errors (non-fatal)
+    console.warn(`Polling error for task ${taskId} (${failureCount}/${5}): ${message}`)
   }
-  appStore.updateQueueItem(taskId, updates)
-}
+})
 
-const pollTaskStatus = async (taskId) => {
-  try {
-    const response = await fetch(`${API_BASE}/job-info?jobId=${encodeURIComponent(taskId)}`, { credentials: 'include' })
-    if (response.status === 404) { markTaskInterrupted(taskId); return }
-    const data = await response.json()
-    if (!response.ok || !data.ok || !data.data) {
-      if (response.status >= 400) markTaskInterrupted(taskId, data?.error || '任务状态获取失败')
-      return
-    }
-    pollFailureCounts.delete(taskId)
-    await syncTaskSnapshot(taskId, data.data)
-  } catch (error) {
-    const failureCount = (pollFailureCounts.get(taskId) || 0) + 1
-    pollFailureCounts.set(taskId, failureCount)
-    if (failureCount >= MAX_POLL_FAILURES) markTaskInterrupted(taskId, '轮询多次失败，请检查网络')
-  }
-}
-
-const ensureTaskPolling = (task) => {
-  if (!task?.id || isFinalStatus(task.status) || pollTimers.has(task.id)) return
-  pollTaskStatus(task.id)
-  const timer = setInterval(() => pollTaskStatus(task.id), 1500)
-  pollTimers.set(task.id, timer)
-}
-
-const syncActiveTaskPolling = () => {
-  const activeIds = new Set()
-  for (const task of props.queue) {
-    if (task?.id && !isFinalStatus(task.status)) { activeIds.add(task.id); ensureTaskPolling(task) }
-  }
-  for (const taskId of pollTimers.keys()) {
-    if (!activeIds.has(taskId)) stopTaskPolling(taskId)
-  }
-}
+// Helper to check if task is in final state
+const isFinalStatus = (status) => ['completed', 'ready', 'failed', 'error'].includes(status)
 
 const removeTask = async (id) => {
   const task = props.queue.find(t => t?.id === id)
-  if (!task) { stopTaskPolling(id); emit('remove-item', id); return }
+  if (!task) { stopPolling(id); emit('remove-item', id); return }
   const isActive = !isFinalStatus(task.status)
   if (isActive) {
     const confirmed = await Confirm.show({
@@ -372,7 +477,7 @@ const removeTask = async (id) => {
     })
     if (!confirmed) return
   }
-  stopTaskPolling(id)
+  stopPolling(id)
   emit('remove-item', id)
 }
 
@@ -380,26 +485,18 @@ const removeTask = async (id) => {
 
 const artifacts = ref([])
 const ipaLoading = ref(false)
-const selectedIds = ref([])
 const deleteDialogVisible = ref(false)
 const deletingArtifact = ref(false)
 const pendingDeleteItem = ref(null)
-const uploading = ref(false)
-const uploadProgress = ref(0)
-const uploadInputRef = ref(null)
 
 const ipaStorageBytes = computed(() => artifacts.value.reduce((sum, item) => sum + Number(item.fileSize || 0), 0))
-const selectedCount = computed(() => selectedIds.value.length)
 
 const loadArtifacts = async () => {
   ipaLoading.value = true
   try {
-    const response = await fetch(`${API_BASE}/ipa-files`, { credentials: 'include' })
-    const data = await response.json()
+    const { data } = await apiFetch(`${API_BASE}/ipa-files`)
     if (!data.ok) throw new Error(data.error || '加载失败')
     artifacts.value = data.data || []
-    const validIds = new Set(artifacts.value.map(item => item.id))
-    selectedIds.value = selectedIds.value.filter(id => validIds.has(id))
   } catch (error) {
     Toast.error(error.message || '加载失败')
   } finally {
@@ -408,8 +505,7 @@ const loadArtifacts = async () => {
 }
 
 const deleteArtifactById = async (id) => {
-  const response = await fetch(`${API_BASE}/ipa-files/${id}`, { method: 'DELETE', credentials: 'include' })
-  const data = await response.json()
+  const { response, data } = await apiFetch(`${API_BASE}/ipa-files/${id}`, { method: 'DELETE' })
   if (data.ok) return { missing: false }
   if (response.status === 404 || data.error === 'IPA 文件不存在') return { missing: true }
   throw new Error(data.error || '删除失败')
@@ -432,7 +528,6 @@ const confirmDeleteArtifact = async () => {
   const item = pendingDeleteItem.value
   try {
     const result = await deleteArtifactById(item.id)
-    selectedIds.value = selectedIds.value.filter(id => id !== item.id)
     deleteDialogVisible.value = false
     pendingDeleteItem.value = null
     if (result.missing) {
@@ -448,305 +543,404 @@ const confirmDeleteArtifact = async () => {
   }
 }
 
-const removeSelectedArtifacts = async () => {
-  if (selectedIds.value.length === 0) return
+const clearAllArtifacts = async () => {
+  if (artifacts.value.length === 0) return
+  const totalCount = artifacts.value.length
+  const totalSizeLabel = formatFileSize(ipaStorageBytes.value)
   const confirmed = await Confirm.show({
-    title: '确认批量清理',
-    message: `确定批量清理 ${selectedIds.value.length} 个安装包吗？`,
-    confirmText: '批量清理',
+    title: '确认一键清除',
+    message: `确定清除全部 ${totalCount} 个安装包吗？当前共占用 ${totalSizeLabel}`,
+    confirmText: '全部清除',
     cancelText: '取消',
     type: 'danger'
   })
   if (!confirmed) return
 
   try {
-    for (const id of [...selectedIds.value]) { await deleteArtifactById(id) }
-    Toast.success(`已清理 ${selectedIds.value.length} 个安装包`)
-    selectedIds.value = []
+    for (const item of [...artifacts.value]) {
+      await deleteArtifactById(item.id)
+    }
+    Toast.success(`已清除全部安装包（${totalCount} 个）`)
     await loadArtifacts()
   } catch (error) {
-    Toast.error(error?.message || '批量清理失败')
+    Toast.error(error?.message || '一键清除失败')
   }
 }
 
-const toggleArtifact = (id, checked) => {
-  if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id); return }
-  selectedIds.value = selectedIds.value.filter(item => item !== id)
-}
-
-// Upload
-
-const beforeUpload = (file) => {
-  const isIPA = file.name.endsWith('.ipa')
-  const isLt2G = file.size / 1024 / 1024 / 1024 < 2
-  if (!isIPA) { Toast.error('只能上传 .ipa 格式的文件'); return false }
-  if (!isLt2G) { Toast.error('上传文件大小不能超过 2GB'); return false }
-  uploading.value = true
-  uploadProgress.value = 0
-  return true
-}
-
-const handleUploadProgress = (event) => { uploadProgress.value = Math.floor(event.percent) }
-
-const handleUploadSuccess = (response) => {
-  uploading.value = false
-  uploadProgress.value = 100
-  if (response.ok) {
-    Toast.success('文件上传成功')
-    loadArtifacts()
-  } else {
-    Toast.error(response.error || '上传失败')
-  }
-}
-
-const handleUploadError = (error) => {
-  uploading.value = false
-  uploadProgress.value = 0
-  Toast.error('上传失败：' + (error?.message || '未知错误'))
-}
-
-const uploadFileViaXHR = (file) => {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', uploadUrl, true)
-    xhr.withCredentials = true
-
-    xhr.upload.onprogress = (evt) => {
-      if (!evt.lengthComputable) return
-      const percent = evt.total ? (evt.loaded / evt.total) * 100 : 0
-      handleUploadProgress({ percent })
-    }
-
-    xhr.onerror = () => reject(new Error('网络错误'))
-
-    xhr.onload = () => {
-      try {
-        const text = xhr.responseText || '{}'
-        const json = JSON.parse(text)
-        resolve(json)
-      } catch {
-        reject(new Error('上传响应解析失败'))
-      }
-    }
-
-    const form = new FormData()
-    form.append('file', file, file.name)
-    xhr.send(form)
-  })
-}
-
-const onUploadFileSelected = async (e) => {
-  const file = e?.target?.files?.[0]
-  if (!file) return
-
-  const ok = beforeUpload(file)
-  if (!ok) {
-    if (e?.target) e.target.value = ''
-    return
-  }
-
-  try {
-    const response = await uploadFileViaXHR(file)
-    handleUploadSuccess(response)
-  } catch (err) {
-    handleUploadError(err)
-  } finally {
-    if (e?.target) e.target.value = ''
-  }
-}
-
-const onDeleteDialogUpdate = (v) => {
-  if (v) {
-    deleteDialogVisible.value = true
-    return
-  }
-  closeDeleteDialog()
-}
 
 // ── Lifecycle ──
 
 watch(
   () => props.queue.map(task => `${task?.id}:${task?.status}:${task?.progress}:${task?.stage}`),
-  () => { syncActiveTaskPolling() },
+  () => { syncPolling(props.queue) },
   { immediate: true }
 )
 
 onMounted(() => {
   loadArtifacts()
-  syncActiveTaskPolling()
+  syncPolling(props.queue)
 })
 
-onBeforeUnmount(() => {
-  for (const taskId of [...pollTimers.keys()]) stopTaskPolling(taskId)
+onActivated(() => {
+  loadArtifacts()
 })
 </script>
 
 <style scoped>
-.task-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
-  border: var(--border-width-thin) solid var(--separator);
-  background: var(--card-bg);
-}
-
-.task-main {
-  min-width: 0;
+.queue-page {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
-.task-top {
+.queue-page__fixed {
+  flex-shrink: 0;
+  padding-top: 20px;
+}
+
+.queue-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.queue-page__scroll-inner {
+  padding-bottom: 24px;
+}
+
+.queue-panel {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  flex-direction: column;
 }
 
-.task-title {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.task-meta,
-.task-info {
+.queue-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3-5);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  flex-direction: column;
+  gap: 8px;
 }
 
-.task-actions {
+.queue-list--completed {
+  padding-top: 8px;
+}
+
+/* Page title + header row */
+.queue-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  margin-bottom: 16px;
 }
-
-.task-error {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-.artifact-row {
+.queue-header__title-wrap {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-card);
-  border: var(--border-width-thin) solid var(--separator);
-  background: var(--card-bg);
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.queue-header__storage {
+  font-size: 12px;
+  color: var(--color-text-muted, #6e6e80);
+  white-space: nowrap;
+}
+.queue-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.artifact-main {
-  flex: 1;
-  min-width: 0;
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0;
+}
+
+/* Segment Control */
+.queue-segment {
+ display: flex;
+ gap: 0;
+ background: var(--color-surface-muted, #f7f7f8);
+ border-radius: 12px;
+ padding: 3px;
+ margin-bottom: 0;
+}
+.dark .queue-segment {
+ background: var(--color-surface, #18181b);
+}
+
+.queue-seg {
+ flex: 1;
+ padding: 9px;
+ text-align: center;
+ font-size: 13px;
+ font-weight: 500;
+ border-radius: 10px;
+ color: var(--color-text-muted, #6e6e80);
+ border: none;
+ background: transparent;
+ cursor: pointer;
+ transition: all 0.2s ease;
+ -webkit-tap-highlight-color: transparent;
+}
+.dark .queue-seg {
+ color: var(--color-text-muted, #a1a1aa);
+}
+
+.queue-seg.active {
+ background: var(--color-surface, #fff);
+ color: var(--color-text, #0d0d0d);
+ box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.dark .queue-seg.active {
+ background: var(--color-surface-muted, #27272a);
+ color: var(--color-text, #f5f5f5);
+ box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark .page-title {
+  color: var(--color-text, #f5f5f5);
+}
+.dark .queue-header__storage {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .queue-item--done {
+ background: var(--color-surface, #18181b);
+ border-color: var(--color-surface-muted, #27272a);
+}
+
+/* Queue Item */
+.queue-item {
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ padding: 14px;
+ background: var(--color-surface, #fff);
+ border: 1px solid var(--color-border, #ebebeb);
+ border-radius: 14px;
+ transition: opacity 0.2s ease;
+}
+.queue-item:active {
+ opacity: 0.8;
+}
+.dark .queue-item {
+ background: var(--color-surface, #18181b);
+ border-color: var(--color-surface-muted, #27272a);
+}
+
+/* Queue empty state */
+.queue-empty {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 220px;
+  padding: 8px 0 16px;
 }
 
-.artifact-top {
+/* Dark mode for empty state background (inherits from page, no extra needed) */
+
+/* Icon container — override AppArtwork sizing */
+.queue-item__icon {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 11px !important;
+  flex-shrink: 0;
+}
+
+/* Info area */
+.queue-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-item__name {
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--color-text, #0d0d0d);
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+.dark .queue-item__name {
+ color: var(--color-text, #f5f5f5);
+}
+
+.queue-item__meta {
+ display: flex;
+ gap: 10px;
+ font-size: 11px;
+ color: var(--color-text-muted, #6e6e80);
+ margin-top: 2px;
+}
+.dark .queue-item__meta {
+ color: var(--color-text-muted, #a1a1aa);
+}
+
+/* Progress area */
+.queue-item__progress {
+ margin-top: 6px;
+}
+
+.queue-item__progress-info {
+ display: flex;
+ justify-content: space-between;
+ font-size: 10px;
+ color: var(--color-text-muted, #6e6e80);
+ margin-top: 3px;
+}
+.dark .queue-item__progress-info {
+ color: var(--color-text-muted, #a1a1aa);
+}
+
+/* Error text */
+.queue-item__error {
+ font-size: 11px;
+ color: var(--color-danger, #ef4444);
+ margin-top: 4px;
+}
+
+/* Actions */
+.queue-item__actions {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-3);
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.artifact-title {
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-primary);
+/* Action button base */
+.q-btn {
+ width: 32px;
+ height: 32px;
+ border-radius: 8px;
+ border: 1px solid var(--color-border, #ebebeb);
+ background: var(--color-surface, #fff);
+ color: var(--color-text-muted, #6e6e80);
+ font-size: 14px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ cursor: pointer;
+ transition: all 0.2s ease;
+ -webkit-tap-highlight-color: transparent;
+ padding: 0;
+}
+.dark .q-btn {
+ background: var(--color-surface, #18181b);
+ border-color: var(--color-surface-muted, #27272a);
+ color: var(--color-text-muted, #a1a1aa);
+}
+.q-btn:active {
+  opacity: 0.7;
+}
+
+.q-btn--download {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+}
+.dark .q-btn--download {
+  color: var(--color-primary);
+  border-color: rgba(16, 163, 127, 0.3);
+  background: rgba(16, 163, 127, 0.15);
+}
+
+.q-btn--install {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+}
+.dark .q-btn--install {
+  color: var(--color-primary);
+  border-color: rgba(16, 163, 127, 0.3);
+  background: rgba(16, 163, 127, 0.15);
+}
+
+.q-btn--danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+.dark .q-btn--danger {
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.q-btn--pause {
+  color: var(--color-warning);
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+.dark .q-btn--pause {
+  color: var(--color-warning);
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.q-btn--more {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+.dark .q-btn--more {
+  color: var(--color-text-muted);
+  border-color: var(--color-surface-muted);
+}
+
+/* Text-style danger button for header actions */
+.q-btn--danger-text {
+  width: auto;
+  height: auto;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-danger-border);
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+.dark .q-btn--danger-text {
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.q-btn--danger-text:active {
+ opacity: 0.7;
 }
 
-.artifact-meta {
+/* Upload bar */
+.upload-bar-wrap {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3-5);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  align-items: center;
+  gap: 8px;
+}
+.upload-bar-text {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dark .upload-bar-text {
+  color: var(--color-text-muted);
 }
 
+/* Inline upload label */
 .inline-upload {
   display: inline-flex;
 }
 
-.artifact-check {
-  display: flex;
-  align-items: center;
-  padding-top: var(--space-1);
+/* Animation for refresh button */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-
-.artifact-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.mobile-progress {
-  width: 100%;
-  height: 10px;
-  background: color-mix(in srgb, var(--separator) 55%, transparent);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.mobile-progress--thick {
-  height: 12px;
-}
-
-.mobile-progress__bar {
-  height: 100%;
-  background: var(--accent-blue);
-  border-radius: var(--radius-full);
-  transition: width 0.15s ease;
-}
-
-@media (max-width: 767px) {
-  .task-top {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .task-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-  }
-
-  .task-actions :deep(.mobile-button) {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .artifact-top {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 </style>

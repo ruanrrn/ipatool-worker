@@ -1,8 +1,12 @@
 <template>
-  <!-- 通用弹窗：支持 center / bottom 两种模式 -->
+  <!-- 通用弹窗：支持 center / bottom 两种模式 — Orbit v3 -->
   <Teleport to="body">
     <Transition :name="transitionName">
-      <div v-if="modelValue" class="mobile-dialog" @click="onOverlayClick">
+      <div
+        v-if="modelValue"
+        class="mobile-dialog"
+        @click="onOverlayClick"
+      >
         <div
           class="mobile-dialog__panel"
           :class="[`mobile-dialog__panel--${position}`]"
@@ -10,8 +14,20 @@
           aria-modal="true"
           @click.stop
         >
-          <header v-if="title" class="mobile-dialog__header">
-            <div class="mobile-dialog__title">{{ title }}</div>
+          <div
+            v-if="$slots.icon"
+            class="mobile-dialog__icon"
+          >
+            <slot name="icon" />
+          </div>
+
+          <header
+            v-if="title"
+            class="mobile-dialog__header"
+          >
+            <div class="mobile-dialog__title">
+              {{ title }}
+            </div>
             <button
               v-if="showClose"
               class="mobile-dialog__close"
@@ -27,7 +43,10 @@
             <slot />
           </div>
 
-          <footer v-if="$slots.footer" class="mobile-dialog__footer">
+          <footer
+            v-if="$slots.footer"
+            class="mobile-dialog__footer"
+          >
             <slot name="footer" />
           </footer>
         </div>
@@ -135,73 +154,83 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
 
-  background: var(--mask-overlay);
-  backdrop-filter: blur(var(--radius-sheet));
+  background: var(--color-overlay-dialog, rgba(0, 0, 0, 0.5));
   -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-dialog__panel {
   width: 100%;
-  max-width: 92vw;
-  border: var(--border-width-thin) solid var(--separator);
-  box-shadow: var(--shadow-none);
+  max-width: 320px;
+  border: none;
+  box-shadow: var(--shadow-dialog, 0 20px 40px rgba(0, 0, 0, 0.15));
 
-  background: color-mix(in srgb, var(--card-bg) 82%, transparent);
-  backdrop-filter: blur(var(--radius-sheet));
-
+  background: var(--color-surface, #fff);
   overflow: hidden;
 }
 
 .mobile-dialog__panel--center {
-  margin: var(--space-4);
-  border-radius: var(--radius-card);
+  margin: 40px;
+  border-radius: var(--radius-3xl, 18px);
 }
 
 .mobile-dialog__panel--bottom {
   align-self: flex-end;
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  border-radius: var(--radius-sheet, 20px) var(--radius-sheet, 20px) 0 0;
   max-width: 100vw;
+}
+
+.mobile-dialog__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
 }
 
 .mobile-dialog__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 8px;
 
-  padding: var(--space-4);
-  border-bottom: var(--border-width-thin) solid var(--separator);
+  padding: 24px 24px 0;
 }
 
 .mobile-dialog__title {
   font-family: var(--font-body);
-  font-size: var(--font-size-lg-mobile);
+  font-size: 17px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-primary, #0d0d0d);
   line-height: 1.3;
 }
 
 .mobile-dialog__close {
-  min-width: var(--size-control-md);
-  min-height: var(--size-control-md);
+  min-width: 28px;
+  min-height: 28px;
   border: none;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-lg, 10px);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-tertiary, #c0c0c0);
   cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .mobile-dialog__close:active {
-    transform: scale(0.98);
-  }
+.mobile-dialog__close:active {
+  color: var(--color-text-primary, #0d0d0d);
 }
 
 .mobile-dialog__body {
-  padding: var(--space-4);
-  color: var(--text-primary);
-  font-size: var(--font-size-base-mobile);
+  padding: 24px;
+  color: var(--color-text-secondary, #6e6e80);
+  font-size: 14px;
+  line-height: 1.5;
 
   max-height: 70vh;
   overflow: auto;
@@ -209,25 +238,35 @@ onBeforeUnmount(() => {
 }
 
 .mobile-dialog__panel--bottom .mobile-dialog__body {
-  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
 .mobile-dialog__footer {
-  padding: var(--space-4);
-  border-top: var(--border-width-thin) solid var(--separator);
+  padding: 0 24px 24px;
 }
 
 /* ==================== Animations ==================== */
 
-.mobile-dialog-center-enter-active,
+/* Center dialog: scale(0.95) + fade, 200ms ease-out enter, 150ms ease-out leave */
+.mobile-dialog-center-enter-active {
+  transition: opacity 250ms ease-out, transform 200ms ease-out;
+}
+
 .mobile-dialog-center-leave-active {
-  transition: var(--transition-default);
+  transition: opacity 200ms ease-in, transform 150ms ease-in;
 }
 
 .mobile-dialog-center-enter-from,
 .mobile-dialog-center-leave-to {
   opacity: 0;
-  transform: scale(0.96);
+}
+
+.mobile-dialog-center-enter-from .mobile-dialog__panel--center {
+  transform: scale(0.95);
+}
+
+.mobile-dialog-center-leave-to .mobile-dialog__panel--center {
+  transform: scale(0.95);
 }
 
 .mobile-dialog-center-enter-to,
@@ -236,9 +275,13 @@ onBeforeUnmount(() => {
   transform: scale(1);
 }
 
-.mobile-dialog-bottom-enter-active,
+/* Bottom sheet: slide up + fade, 300ms cubic-bezier enter, 250ms cubic-bezier leave */
+.mobile-dialog-bottom-enter-active {
+  transition: opacity 250ms ease-out;
+}
+
 .mobile-dialog-bottom-leave-active {
-  transition: var(--transition-default);
+  transition: opacity 200ms ease-in;
 }
 
 .mobile-dialog-bottom-enter-from,
@@ -246,9 +289,12 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.mobile-dialog-bottom-enter-from .mobile-dialog__panel--bottom,
+.mobile-dialog-bottom-enter-from .mobile-dialog__panel--bottom {
+  transform: translateY(100%);
+}
+
 .mobile-dialog-bottom-leave-to .mobile-dialog__panel--bottom {
-  transform: translateY(var(--space-4));
+  transform: translateY(100%);
 }
 
 .mobile-dialog-bottom-enter-to .mobile-dialog__panel--bottom,
@@ -256,15 +302,45 @@ onBeforeUnmount(() => {
   transform: translateY(0);
 }
 
+/* Bottom panel slide animation with iOS curve */
+.mobile-dialog-bottom-enter-active .mobile-dialog__panel--bottom {
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.mobile-dialog-bottom-leave-active .mobile-dialog__panel--bottom {
+  transition: transform 250ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 /* 深色模式 */
+.dark .mobile-dialog {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .dark .mobile-dialog__panel {
-  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  background: var(--color-surface, #18181b);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dark .mobile-dialog__title {
+  color: var(--color-text, #f5f5f5);
+}
+
+.dark .mobile-dialog__body {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.dark .mobile-dialog__close {
+  color: var(--color-text-tertiary, #71717a);
+}
+
+.dark .mobile-dialog__close:active {
+  color: var(--color-text, #f5f5f5);
 }
 
 /* 高对比度 */
 @media (prefers-contrast: high) {
   .mobile-dialog__panel {
-    border-width: 2px;
+    border: 2px solid var(--color-border-default, #ebebeb);
   }
 }
 
@@ -274,7 +350,12 @@ onBeforeUnmount(() => {
   .mobile-dialog-center-leave-active,
   .mobile-dialog-bottom-enter-active,
   .mobile-dialog-bottom-leave-active {
-    transition: none;
+    transition: none !important;
+  }
+
+  .mobile-dialog-bottom-enter-active .mobile-dialog__panel--bottom,
+  .mobile-dialog-bottom-leave-active .mobile-dialog__panel--bottom {
+    transition: none !important;
   }
 }
 </style>

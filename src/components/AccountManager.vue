@@ -1,832 +1,551 @@
 <template>
-  <div class="account-manager space-y-4">
-    <!-- Header -->
-    <div class="account-header">
-      <div class="header-icon">
+  <div class="appearance-page">
+    <!-- Secondary page navigation bar -->
+    <div class="ap-nav">
+      <button
+        class="ap-nav__back"
+        @click="emit('close')"
+      >
         <svg
-          class="w-[var(--size-icon-lg)] h-[var(--size-icon-lg)]"
+          class="ap-nav__back-icon"
+          viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          viewBox="0 0 24 24"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
+          <polyline points="15 18 9 12 15 6" />
         </svg>
+        返回
+      </button>
+      <div class="ap-nav__title">
+        添加 Apple ID
       </div>
-      <div class="header-text">
-        <h2 class="text-xl font-bold text-primary">
-          账号管理
-        </h2>
-        <p class="text-sm text-secondary">
-          管理 Apple ID 账号
-        </p>
-      </div>
+      <div class="ap-nav__spacer" />
     </div>
 
-    <!-- Account List -->
-    <div
-      v-if="accounts.length > 0"
-      class="accounts-section"
-    >
-      <div class="section-header">
-        <h3 class="section-title">
-          已登录账号
-        </h3>
-        <span class="section-count">{{ accounts.length }}</span>
-      </div>
-      <div class="accounts-list">
-        <div
-          v-for="(account, index) in accounts"
-          :key="getAccountKey(account, index)"
-          class="account-item"
-        >
-          <div class="account-avatar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="account-avatar__icon">
-              <path d="M20 21a8 8 0 10-16 0" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <div class="account-info">
-            <p class="account-email">
-              {{ account.email }}
-            </p>
-            <p class="account-dsid">
-              DSID: {{ account.dsid }}
-            </p>
-            <p class="account-region">
-              <span
-                class="region-badge"
-                :class="`region-${(account.region || 'US').toLowerCase()}`"
-              >
-                {{ getRegionLabel(account.region || 'US') }}
-              </span>
-            </p>
-          </div>
-          <div class="account-actions">
-            <MobileButton
-              type="primary"
-              size="small"
-              class="refresh-button"
-              :title="account.hasSavedCredentials ? '刷新会话' : '未保存密码，无法自动刷新'"
-              :disabled="!account.hasSavedCredentials"
-              :loading="refreshingAccountKeys.has(getAccountKey(account, index))"
-              @click="refreshAccount(account, index)"
-            >
-              <template #icon>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
-                  <path d="M21 12a9 9 0 10-3.5 7" />
-                  <path d="M21 3v7h-7" />
-                </svg>
-              </template>
-            </MobileButton>
-
-            <MobileButton
-              type="danger"
-              size="small"
-              class="remove-button"
-              title="删除账号"
-              @click="removeAccount(account, index)"
-            >
-              <template #icon>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4h8v2" />
-                  <path d="M6 6l1 16h10l1-16" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                </svg>
-              </template>
-            </MobileButton>
-          </div>
+    <div class="ap-body">
+      <div class="ap-section">
+        <div class="ap-section__title">
+          登录 Apple ID
         </div>
-      </div>
-    </div>
-
-    <div class="account-content">
-      <!-- Add Account Form -->
-      <div class="form-section">
-        <div class="form-header">
-          <h3 class="form-title">
-            登录 Apple ID
-          </h3>
-          <p class="form-subtitle">
-            支持多账号登录
-          </p>
-        </div>
-        <div class="form-fields">
-          <div class="form-field">
-            <label class="field-label">邮箱</label>
+        <div class="ap-card ap-card--form">
+          <div class="ap-form">
             <MobileInput
               v-model="newAccount.email"
               type="email"
+              label="邮箱"
               placeholder="your@email.com"
               :disabled="logging"
               clearable
-              class="form-input"
-            >
-              <template #prefix>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="field-icon">
-                  <path d="M20 21a8 8 0 10-16 0" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </template>
-            </MobileInput>
-          </div>
+              autocomplete="email"
+            />
 
-          <div class="form-field">
-            <label class="field-label">密码</label>
             <MobileInput
               v-model="newAccount.password"
-              :type="passwordVisible ? 'text' : 'password'"
+              type="password"
+              label="密码"
               placeholder="••••••••"
               :disabled="logging"
-              class="form-input"
               autocomplete="current-password"
-            >
-              <template #prefix>
-                <Lock class="field-icon" style="width:18px;height:18px" />
-              </template>
-              <template #suffix>
-                <button
-                  type="button"
-                  class="password-toggle"
-                  :disabled="logging"
-                  :aria-label="passwordVisible ? '隐藏密码' : '显示密码'"
-                  @click="passwordVisible = !passwordVisible"
-                >
-                  <svg
-                    v-if="passwordVisible"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.81 21.81 0 015.06-6.94" />
-                    <path d="M1 1l22 22" />
-                    <path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.88 21.88 0 01-5.5 7.5" />
-                    <path d="M14.12 14.12a3 3 0 01-4.24-4.24" />
-                  </svg>
-                  <svg
-                    v-else
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </button>
-              </template>
-            </MobileInput>
-          </div>
+            />
 
-          <div class="form-field">
-            <label class="field-label">验证码</label>
             <MobileInput
-              v-model="newAccount.code"
+              v-model="newAccount.memo"
               type="text"
-              placeholder="两步验证码（如需要）"
+              label="备注（可选）"
+              placeholder="例：工作号、美区小号..."
               :disabled="logging"
               clearable
-              class="form-input"
-              :class="{ 'mfa-highlight': mfaRequired }"
-              autocomplete="one-time-code"
-              inputmode="numeric"
+            />
+
+            <div :class="{ 'ring-2 ring-brand ring-offset-2 dark:ring-offset-surface-dark-page rounded-xl': mfaRequired }">
+              <MobileInput
+                v-model="newAccount.code"
+                type="text"
+                label="验证码"
+                placeholder="两步验证码（如需要）"
+                :disabled="logging"
+                clearable
+                autocomplete="one-time-code"
+                inputmode="numeric"
+                :hint="mfaRequired ? '请输入受信任设备上收到的 6 位验证码' : ''"
+              />
+            </div>
+
+            <label
+              class="mobile-checkbox"
+              :class="{ 'mobile-checkbox--disabled': logging }"
             >
-              <template #prefix>
-                <Key class="field-icon" style="width:18px;height:18px" />
-              </template>
-            </MobileInput>
-            <p
-              v-if="mfaRequired"
-              class="mfa-hint"
+              <input
+                type="checkbox"
+                class="mobile-checkbox__input"
+                :checked="savePassword"
+                :disabled="logging"
+                @change="savePassword = $event.target.checked"
+              >
+              <span class="mobile-checkbox__box">
+                <svg
+                  class="mobile-checkbox__check"
+                  viewBox="0 0 12 10"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="1.5 5 4.5 8 10.5 2" />
+                </svg>
+              </span>
+              <span class="mobile-checkbox__label text-[14px] text-txt dark:text-txt-dark">保存密码以便下次自动登录</span>
+            </label>
+
+            <MobileButton
+              :disabled="logging || autoLogging || !isFormValid"
+              :loading="logging"
+              type="primary"
+              block
+              class="!rounded-[12px]"
+              @click="loginAccount"
             >
-              ⚠️ 请输入受信任设备上收到的 6 位验证码
+              {{ logging ? '添加中...' : '添加账号' }}
+            </MobileButton>
+
+            <div
+              v-if="autoLogging"
+              class="flex items-center justify-center gap-2 rounded-xl border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark-muted px-4 py-3 text-body text-txt-secondary dark:text-txt-dark-secondary"
+            >
+              <svg
+                class="h-4 w-4 animate-spin"
+                viewBox="0 0 50 50"
+              >
+                <circle
+                  cx="25"
+                  cy="25"
+                  r="20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="4"
+                >
+                  <animate
+                    attributeName="stroke-dasharray"
+                    from="1 100"
+                    to="89 100"
+                    dur="1.5s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    from="0"
+                    to="-35"
+                    dur="1.5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </svg>
+              <span>正在自动登录保存的账号...</span>
+            </div>
+
+            <p class="ap-form__hint">
+              App Store 区域将根据账号信息自动匹配
             </p>
           </div>
-
-          <!-- 保存密码选项 -->
-          <div class="form-field">
-            <MobileCheckbox
-              v-model="savePassword"
-              :disabled="logging"
-              class="save-password-checkbox"
-              label="保存密码以便下次自动登录"
-            />
-          </div>
-
-          <MobileButton
-            :disabled="logging || autoLogging || !isFormValid"
-            :loading="logging"
-            type="primary"
-            size="large"
-            class="submit-button "
-            @click="loginAccount"
-          >
-            <template #icon>
-              <Right style="width:18px;height:18px" />
-            </template>
-            {{ logging ? '登录中...' : '登录' }}
-          </MobileButton>
-
-          <!-- 自动登录状态提示 -->
-          <div
-            v-if="autoLogging"
-            class="auto-login-status"
-          >
-            <span class="inline-loading" aria-hidden="true"></span>
-            <span>正在自动登录保存的账号...</span>
-          </div>
         </div>
       </div>
 
-      <!-- Empty State -->
-      <div
-        v-if="accounts.length === 0"
-        class="empty-state"
-      >
-        <div class="empty-icon">
-          <svg
-            class="w-16 h-16 text-secondary"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        </div>
-        <h3 class="empty-title">
-          暂无登录账号
-        </h3>
-        <p class="empty-description">
-          登录 Apple ID 账号以开始使用
-        </p>
-      </div>
+      <div style="height: 40px;" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { API_BASE } from '../config.js'
+
 import MobileButton from './MobileButton.vue'
-import MobileCheckbox from './MobileCheckbox.vue'
 import MobileInput from './MobileInput.vue'
 import { Toast } from './MobileToast.vue'
-import { Confirm } from './MobileConfirm.vue'
-import { formatRegion } from '../utils/region.js'
-import { useAccounts, dedupeAccounts, accountIdentityKey } from '../composables/useAccounts.js'
-import {
-	Lock,
-	Key,
-	Right,
-} from './icons'
+import { useAccounts, dedupeAccounts } from '../composables/useAccounts.js'
+import { apiFetch } from '../utils/api.js'
 
-const emit = defineEmits(['accounts-updated'])
+const emit = defineEmits(['accounts-updated', 'close'])
 
-const { accounts } = useAccounts()
+const { accounts, loadAccounts, loadSavedCredentials: useLoadSavedCredentials, persistAccounts, autoLoginAll: useAutoLoginAll } = useAccounts()
 const savedCredentials = ref([])
 const newAccount = ref({
-	email: '',
-	password: '',
-	code: '',
+  email: '',
+  password: '',
+  code: '',
+  memo: '',
 })
 const logging = ref(false)
 const autoLogging = ref(false)
-const savePassword = ref(true) // 默认保存密码
-const refreshingAccountKeys = ref(new Set()) // 正在刷新的账号集合
-const mfaRequired = ref(false) // 是否处于 MFA 等待状态
-const passwordVisible = ref(false) // 密码可见性切换（替代 el-input 的 show-password）
+const savePassword = ref(true)
+const mfaRequired = ref(false)
 
-const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(account) || account?.email || account?.token || account?.dsid || `account-${fallbackIndex}`
-
-// 表单验证
 const isFormValid = computed(() => {
-	return newAccount.value.email && newAccount.value.password
+  return newAccount.value.email && newAccount.value.password
 })
 
-const API_BASE = '/api'
-
-// 加载保存的凭证列表（仅邮箱）
 const loadSavedCredentials = async () => {
-	try {
-		const response = await fetch(`${API_BASE}/credentials`, { credentials: 'include' })
-		const data = await response.json()
-
-		if (data.ok && data.data) {
-			savedCredentials.value = data.data
-		}
-	} catch (error) {
-		console.error('Failed to load saved credentials:', error)
-	}
+  const creds = await useLoadSavedCredentials()
+  if (creds) {
+    savedCredentials.value = creds
+  }
 }
 
-const loadAccounts = async () => {
-	// 先从 localStorage 加载（用于显示）
-	const saved = localStorage.getItem('ipa_accounts')
-	if (saved) {
-		try {
-			accounts.value = dedupeAccounts(JSON.parse(saved))
-		} catch {
-			accounts.value = []
-		}
-	}
-
-	// 然后从服务器获取最新的已登录账号列表
-	try {
-		const response = await fetch(`${API_BASE}/accounts`, { credentials: 'include' })
-		const data = await response.json()
-
-		if (data.ok && data.data && data.data.length > 0) {
-			// 同步服务器账号列表到本地
-			accounts.value = dedupeAccounts(data.data.map((acc) => ({
-				token: acc.token,
-				email: acc.email,
-				dsid: acc.dsid,
-				region: acc.region || 'US',
-				hasSavedCredentials: !!acc.hasSavedCredentials,
-			})))
-			saveAccounts()
-		} else if (data.ok && (!data.data || data.data.length === 0)) {
-			// 服务端无已登录账号，尝试用保存的凭证自动恢复
-			try {
-				const autoRes = await fetch(`${API_BASE}/auto-login`, { credentials: 'include', method: 'POST' })
-				const autoData = await autoRes.json()
-				if (autoData.ok && autoData.data?.succeeded?.length > 0) {
-					const retryRes = await fetch(`${API_BASE}/accounts`, { credentials: 'include' })
-					const retryData = await retryRes.json()
-					if (retryData.ok && retryData.data) {
-						accounts.value = dedupeAccounts(retryData.data.map((acc) => ({
-							token: acc.token,
-							email: acc.email,
-							dsid: acc.dsid,
-							region: acc.region || 'US',
-							hasSavedCredentials: !!acc.hasSavedCredentials,
-						})))
-						saveAccounts()
-					}
-				}
-			} catch (e) {
-				console.warn('Auto-login restore failed:', e)
-			}
-		}
-	} catch (error) {
-		console.error('Failed to load accounts from server:', error)
-	}
-}
 
 const saveAccounts = () => {
-	accounts.value = dedupeAccounts(accounts.value)
-	localStorage.setItem('ipa_accounts', JSON.stringify(accounts.value))
-	emit('accounts-updated', accounts.value)
+  persistAccounts()
+  emit('accounts-updated', accounts.value)
 }
 
 const loginAccount = async () => {
-	if (!newAccount.value.email || !newAccount.value.password) {
-		Toast.warning('请填写完整的账号信息')
-		return
-	}
+  if (!newAccount.value.email || !newAccount.value.password) {
+    Toast.warning('请填写完整的账号信息')
+    return
+  }
 
-	// 检查账号是否已存在
-	const existingAccount = accounts.value.find(
-		(acc) => acc.email === newAccount.value.email,
-	)
-	if (existingAccount) {
-		Toast.warning('该账号已登录，无需重复登录')
-		return
-	}
+  const existingAccount = accounts.value.find(
+    (acc) => acc.email === newAccount.value.email,
+  )
+  if (existingAccount) {
+    Toast.warning('该账号已登录，无需重复登录')
+    return
+  }
 
-	logging.value = true
+  logging.value = true
 
-	try {
-		const response = await fetch(`${API_BASE}/login`, {
-			credentials: 'include',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				email: newAccount.value.email,
-				password: newAccount.value.password,
-				mfa: newAccount.value.code || undefined,
-				saveCredentials: savePassword.value,
-			}),
-		})
+  try {
+    const { response, data } = await apiFetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: newAccount.value.email,
+        password: newAccount.value.password,
+        mfa: newAccount.value.code || undefined,
+        saveCredentials: savePassword.value,
+        memo: newAccount.value.memo || undefined,
+      }),
+    })
 
-		const data = await response.json()
+    if (!response.ok && !data.ok) {
+      Toast.error(`登录失败：${data.error || '服务器错误'}`)
+      logging.value = false
+      return
+    }
 
-		// Network/server error
-		if (!response.ok && !data.ok) {
-			Toast.error(`登录失败：${data.error || '服务器错误'}`)
-			logging.value = false
-			return
-		}
+    if (data.ok && data.data?.status === 'need_mfa') {
+      mfaRequired.value = true
+      Toast.show({
+        type: 'warning',
+        message: '此账号需要二次验证，请查看你的受信任设备上的验证码，填入后再次点击登录',
+        duration: 8000,
+      })
+      logging.value = false
+      return
+    }
 
-		// MFA needed — first round, no code provided yet
-		if (data.ok && data.data?.status === 'need_mfa') {
-			mfaRequired.value = true
-			Toast.show({
-				type: 'warning',
-				message: '此账号需要二次验证，请查看你的受信任设备上的验证码，填入后再次点击登录',
-				duration: 8000,
-			})
-			logging.value = false
-			return
-		}
+    if (data.ok && data.data?.status === 'mfa_failed') {
+      Toast.error('验证码无效或已过期，请重新输入')
+      newAccount.value.code = ''
+      logging.value = false
+      return
+    }
 
-		// MFA code was wrong/expired — keep the session, let user retry
-		if (data.ok && data.data?.status === 'mfa_failed') {
-			Toast.error('验证码无效或已过期，请重新输入')
-			newAccount.value.code = ''
-			logging.value = false
-			return
-		}
+    if (!data.ok) {
+      const errMsg = data.error || '未知错误'
+      Toast.error(`登录失败：${errMsg}`)
+      if (errMsg.includes('密码') || errMsg.includes('BadLogin')) {
+        mfaRequired.value = true
+      }
+      logging.value = false
+      return
+    }
 
-		// Business logic error (bad password, account locked, etc.)
-		if (!data.ok) {
-			const errMsg = data.error || '未知错误'
-			Toast.error(`登录失败：${errMsg}`)
-			// If it looks like a credential error, hint about MFA
-			if (errMsg.includes('密码') || errMsg.includes('BadLogin')) {
-				mfaRequired.value = true
-			}
-			logging.value = false
-			return
-		}
+    mfaRequired.value = false
+    accounts.value = dedupeAccounts([
+      ...accounts.value,
+      {
+        token: data.data.token,
+        email: data.data.email,
+        dsid: data.data.dsid,
+        region: data.data.region || 'US',
+        hasSavedCredentials: !!savePassword.value,
+      }
+    ])
 
-		// Login success
-		mfaRequired.value = false
-		accounts.value = dedupeAccounts([
-			...accounts.value,
-			{
-				token: data.data.token,
-				email: data.data.email,
-				dsid: data.data.dsid,
-				region: data.data.region || 'US',
-				hasSavedCredentials: !!savePassword.value,
-			}
-		])
+    await loadSavedCredentials()
+    saveAccounts()
 
-		// 更新保存的凭证列表
-		await loadSavedCredentials()
+    newAccount.value = { email: '', password: '', code: '', memo: '' }
 
-		saveAccounts()
-
-		// 重置表单
-		newAccount.value = { email: '', password: '', code: '' }
-
-		Toast.success(`登录成功：${data.data.email}`)
-	} catch (error) {
-		Toast.error(`网络错误：${error.message}`)
-	} finally {
-		logging.value = false
-	}
+    Toast.success(`登录成功：${data.data.email}`)
+  } catch (error) {
+    Toast.error(`网络错误：${error.message}`)
+  } finally {
+    logging.value = false
+  }
 }
 
-const removeAccount = async (accountOrIndex, indexArg) => {
-	const index = typeof accountOrIndex === 'number' ? accountOrIndex : indexArg ?? accounts.value.findIndex((item) => getAccountKey(item) === getAccountKey(accountOrIndex))
-	const account = typeof accountOrIndex === 'number' ? accounts.value[index] : accountOrIndex
-	if (!account || index < 0) return
-
-	try {
-		const __confirmed = await Confirm.show({ title: '确认删除', message: '确定要删除这个账号吗？', confirmText: '删除', cancelText: '取消', type: 'danger' })
-		if (!__confirmed) return
-	} catch {
-		// user canceled
-		return
-	}
-
-	// 从服务器删除账号（会同时删除保存的凭证）
-	try {
-		const response = await fetch(`${API_BASE}/accounts/${account.token}`, {
-			credentials: 'include',
-			method: 'DELETE',
-		})
-
-		if (response.ok) {
-			accounts.value.splice(index, 1)
-			saveAccounts()
-			// 更新保存的凭证列表
-			await loadSavedCredentials()
-		} else {
-			Toast.warning('删除失败')
-		}
-	} catch (error) {
-		console.error('Failed to remove account:', error)
-		Toast.warning('删除失败')
-	}
-}
-
-// 刷新账号会话
-const refreshAccount = async (accountOrIndex, indexArg) => {
-	const account = typeof accountOrIndex === 'number' ? accounts.value[accountOrIndex] : accountOrIndex
-	const accountKey = getAccountKey(account, typeof accountOrIndex === 'number' ? accountOrIndex : indexArg)
-	if (!account) return
-
-	if (!account.hasSavedCredentials) {
-		Toast.warning('这个账号没有保存密码，无法自动刷新。请重新登录并勾选“保存密码”。')
-		return
-	}
-
-	refreshingAccountKeys.value = new Set(refreshingAccountKeys.value).add(accountKey)
-	Toast.show(`检测到数据库已有账号，正在刷新 ${account.email} 的会话…`)
-
-	try {
-		const response = await fetch(`${API_BASE}/login/refresh`, {
-			credentials: 'include',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ token: account.token })
-		})
-
-		const data = await response.json()
-
-		if (data.ok) {
-			// 刷新账号列表以获取最新信息
-			await loadSavedCredentials()
-			await loadAccounts()
-			Toast.success('账号会话已刷新，页面状态已自动同步')
-		} else {
-			const errMsg = data.error || '刷新失败'
-			if (errMsg.includes('未找到保存的密码')) {
-				Toast.error('刷新失败：这个账号没有保存密码。请重新登录并勾选“保存密码”。')
-			} else {
-				Toast.error(`刷新失败: ${errMsg}`)
-			}
-		}
-	} catch (error) {
-		console.error('Failed to refresh account:', error)
-		Toast.warning('刷新失败，请检查网络连接')
-	} finally {
-		const nextRefreshingKeys = new Set(refreshingAccountKeys.value)
-		nextRefreshingKeys.delete(accountKey)
-		refreshingAccountKeys.value = nextRefreshingKeys
-	}
-}
-
-// 自动登录所有保存的账号
 const autoLoginAll = async () => {
-	if (savedCredentials.value.length === 0) return
+  if (savedCredentials.value.length === 0) return
 
-	autoLogging.value = true
+  autoLogging.value = true
 
-	try {
-		const response = await fetch(`${API_BASE}/auto-login`, {
-			credentials: 'include',
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-		})
+  try {
+    const data = await useAutoLoginAll()
 
-		const data = await response.json()
+    if (data && data.ok && data.results) {
+      const { success = [], needCode = [], failed = [] } = data.results
 
-		if (data.ok && data.results) {
-			const { success, needCode, failed } = data.results
-
-			// 添加成功登录的账号
-			success.forEach((result) => {
-				if (!result.alreadyLoggedIn) {
-					accounts.value.push({
-						token: result.token,
-						email: result.email,
-						dsid: result.dsid,
-						region: result.region || 'US',
-						hasSavedCredentials: true,
-					})
-				}
-			})
-
-			saveAccounts()
-			await loadAccounts()
-
-			// 显示自动登录结果
-			if (success.length > 0 || needCode.length > 0 || failed.length > 0) {
-				let message = ''
-				if (success.length > 0) {
-					message += `成功登录 ${success.length} 个账号`
-				}
-				if (needCode.length > 0) {
-					if (message) message += '，'
-					message += `${needCode.length} 个账号需要验证码`
-				}
-				if (failed.length > 0) {
-					if (message) message += '，'
-					message += `${failed.length} 个账号登录失败`
-				}
-
-				// 延迟显示，避免打扰用户
-				setTimeout(() => {
-					if (
-						success.length > 0 &&
-						needCode.length === 0 &&
-						failed.length === 0
-					) {
-						// 全部成功，不显示提示
-					} else {
-						Toast.show(message)
-					}
-				}, 500)
-			}
-		}
-	} catch (error) {
-		console.error('Auto login failed:', error)
-	} finally {
-		autoLogging.value = false
-	}
+      if (success.length > 0 || needCode.length > 0 || failed.length > 0) {
+        let message = ''
+        if (success.length > 0) {
+          message += `成功登录 ${success.length} 个账号`
+        }
+        if (needCode.length > 0) {
+          if (message) message += '，'
+          message += `${needCode.length} 个账号需要验证码`
+        }
+        if (failed.length > 0) {
+          if (message) message += '，'
+          message += `${failed.length} 个账号登录失败`
+        }
+        setTimeout(() => {
+          if (success.length > 0 && needCode.length === 0 && failed.length === 0) {
+          } else {
+            Toast.show(message)
+          }
+        }, 500)
+      }
+    }
+  } catch (error) {
+    console.error('Auto login failed:', error)
+  } finally {
+    autoLogging.value = false
+  }
 }
 
 onMounted(async () => {
-	// 先加载保存的凭证列表
-	await loadSavedCredentials()
-
-	// 加载已登录账号
-	await loadAccounts()
-
-	// 尝试自动登录保存的账号
-	await autoLoginAll()
-
-	emit('accounts-updated', accounts.value)
+  await loadSavedCredentials()
+  await loadAccounts()
+  await autoLoginAll()
+  emit('accounts-updated', accounts.value)
 })
 
-// 获取区域标签
-const getRegionLabel = (region) => {
-		return formatRegion(region)
-}
-
-// 暴露账号列表供其他组件使用
 defineExpose({
-	accounts,
+  accounts,
 })
 </script>
 
 <style scoped>
-.account-manager {
- padding: 0;
+.appearance-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--color-bg-page, #f0f0f0);
 }
 
-.account-header {
- display: flex;
+.dark .appearance-page {
+  background: var(--color-bg);
+}
+
+.ap-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  margin: 0 calc(var(--space-5) * -1) 20px;
+  padding: 0 var(--space-5);
+  background: var(--color-bg-white, #fff);
+  border-bottom: 1px solid var(--color-border-light, #f0f0f0);
+  flex-shrink: 0;
+}
+
+.dark .ap-nav {
+  background: var(--color-surface, #111111);
+  border-bottom-color: var(--color-border, #27272a);
+}
+
+.ap-nav__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-primary, #10a37f);
+  cursor: pointer;
+}
+
+.ap-nav__back-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ap-nav__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text, #0d0d0d);
+}
+
+.dark .ap-nav__title {
+  color: var(--color-text, #f5f5f5);
+}
+
+.ap-nav__spacer {
+  flex: 1;
+}
+
+.ap-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ap-section {
+  padding: 20px 20px 0;
+}
+
+.ap-section__title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted, #6e6e80);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.dark .ap-section__title {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
+.ap-card {
+  background: var(--color-surface-muted, #f7f7f8);
+  border: 1px solid var(--color-border, #ebebeb);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.dark .ap-card {
+  background: var(--color-surface, #18181b);
+  border-color: var(--color-surface-muted, #27272a);
+}
+
+.ap-card--form {
+  padding: 16px;
+}
+
+.ap-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ap-form__hint {
+  padding-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-tertiary, #c0c0c0);
+}
+
+.dark .ap-form__hint {
+  color: var(--color-text-tertiary, #71717a);
+}
+
+/* Inline checkbox styles for save-password */
+.mobile-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 22px;
+  padding: 2px 0;
+  box-sizing: border-box;
+}
+
+.mobile-checkbox__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.mobile-checkbox__box {
+ position: relative;
+ display: inline-flex;
  align-items: center;
- gap: var(--space-3);
- margin-bottom: var(--space-3);
-}
-
-.header-icon {
- width: var(--size-artwork-sm);
- height: var(--size-artwork-sm);
-}
-
-.header-text h2,
-.form-title,
-.section-title,
-.empty-title {
- font-size: var(--font-size-xl);
- font-weight: 600;
- color: var(--text-primary);
- margin: 0;
-}
-
-.header-text p,
-.form-subtitle,
-.field-label,
-.account-dsid,
-.account-region,
-.empty-description,
-.checkbox-label,
-.mfa-hint,
-.save-password-checkbox :deep(.el-checkbox__label) {
- font-size: var(--font-size-sm);
- color: var(--text-secondary);
-}
-
-.account-content,
-.form-fields,
-.accounts-list {
- display: flex;
- flex-direction: column;
- gap: var(--space-3);
-}
-
-.form-header,
-.section-header {
- display: flex;
- align-items: center;
- justify-content: space-between;
- margin-bottom: var(--space-3);
-}
-
-.form-field {
- display: flex;
- flex-direction: column;
- gap: var(--space-2);
-}
-
-.field-icon {
- color: var(--text-secondary);
- font-size: var(--font-size-lg);
-}
-
-.submit-button {
- width: 100%;
- height: var(--size-control-xl);
- margin-top: var(--space-2);
-}
-
-.account-item {
- display: flex;
- align-items: center;
- gap: var(--space-3);
- padding: var(--space-4);
- border: var(--border-width-thin) solid var(--separator);
- border-radius: var(--radius-card);
- background: var(--card-bg);
-}
-
-.account-avatar {
- width: var(--size-artwork-sm);
- height: var(--size-artwork-sm);
+ justify-content: center;
+ width: 22px;
+ height: 22px;
+ border: 2px solid var(--color-border-strong, #d1d5db);
+ border-radius: 6px;
+ background: var(--color-surface, #fff);
+ transition: all 0.2s ease;
  flex-shrink: 0;
 }
 
-.account-info {
- flex: 1;
- min-width: 0;
+.mobile-checkbox__check {
+  width: 12px;
+  height: 10px;
+  color: var(--color-text-inverse);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.account-email {
- margin: 0 0 var(--space-0-5);
- font-size: var(--font-size-md);
- font-weight: 600;
- color: var(--text-primary);
- overflow: hidden;
- text-overflow: ellipsis;
- white-space: nowrap;
+:deep(.mobile-checkbox--checked) .mobile-checkbox__box,
+.mobile-checkbox:has(.mobile-checkbox__input:checked) .mobile-checkbox__box {
+ background: var(--color-primary, #10a37f);
+ border-color: var(--color-primary, #10a37f);
 }
 
-.region-badge {
- padding: 0 var(--space-2);
+:deep(.mobile-checkbox--checked) .mobile-checkbox__check,
+.mobile-checkbox:has(.mobile-checkbox__input:checked) .mobile-checkbox__check {
+ opacity: 1;
+ transform: scale(1);
 }
 
-.account-actions {
- display: flex;
- align-items: center;
- gap: var(--space-2);
+.mobile-checkbox__label {
+ font-size: 14px;
+ font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+ color: var(--color-text, #0d0d0d);
+ line-height: 1.4;
 }
 
-.empty-state {
- text-align: center;
- padding: var(--space-6) var(--space-4);
- border-style: solid;
+.mobile-checkbox--disabled {
+ opacity: 0.5;
+ cursor: not-allowed;
+ pointer-events: none;
 }
 
-.empty-icon {
- display: flex;
- justify-content: center;
- margin-bottom: var(--space-3);
- color: var(--text-secondary);
+/* Dark mode for inline checkbox */
+.dark .mobile-checkbox__box {
+ background: rgba(255, 255, 255, 0.08);
+ border-color: rgba(255, 255, 255, 0.2);
 }
 
-.auto-login-status {
- display: flex;
- align-items: center;
- justify-content: center;
- gap: var(--space-2);
- padding: var(--space-3);
- font-size: var(--font-size-sm);
- background: var(--el-fill-color-light);
- border: var(--border-width-thin) solid var(--separator);
- border-radius: var(--radius-card);
- color: var(--text-secondary);
+.dark .mobile-checkbox:has(.mobile-checkbox__input:checked) .mobile-checkbox__box {
+ background: var(--color-primary, #10a37f);
+ border-color: var(--color-primary, #10a37f);
 }
 
-.auto-login-status .el-icon {
- font-size: var(--font-size-lg);
-}
-
-.mfa-highlight :deep(.el-input__wrapper) {
- border-color: var(--el-color-primary-light-5) !important;
-}
-
-@media (max-width: 640px) {
- .account-item {
-  align-items: flex-start;
- }
+.dark .mobile-checkbox__label {
+ color: var(--color-text, #f5f5f5);
 }
 </style>
-
