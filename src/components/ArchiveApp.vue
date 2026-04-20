@@ -87,7 +87,7 @@
               <div class="fav-item__actions">
                 <button
                   class="fav-btn fav-btn--dl"
-                  :disabled="downloadingAppId === item.appId"
+                  :disabled="downloadingAppId === (item.archive_key || item.appId)"
                   title="下载"
                   @click.stop="downloadArchivedVersion(item)"
                 >
@@ -139,6 +139,18 @@
           class="archive-panel"
         >
           <div
+            v-if="integrityWarnings.length"
+            class="integrity-warnings"
+          >
+            <div
+              v-for="w in integrityWarnings"
+              :key="w.appId"
+              class="integrity-warning"
+            >
+              ⚠️ {{ w.name }}：{{ w.message }}
+            </div>
+          </div>
+          <div
             v-if="delistedLoading"
             class="archive-empty archive-empty--loading"
           >
@@ -162,7 +174,7 @@
           >
             <div
               v-for="app in delistedApps"
-              :key="`delisted-${app.id}`"
+              :key="`delisted-${app.archive_key || app.id}`"
               class="fav-item"
               @click="prepareApp(app)"
             >
@@ -189,7 +201,7 @@
               <div class="fav-item__actions">
                 <button
                   class="fav-btn fav-btn--dl"
-                  :disabled="downloadingAppId === app.id"
+                  :disabled="downloadingAppId === (app.archive_key || app.id)"
                   title="下载"
                   @click.stop="downloadArchivedApp(app)"
                 >
@@ -364,18 +376,29 @@ const normalizeVersion = (version) => {
   }
 }
 
-const normalizeArchiveApp = (app, delisted = false) => ({
-  id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
-  name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
-  icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
-  bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
-  artist_name: app?.artist_name ?? app?.artistName ?? '',
-  versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
-  delisted: app?.delisted ?? delisted,
-  added_at: app?.added_at ?? app?.updated_at ?? app?.created_at ?? '',
-  added_by: app?.added_by ?? '',
-  note: app?.note || ''
-})
+const getArchiveKey = (app) => {
+  const id = String(app?.id ?? app?.app_id ?? app?.trackId ?? '')
+  const bundleId = app?.bundle_id ?? app?.bundleId ?? ''
+  const kind = app?.delisted ? 'delisted' : 'fav'
+  return `${kind}:${id}:${bundleId}`
+}
+
+const normalizeArchiveApp = (app, delisted = false) => {
+  const normalized = {
+    id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
+    name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
+    icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
+    bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
+    artist_name: app?.artist_name ?? app?.artistName ?? '',
+    versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
+    delisted: app?.delisted ?? delisted,
+    added_at: app?.added_at ?? app?.updated_at ?? app?.created_at ?? '',
+    added_by: app?.added_by ?? '',
+    note: app?.note || ''
+  }
+  normalized.archive_key = getArchiveKey(normalized)
+  return normalized
+}
 
 const normalizeDelistedPayload = (payload) => {
   if (Array.isArray(payload)) return payload
@@ -386,14 +409,31 @@ const normalizeDelistedPayload = (payload) => {
 
 const sortVersionsDesc = (items) => [...items].sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true, sensitivity: 'base' }))
 
+const integrityWarnings = computed(() => {
+  const warnings = []
+  for (const delisted of delistedApps.value) {
+    const match = favorites.value.find(f => f.id === delisted.id && f.bundle_id !== delisted.bundle_id)
+    if (match) {
+      warnings.push({
+        appId: delisted.id,
+        name: delisted.name,
+        message: `收藏版本 bundleId(${match.bundle_id}) 与下架版本(${delisted.bundle_id}) 不一致，可能非同一应用`
+      })
+    }
+  }
+  return warnings
+})
+
 const getVersionOptions = (app) => {
-  const loaded = loadedVersionsByApp.value[app.id]
+  const key = app.archive_key || app.id
+  const loaded = loadedVersionsByApp.value[key]
   if (loaded?.length) return loaded
   return sortVersionsDesc(app.versions || [])
 }
 
 const getSelectedVersion = (app) => {
-  const versionId = selectedVersionByApp.value[app.id]
+  const key = app.archive_key || app.id
+  const versionId = selectedVersionByApp.value[key]
   if (!versionId) return ''
   const options = getVersionOptions(app)
   const found = options.find(v => v.version_id === versionId)
@@ -409,6 +449,7 @@ const favoriteVersionItems = computed(() => {
       const v = versions[0] || {}
       items.push({
         appId: app.id,
+        archive_key: app.archive_key,
         name: app.name,
         icon_url: app.icon_url,
         bundle_id: app.bundle_id,
@@ -424,6 +465,7 @@ const favoriteVersionItems = computed(() => {
       for (const v of versions) {
         items.push({
           appId: app.id,
+          archive_key: app.archive_key,
           name: app.name,
           icon_url: app.icon_url,
           bundle_id: app.bundle_id,
@@ -482,11 +524,12 @@ const applyVersionDefaults = (apps) => {
   const nextLoaded = { ...loadedVersionsByApp.value }
 
   for (const app of apps) {
+    const key = app.archive_key || app.id
     const options = getVersionOptions(app)
     if (options.length) {
-      nextLoaded[app.id] = options
-      if (!nextSelected[app.id]) {
-        nextSelected[app.id] = options[0].version_id
+      nextLoaded[key] = options
+      if (!nextSelected[key]) {
+        nextSelected[key] = options[0].version_id
       }
     }
   }
@@ -538,10 +581,11 @@ const refreshAll = async () => {
 }
 
 const prepareApp = async (app) => {
-  const cachedVersions = loadedVersionsByApp.value[app.id]
+  const key = app.archive_key || app.id
+  const cachedVersions = loadedVersionsByApp.value[key]
   if (cachedVersions?.length) return
-  if (loadingVersions.value[app.id]) return
-  loadingVersions.value = { ...loadingVersions.value, [app.id]: true }
+  if (loadingVersions.value[key]) return
+  loadingVersions.value = { ...loadingVersions.value, [key]: true }
   try {
     const region = activeAccount.value?.region || 'US'
     const { data } = await apiFetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`)
@@ -549,10 +593,10 @@ const prepareApp = async (app) => {
       const versions = sortVersionsDesc(data.data.map(normalizeVersion).filter(Boolean))
       loadedVersionsByApp.value = {
         ...loadedVersionsByApp.value,
-        [app.id]: versions
+        [key]: versions
       }
-      if (!selectedVersionByApp.value[app.id] && versions[0]) {
-        setSelectedVersion(app.id, versions[0].version_id)
+      if (!selectedVersionByApp.value[key] && versions[0]) {
+        setSelectedVersion(key, versions[0].version_id)
       }
     } else if (!getVersionOptions(app).length) {
       Toast.warning('未获取到可用版本')
@@ -562,7 +606,7 @@ const prepareApp = async (app) => {
       Toast.warning(error.message || '加载版本失败')
     }
   } finally {
-    loadingVersions.value = { ...loadingVersions.value, [app.id]: false }
+    loadingVersions.value = { ...loadingVersions.value, [key]: false }
   }
 }
 
@@ -594,14 +638,15 @@ const removeFavoriteVersion = async (item) => {
 const downloadArchivedApp = async (app) => {
   try {
     const account = await requireActiveAccount()
-    let selectedVersion = selectedVersionByApp.value[app.id]
+    const archiveKey = app.archive_key || app.id
+    let selectedVersion = selectedVersionByApp.value[archiveKey]
     if (!selectedVersion) {
       await prepareApp(app)
-      selectedVersion = selectedVersionByApp.value[app.id]
+      selectedVersion = selectedVersionByApp.value[archiveKey]
     }
     if (!selectedVersion) throw new Error('请先选择版本')
 
-    downloadingAppId.value = app.id
+    downloadingAppId.value = archiveKey
     const versionInfo = getVersionOptions(app).find((item) => item.version_id === selectedVersion)
     const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
@@ -649,7 +694,7 @@ const downloadArchivedVersion = async (item) => {
   try {
     const account = await requireActiveAccount()
     if (!item.version_id) throw new Error('请先选择版本')
-    downloadingAppId.value = item.appId
+    downloadingAppId.value = item.archive_key || item.appId
     const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1056,6 +1101,26 @@ onActivated(refreshAll)
 .fav-delisted-section {
  margin-top: 20px;
  opacity: 0.7;
+}
+
+/* Integrity warnings */
+.integrity-warnings {
+  margin-bottom: 12px;
+}
+.integrity-warning {
+  font-size: 12px;
+  color: var(--color-warning, #f59e0b);
+  background: var(--color-warning-soft, rgba(245, 158, 11, 0.1));
+  border: 1px solid var(--color-warning-border, rgba(245, 158, 11, 0.3));
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.dark .integrity-warning {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
 }
 .fav-delisted-title {
  font-size: 12px;
