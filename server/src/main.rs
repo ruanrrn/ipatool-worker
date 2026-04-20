@@ -307,20 +307,6 @@ fn get_account_id_for_token(token: &str) -> String {
     format!("tok_{}", &token[..token.len().min(16)])
 }
 
-/// Resolve a stable account identifier.
-/// If the token matches a logged-in Apple account (via ACCOUNTS), use the apple_id email.
-/// Otherwise fall back to a hash of the token for anonymity.
-fn get_account_id(token: &str, accounts: &HashMap<String, AccountStore>) -> Option<String> {
-    // The ACCOUNTS map is keyed by token string directly
-    if let Some(store) = accounts.get(token) {
-        return Some(store.account_email.clone());
-    }
-    // No match in ACCOUNTS — derive a stable ID from the token hash
-    let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
-    Some(format!("anon_{}", hex::encode(hasher.finalize())))
-}
-
 fn hash_password(password: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
