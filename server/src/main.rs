@@ -2012,11 +2012,14 @@ async fn claim_app(req: web::Json<ClaimRequest>, data: web::Data<AppState>) -> i
                             // Update memory cache
                             {
                                 let mut cache = PURCHASE_CACHE.write().await;
-                                cache.insert((account_id, req.appid.clone()), PurchaseCacheEntry {
-                                    purchased: true,
-                                    needs_purchase: false,
-                                    cached_at: Instant::now(),
-                                });
+                                cache.insert(
+                                    (account_id, req.appid.clone()),
+                                    PurchaseCacheEntry {
+                                        purchased: true,
+                                        needs_purchase: false,
+                                        cached_at: Instant::now(),
+                                    },
+                                );
                             }
                             return HttpResponse::Ok().json(ApiResponse::success(
                                 serde_json::json!({
@@ -2072,7 +2075,10 @@ async fn claim_app(req: web::Json<ClaimRequest>, data: web::Data<AppState>) -> i
     }
 }
 
-async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::Data<AppState>) -> impl Responder {
+async fn get_purchase_status(
+    query: web::Query<PurchaseStatusQuery>,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = match accounts.get(&query.token) {
         Some(account) => account,
@@ -2113,9 +2119,15 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::
     }
 
     // L3: Call Apple API
-    match account_store.download_product(&query.appid, query.appVerId.as_deref()).await {
+    match account_store
+        .download_product(&query.appid, query.appVerId.as_deref())
+        .await
+    {
         Ok(result) => {
-            let state = result.get("_state").and_then(|v| v.as_str()).unwrap_or("failure");
+            let state = result
+                .get("_state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("failure");
 
             if state == "success" {
                 // Write to DB (permanent record)
@@ -2125,11 +2137,14 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::
                 // Update memory cache
                 {
                     let mut cache = PURCHASE_CACHE.write().await;
-                    cache.insert((account_id, appid), PurchaseCacheEntry {
-                        purchased: true,
-                        needs_purchase: false,
-                        cached_at: Instant::now(),
-                    });
+                    cache.insert(
+                        (account_id, appid),
+                        PurchaseCacheEntry {
+                            purchased: true,
+                            needs_purchase: false,
+                            cached_at: Instant::now(),
+                        },
+                    );
                 }
                 return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                     "purchased": true,
@@ -2140,8 +2155,12 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::
             }
 
             let error_msg = result
-                .get("customerMessage").or(result.get("failureType")).or(result.get("message"))
-                .and_then(|v| v.as_str()).unwrap_or("下载失败").to_string();
+                .get("customerMessage")
+                .or(result.get("failureType"))
+                .or(result.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("下载失败")
+                .to_string();
 
             let lowered = error_msg.to_lowercase();
             let is_license_error = lowered.contains("license")
@@ -2155,11 +2174,14 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::
             // Update memory cache (not purchased, with TTL)
             {
                 let mut cache = PURCHASE_CACHE.write().await;
-                cache.insert((account_id.clone(), appid.clone()), PurchaseCacheEntry {
-                    purchased: false,
-                    needs_purchase: is_license_error,
-                    cached_at: Instant::now(),
-                });
+                cache.insert(
+                    (account_id.clone(), appid.clone()),
+                    PurchaseCacheEntry {
+                        purchased: false,
+                        needs_purchase: is_license_error,
+                        cached_at: Instant::now(),
+                    },
+                );
             }
 
             HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
@@ -2170,13 +2192,17 @@ async fn get_purchase_status(query: web::Query<PurchaseStatusQuery>, data: web::
             })))
         }
         Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
-            "查询购买状态失败: {}", e
+            "查询购买状态失败: {}",
+            e
         ))),
     }
 }
 
 // Batch purchase status check
-async fn purchase_status_batch(req: web::Json<PurchaseStatusBatchRequest>, data: web::Data<AppState>) -> impl Responder {
+async fn purchase_status_batch(
+    req: web::Json<PurchaseStatusBatchRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = match accounts.get(&req.token) {
         Some(account) => account,
@@ -2198,26 +2224,32 @@ async fn purchase_status_batch(req: web::Json<PurchaseStatusBatchRequest>, data:
     // L1: Batch check DB
     let db_purchased: std::collections::HashSet<String> = {
         let db = data.db.lock().unwrap();
-        db.batch_check_purchased(&account_id, &req.appids).unwrap_or_default()
+        db.batch_check_purchased(&account_id, &req.appids)
+            .unwrap_or_default()
     };
 
     let mut need_check: Vec<String> = Vec::new();
 
     for appid in &req.appids {
         if db_purchased.contains(appid) {
-            results.insert(appid.clone(), serde_json::json!({
-                "purchased": true,
-                "needsPurchase": false,
-                "status": "owned",
-                "error": null,
-            }));
+            results.insert(
+                appid.clone(),
+                serde_json::json!({
+                    "purchased": true,
+                    "needsPurchase": false,
+                    "status": "owned",
+                    "error": null,
+                }),
+            );
         } else {
             need_check.push(appid.clone());
         }
     }
 
     if need_check.is_empty() {
-        return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "results": results })));
+        return HttpResponse::Ok().json(ApiResponse::success(
+            serde_json::json!({ "results": results }),
+        ));
     }
 
     // L2: Check in-memory cache for remaining
@@ -2241,17 +2273,22 @@ async fn purchase_status_batch(req: web::Json<PurchaseStatusBatchRequest>, data:
     }
 
     if still_need_apple.is_empty() {
-        return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "results": results })));
+        return HttpResponse::Ok().json(ApiResponse::success(
+            serde_json::json!({ "results": results }),
+        ));
     }
 
     // L3: Call Apple API for remaining apps concurrently
-    let apple_futures: Vec<_> = still_need_apple.iter().map(|appid| {
-        let appid = appid.clone();
-        async {
-            let result = account_store.download_product(&appid, None).await;
-            (appid, result)
-        }
-    }).collect();
+    let apple_futures: Vec<_> = still_need_apple
+        .iter()
+        .map(|appid| {
+            let appid = appid.clone();
+            async {
+                let result = account_store.download_product(&appid, None).await;
+                (appid, result)
+            }
+        })
+        .collect();
 
     let apple_results = futures::future::join_all(apple_futures).await;
 
@@ -2261,27 +2298,40 @@ async fn purchase_status_batch(req: web::Json<PurchaseStatusBatchRequest>, data:
         for (appid, apple_result) in apple_results {
             match apple_result {
                 Ok(result) => {
-                    let state = result.get("_state").and_then(|v| v.as_str()).unwrap_or("failure");
+                    let state = result
+                        .get("_state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("failure");
                     if state == "success" {
                         // Write to DB
                         if let Ok(db) = data.db.lock() {
                             let _ = db.record_purchase(&account_id, &appid, "apple_api");
                         }
-                        cache.insert((account_id.clone(), appid.clone()), PurchaseCacheEntry {
-                            purchased: true,
-                            needs_purchase: false,
-                            cached_at: Instant::now(),
-                        });
-                        results.insert(appid, serde_json::json!({
-                            "purchased": true,
-                            "needsPurchase": false,
-                            "status": "owned",
-                            "error": null,
-                        }));
+                        cache.insert(
+                            (account_id.clone(), appid.clone()),
+                            PurchaseCacheEntry {
+                                purchased: true,
+                                needs_purchase: false,
+                                cached_at: Instant::now(),
+                            },
+                        );
+                        results.insert(
+                            appid,
+                            serde_json::json!({
+                                "purchased": true,
+                                "needsPurchase": false,
+                                "status": "owned",
+                                "error": null,
+                            }),
+                        );
                     } else {
                         let error_msg = result
-                            .get("customerMessage").or(result.get("failureType")).or(result.get("message"))
-                            .and_then(|v| v.as_str()).unwrap_or("下载失败").to_string();
+                            .get("customerMessage")
+                            .or(result.get("failureType"))
+                            .or(result.get("message"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("下载失败")
+                            .to_string();
                         let lowered = error_msg.to_lowercase();
                         let is_license_error = lowered.contains("license")
                             || lowered.contains("not found")
@@ -2290,36 +2340,50 @@ async fn purchase_status_batch(req: web::Json<PurchaseStatusBatchRequest>, data:
                             || error_msg.contains("未购买")
                             || error_msg.contains("未领取")
                             || error_msg.contains("未找到");
-                        cache.insert((account_id.clone(), appid.clone()), PurchaseCacheEntry {
-                            purchased: false,
-                            needs_purchase: is_license_error,
-                            cached_at: Instant::now(),
-                        });
-                        results.insert(appid, serde_json::json!({
-                            "purchased": false,
-                            "needsPurchase": is_license_error,
-                            "status": if is_license_error { "not_owned" } else { "unknown" },
-                            "error": error_msg,
-                        }));
+                        cache.insert(
+                            (account_id.clone(), appid.clone()),
+                            PurchaseCacheEntry {
+                                purchased: false,
+                                needs_purchase: is_license_error,
+                                cached_at: Instant::now(),
+                            },
+                        );
+                        results.insert(
+                            appid,
+                            serde_json::json!({
+                                "purchased": false,
+                                "needsPurchase": is_license_error,
+                                "status": if is_license_error { "not_owned" } else { "unknown" },
+                                "error": error_msg,
+                            }),
+                        );
                     }
                 }
                 Err(e) => {
-                    results.insert(appid, serde_json::json!({
-                        "purchased": false,
-                        "needsPurchase": false,
-                        "status": "error",
-                        "error": format!("查询失败: {}", e),
-                    }));
+                    results.insert(
+                        appid,
+                        serde_json::json!({
+                            "purchased": false,
+                            "needsPurchase": false,
+                            "status": "error",
+                            "error": format!("查询失败: {}", e),
+                        }),
+                    );
                 }
             }
         }
     }
 
-    HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "results": results })))
+    HttpResponse::Ok().json(ApiResponse::success(
+        serde_json::json!({ "results": results }),
+    ))
 }
 
 // Confirm purchase - force check Apple API
-async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Data<AppState>) -> impl Responder {
+async fn confirm_purchase(
+    req: web::Json<ConfirmPurchaseRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let accounts = ACCOUNTS.read().await;
     let account_store = match accounts.get(&req.token) {
         Some(account) => account,
@@ -2333,7 +2397,10 @@ async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Dat
     // Force call Apple API - ignore cache TTL
     match account_store.download_product(&req.appid, None).await {
         Ok(result) => {
-            let state = result.get("_state").and_then(|v| v.as_str()).unwrap_or("failure");
+            let state = result
+                .get("_state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("failure");
 
             if state == "success" {
                 // Write to DB (permanent)
@@ -2344,11 +2411,14 @@ async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Dat
                 // Update memory cache
                 {
                     let mut cache = PURCHASE_CACHE.write().await;
-                    cache.insert((account_id.clone(), req.appid.clone()), PurchaseCacheEntry {
-                        purchased: true,
-                        needs_purchase: false,
-                        cached_at: Instant::now(),
-                    });
+                    cache.insert(
+                        (account_id.clone(), req.appid.clone()),
+                        PurchaseCacheEntry {
+                            purchased: true,
+                            needs_purchase: false,
+                            cached_at: Instant::now(),
+                        },
+                    );
                 }
                 return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                     "purchased": true,
@@ -2360,8 +2430,12 @@ async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Dat
             }
 
             let error_msg = result
-                .get("customerMessage").or(result.get("failureType")).or(result.get("message"))
-                .and_then(|v| v.as_str()).unwrap_or("下载失败").to_string();
+                .get("customerMessage")
+                .or(result.get("failureType"))
+                .or(result.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("下载失败")
+                .to_string();
 
             let lowered = error_msg.to_lowercase();
             let is_license_error = lowered.contains("license")
@@ -2375,11 +2449,14 @@ async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Dat
             // Update memory cache even for not-purchased result
             {
                 let mut cache = PURCHASE_CACHE.write().await;
-                cache.insert((account_id.clone(), req.appid.clone()), PurchaseCacheEntry {
-                    purchased: false,
-                    needs_purchase: is_license_error,
-                    cached_at: Instant::now(),
-                });
+                cache.insert(
+                    (account_id.clone(), req.appid.clone()),
+                    PurchaseCacheEntry {
+                        purchased: false,
+                        needs_purchase: is_license_error,
+                        cached_at: Instant::now(),
+                    },
+                );
             }
 
             HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
@@ -2391,7 +2468,8 @@ async fn confirm_purchase(req: web::Json<ConfirmPurchaseRequest>, data: web::Dat
             })))
         }
         Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
-            "确认购买状态失败: {}", e
+            "确认购买状态失败: {}",
+            e
         ))),
     }
 }

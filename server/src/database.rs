@@ -1536,22 +1536,32 @@ impl Database {
     }
 
     /// Batch check: given a list of adam_ids, return the set that are purchased
-    pub fn batch_check_purchased(&self, account_id: &str, adam_ids: &[String]) -> Result<std::collections::HashSet<String>> {
+    pub fn batch_check_purchased(
+        &self,
+        account_id: &str,
+        adam_ids: &[String],
+    ) -> Result<std::collections::HashSet<String>> {
         if adam_ids.is_empty() {
             return Ok(std::collections::HashSet::new());
         }
         let conn = self.connection.lock().unwrap();
-        let placeholders: Vec<String> = adam_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 2)).collect();
+        let placeholders: Vec<String> = adam_ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 2))
+            .collect();
         let sql = format!(
             "SELECT adam_id FROM purchase_records WHERE account_id = ?1 AND adam_id IN ({})",
             placeholders.join(",")
         );
         let mut stmt = conn.prepare(&sql)?;
-        let mut params_vec: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(account_id.to_string())];
+        let mut params_vec: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new(account_id.to_string())];
         for id in adam_ids {
             params_vec.push(Box::new(id.clone()));
         }
-        let param_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+            params_vec.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(param_refs.as_slice(), |row| row.get(0))?;
         let mut result = std::collections::HashSet::new();
         for id in rows {
