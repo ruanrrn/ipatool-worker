@@ -56,18 +56,47 @@ cd server && cargo run --bin server
 
 ### Docker 部署 · Docker
 
+**方式一：使用 docker-compose**
+
+参照项目中的 [docker-compose.yml](docker-compose.yml) 启动：
+
 ```bash
 docker-compose up -d   # → localhost:8080
 ```
 
-镜像名称 · Image: `ipa-webtool`
+**方式二：直接使用镜像**
+
+```bash
+docker run -d -p 8080:8080 --name ipatool heard/ipatool
+```
 
 > 默认账号 `admin` / `admin`，首次登录后请立即修改密码。
 
 ## ⚠️ 注意事项 · Notes
 
-- **OTA 安装需要 HTTPS** — iOS 系统要求安装描述文件和 IPA 下载链路必须通过 HTTPS，自签名证书不被信任。生产部署请配置有效域名与 SSL 证书。
-- **App Store 区域自动匹配** — 添加 Apple ID 时系统根据账号信息自动匹配对应区域，无需手动选择。
+OTA 安装需要 HTTPS，以下为几种常见方案：
+
+| 方案 | 说明 |
+|------|------|
+| **Nginx + Let's Encrypt** | 用 Certbot 自动申请免费证书，Nginx 反向代理转发到后端 8080 端口，最常用的轻量方案 |
+| **Cloudflare Tunnel** | 无需开放公网端口，通过 Cloudflare 隧道暴露服务，自带 HTTPS |
+
+示例 - Nginx 反向代理配置：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
 
 ## 🛠 技术栈 · Tech Stack
 

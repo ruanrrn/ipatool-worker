@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   ipa-webtool:
+    image: heard/ipatool
     build:
       context: .
       dockerfile: Dockerfile
