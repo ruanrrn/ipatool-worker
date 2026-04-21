@@ -1,14 +1,3 @@
-<p align="center">
-  <img src="docs/screenshots/home-search.jpg" width="220">
-  <img src="docs/screenshots/app-detail.jpg" width="220">
-  <img src="docs/screenshots/queue-active.jpg" width="220">
-</p>
-<p align="center">
-  <img src="docs/screenshots/archive-favorites.jpg" width="220">
-  <img src="docs/screenshots/add-apple-id.jpg" width="220">
-  <img src="docs/screenshots/settings-appearance.jpg" width="220">
-</p>
-
 <h1 align="center">ipaTool</h1>
 
 <p align="center">
