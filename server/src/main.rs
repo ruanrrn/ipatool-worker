@@ -5211,37 +5211,15 @@ async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
                 continue;
             }
             if let Ok(data) = resp.json::<Value>().await {
-                if let Ok(index) = serde_json::from_value::<CommunityDelistedLiteIndex>(data.clone()) {
-                    return CommunityDelistedLiteIndex {
-                        count: index.apps.len().max(index.count),
-                        schema_version: if index.schema_version == 0 { 1 } else { index.schema_version },
-                        ..index
-                    };
-                }
-                if let Some(apps) = data.get("apps").and_then(|value| value.as_array()) {
-                    let normalized = apps
-                        .iter()
-                        .filter_map(|item| serde_json::from_value::<CommunityDelistedLiteItem>(item.clone()).ok())
-                        .collect::<Vec<_>>();
-                    return CommunityDelistedLiteIndex {
-                        generated_at: data.get("generated_at").and_then(|value| value.as_str()).map(String::from),
-                        schema_version: 1,
-                        source: Some("legacy-delisted.json".to_string()),
-                        count: normalized.len(),
-                        apps: normalized,
-                    };
+                let index = parse_delisted_lite_index(data);
+                if !index.apps.is_empty() {
+                    return index;
                 }
             }
         }
     }
 
-    CommunityDelistedLiteIndex {
-        generated_at: None,
-        schema_version: 1,
-        source: Some("empty-fallback".to_string()),
-        count: 0,
-        apps: Vec::new(),
-    }
+    CommunityDelistedLiteIndex::default()
 }
 
 async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
@@ -5252,6 +5230,16 @@ async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
         return None;
     }
     response.json::<ArchiveApp>().await.ok()
+}
+
+async fn fetch_community_delisted_app_detail(app_id: &str) -> Option<CommunityDelistedAppDetail> {
+    let client = Client::new();
+    let url = format!("{}/{}", community_archive_base_url(), community_archive_app_path(app_id));
+    let response = client.get(url).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    response.json::<CommunityDelistedAppDetail>().await.ok()
 }
 
 fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDelistedCandidate> {
