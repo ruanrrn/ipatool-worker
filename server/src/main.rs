@@ -43,7 +43,7 @@ const PENDING_MFA_TTL_MINUTES: i64 = 10;
 /// Apple 账号自动刷新：每 CHECK_INTERVAL_SECONDS 秒检查一次，
 /// 对已保存密码且距上次认证超过 REFRESH_AFTER_SECS 的账号自动刷新。
 const ACCOUNT_REFRESH_CHECK_INTERVAL_SECS: u64 = 300; // 5 分钟检查一次
-const ACCOUNT_REFRESH_AFTER_SECS: u64 = 1800;         // 30 分钟后视为需要刷新
+const ACCOUNT_REFRESH_AFTER_SECS: u64 = 1800; // 30 分钟后视为需要刷新
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -315,15 +315,20 @@ const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
 /// 使用保存的密码重新认证，刷新 passwordToken。
 async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
     loop {
-        tokio::time::sleep(std::time::Duration::from_secs(ACCOUNT_REFRESH_CHECK_INTERVAL_SECS)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(
+            ACCOUNT_REFRESH_CHECK_INTERVAL_SECS,
+        ))
+        .await;
 
         // 1. 收集需要刷新的账号：token → email
         let accounts_to_refresh: Vec<(String, String)> = {
             let accounts = ACCOUNTS.read().await;
-            accounts.iter()
+            accounts
+                .iter()
                 .filter(|(_, store)| {
                     store.auth_info.is_some()
-                        && store.last_authenticated_at.elapsed().as_secs() >= ACCOUNT_REFRESH_AFTER_SECS
+                        && store.last_authenticated_at.elapsed().as_secs()
+                            >= ACCOUNT_REFRESH_AFTER_SECS
                 })
                 .map(|(token, store)| (token.clone(), store.account_email.clone()))
                 .collect()
@@ -373,7 +378,11 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                 let enc_key = match ipa_webtool_services::crypto::ensure_encryption_key(&db) {
                     Ok(k) => k,
                     Err(e) => {
-                        log::error!("[account-auto-refresh] encryption key error for {}: {}", email, e);
+                        log::error!(
+                            "[account-auto-refresh] encryption key error for {}: {}",
+                            email,
+                            e
+                        );
                         continue;
                     }
                 };
@@ -423,11 +432,7 @@ async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
                     }
                 }
                 Err(e) => {
-                    log::error!(
-                        "[account-auto-refresh] auth error for {}: {}",
-                        email,
-                        e
-                    );
+                    log::error!("[account-auto-refresh] auth error for {}: {}", email, e);
                 }
             }
         }
@@ -1536,7 +1541,8 @@ mod tests {
 
     #[test]
     fn build_download_task_slug_uses_stable_sanitized_components() {
-        let slug = build_download_task_slug(Some("微信 / WeChat"), "414478124", Some("8.0.58"), None);
+        let slug =
+            build_download_task_slug(Some("微信 / WeChat"), "414478124", Some("8.0.58"), None);
         assert_eq!(slug, "WeChat-414478124-8.0.58");
     }
 
@@ -1701,11 +1707,9 @@ async fn start_download_direct(
     let task_dir = job_root.join(&task_slug);
 
     if let Ok(db_guard) = data.db.lock() {
-        if let Ok(Some(existing_record)) = db_guard.find_reusable_download_record(
-            &appid,
-            &app_version_key,
-            &account_email,
-        ) {
+        if let Ok(Some(existing_record)) =
+            db_guard.find_reusable_download_record(&appid, &app_version_key, &account_email)
+        {
             if let Some(file_path) = existing_record.file_path.clone() {
                 let path = PathBuf::from(&file_path);
                 if path.exists() {
@@ -1740,9 +1744,9 @@ async fn start_download_direct(
                         app_name: existing_record.app_name.clone(),
                         account_email: existing_record.account_email.clone(),
                         file_path: file_path.clone(),
-                        file_size: existing_record
-                            .file_size
-                            .or_else(|| std::fs::metadata(&path).ok().map(|meta| meta.len() as i64)),
+                        file_size: existing_record.file_size.or_else(|| {
+                            std::fs::metadata(&path).ok().map(|meta| meta.len() as i64)
+                        }),
                         download_url: download_url.unwrap_or_default(),
                         install_url,
                         package_kind: decision.package_kind,
@@ -1764,7 +1768,8 @@ async fn start_download_direct(
     eprintln!("[start-download-direct] job created: {}", job_id);
     let job = data.job_store.create_job(job_id.clone()).await;
     job.append_log(format!("[job] 已创建任务 {}", job_id)).await;
-    job.append_log(format!("[job] 任务目录：{}", task_dir.display())).await;
+    job.append_log(format!("[job] 任务目录：{}", task_dir.display()))
+        .await;
 
     let job_for_task = job.clone();
     let job_id_for_task = job_id.clone();
@@ -4957,7 +4962,11 @@ struct CommunityDelistedLiteItem {
     icon_asset: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     icon_url: Option<String>,
-    #[serde(default, alias = "last_seen_version", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        alias = "last_seen_version",
+        skip_serializing_if = "Option::is_none"
+    )]
     latest_version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     updated_at: Option<String>,
@@ -5184,7 +5193,10 @@ fn parse_delisted_lite_index(data: Value) -> CommunityDelistedLiteIndex {
 async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
     let client = Client::new();
     let candidates = [
-        format!("{}/indexes/delisted-lite.json", community_archive_base_url()),
+        format!(
+            "{}/indexes/delisted-lite.json",
+            community_archive_base_url()
+        ),
         format!("{}/delisted.json", community_archive_base_url()),
     ];
 
@@ -5207,7 +5219,11 @@ async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
 
 async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
     let client = Client::new();
-    let url = format!("{}/{}", community_archive_base_url(), community_archive_app_path(app_id));
+    let url = format!(
+        "{}/{}",
+        community_archive_base_url(),
+        community_archive_app_path(app_id)
+    );
     let response = client.get(url).send().await.ok()?;
     if !response.status().is_success() {
         return None;
@@ -5218,7 +5234,11 @@ async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
 #[allow(dead_code)]
 async fn fetch_community_delisted_app_detail(app_id: &str) -> Option<CommunityDelistedAppDetail> {
     let client = Client::new();
-    let url = format!("{}/{}", community_archive_base_url(), community_archive_app_path(app_id));
+    let url = format!(
+        "{}/{}",
+        community_archive_base_url(),
+        community_archive_app_path(app_id)
+    );
     let response = client.get(url).send().await.ok()?;
     if !response.status().is_success() {
         return None;
@@ -5231,7 +5251,13 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
         .ok()
         .into_iter()
         .flat_map(|entries| entries.flatten())
-        .filter_map(|entry| entry.path().file_stem().and_then(|value| value.to_str()).map(String::from))
+        .filter_map(|entry| {
+            entry
+                .path()
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .map(String::from)
+        })
         .collect::<HashSet<_>>();
 
     let mut grouped: HashMap<String, LocalDelistedCandidate> = HashMap::new();
@@ -5244,17 +5270,20 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
             continue;
         }
 
-        let entry = grouped.entry(record.app_id.clone()).or_insert_with(|| LocalDelistedCandidate {
-            id: record.app_id.clone(),
-            name: record.app_name.clone(),
-            bundle_id: record.bundle_id.clone(),
-            icon_url: record.artwork_url.clone(),
-            artist_name: record.artist_name.clone(),
-            versions: Vec::new(),
-            last_download_date: record.download_date.clone().or(record.created_at.clone()),
-            source_record_count: Some(0),
-            already_archived_locally: local_archive_ids.contains(&record.app_id),
-        });
+        let entry =
+            grouped
+                .entry(record.app_id.clone())
+                .or_insert_with(|| LocalDelistedCandidate {
+                    id: record.app_id.clone(),
+                    name: record.app_name.clone(),
+                    bundle_id: record.bundle_id.clone(),
+                    icon_url: record.artwork_url.clone(),
+                    artist_name: record.artist_name.clone(),
+                    versions: Vec::new(),
+                    last_download_date: record.download_date.clone().or(record.created_at.clone()),
+                    source_record_count: Some(0),
+                    already_archived_locally: local_archive_ids.contains(&record.app_id),
+                });
 
         if entry.name.trim().is_empty() && !record.app_name.trim().is_empty() {
             entry.name = record.app_name.clone();
@@ -5278,8 +5307,16 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
             .clone()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| record.version.clone().unwrap_or_default());
-        let version_label = record.version.clone().unwrap_or_else(|| "unknown".to_string());
-        if !version_id.trim().is_empty() && !entry.versions.iter().any(|item| item.version_id == version_id) {
+        let version_label = record
+            .version
+            .clone()
+            .unwrap_or_else(|| "unknown".to_string());
+        if !version_id.trim().is_empty()
+            && !entry
+                .versions
+                .iter()
+                .any(|item| item.version_id == version_id)
+        {
             entry.versions.push(ArchiveVersion {
                 version_id,
                 version: version_label,
@@ -5562,9 +5599,10 @@ async fn publish_community_archive(
                 .json(ApiResponse::<()>::error("请先配置 GitHub PAT".to_string()))
         }
         Err(error) => {
-            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
-                format!("读取 GitHub Token 失败: {}", error),
-            ))
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
+                "读取 GitHub Token 失败: {}",
+                error
+            )))
         }
     };
 
@@ -5585,7 +5623,10 @@ async fn publish_community_archive(
             };
             let candidates = build_local_delisted_candidates(records);
             match candidates.iter().find(|c| c.id == app_id) {
-                Some(candidate) => (to_archive_app_from_candidate(candidate), "download-records".to_string()),
+                Some(candidate) => (
+                    to_archive_app_from_candidate(candidate),
+                    "download-records".to_string(),
+                ),
                 None => {
                     return HttpResponse::NotFound().json(ApiResponse::<()>::error(
                         "本地归档与待贡献列表中都未找到该应用".to_string(),
@@ -5599,7 +5640,11 @@ async fn publish_community_archive(
     };
 
     // 构建 CommunityDelistedAppDetail
-    let icon_prefix = if app_id.len() >= 2 { &app_id[..2] } else { &app_id[..] };
+    let icon_prefix = if app_id.len() >= 2 {
+        &app_id[..2]
+    } else {
+        &app_id[..]
+    };
     let icon_asset = Some(format!("assets/icons/{}/{}.png", icon_prefix, app_id));
 
     let detail = CommunityDelistedAppDetail::from_local_archive(
@@ -5638,16 +5683,14 @@ async fn publish_community_archive(
         .send()
         .await
     {
-        Ok(response) if response.status().is_success() => response
-            .json::<Value>()
-            .await
-            .ok()
-            .and_then(|p| {
+        Ok(response) if response.status().is_success() => {
+            response.json::<Value>().await.ok().and_then(|p| {
                 p.get("object")
                     .and_then(|o| o.get("sha"))
                     .and_then(|v| v.as_str())
                     .map(String::from)
-            }),
+            })
+        }
         _ => {
             return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
                 "无法获取默认分支信息，请检查仓库和 PAT 权限".to_string(),
@@ -5656,15 +5699,11 @@ async fn publish_community_archive(
     };
 
     let Some(sha) = base_sha else {
-        return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
-            "无法解析默认分支 SHA".to_string(),
-        ));
+        return HttpResponse::BadGateway()
+            .json(ApiResponse::<()>::error("无法解析默认分支 SHA".to_string()));
     };
 
-    let create_ref_url = format!(
-        "https://api.github.com/repos/{}/{}/git/refs",
-        owner, repo
-    );
+    let create_ref_url = format!("https://api.github.com/repos/{}/{}/git/refs", owner, repo);
     let create_resp = match client
         .post(&create_ref_url)
         .bearer_auth(&github_token)
@@ -5985,7 +6024,9 @@ async fn get_community_delisted_app(path: web::Path<String>) -> impl Responder {
     let app_id = path.into_inner();
     match fetch_community_delisted_app(&app_id).await {
         Some(app) => HttpResponse::Ok().json(ApiResponse::success(app)),
-        None => HttpResponse::NotFound().json(ApiResponse::<()>::error("社区归档中未找到该应用".to_string())),
+        None => HttpResponse::NotFound().json(ApiResponse::<()>::error(
+            "社区归档中未找到该应用".to_string(),
+        )),
     }
 }
 
@@ -6025,7 +6066,10 @@ async fn prepare_community_contribution(
             };
             let candidates = build_local_delisted_candidates(records);
             match candidates.iter().find(|candidate| candidate.id == app_id) {
-                Some(candidate) => (to_archive_app_from_candidate(candidate), "download-records".to_string()),
+                Some(candidate) => (
+                    to_archive_app_from_candidate(candidate),
+                    "download-records".to_string(),
+                ),
                 None => {
                     return HttpResponse::NotFound().json(ApiResponse::<()>::error(
                         "本地归档与待贡献列表中都未找到该应用".to_string(),
