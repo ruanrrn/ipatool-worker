@@ -4935,28 +4935,19 @@ struct GitHubTokenResponse {
 #[derive(Deserialize)]
 struct CommunityPublishRequest {
     app_id: String,
-    owner: String,
-    repo: String,
-    branch: Option<String>,
-    path: Option<String>,
-    commit_message: Option<String>,
     #[serde(default)]
-    create_pr: bool,
+    notes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_data_base64: Option<String>,
 }
 
 #[derive(Serialize)]
 struct CommunityPublishResponse {
     app_id: String,
-    owner: String,
-    repo: String,
-    branch: String,
-    path: String,
-    commit_message: String,
-    sha: Option<String>,
-    html_url: Option<String>,
-    download_url: Option<String>,
+    commit_sha: Option<String>,
     pr_url: Option<String>,
     pr_number: Option<i64>,
+    files_committed: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -5046,7 +5037,7 @@ struct LocalDelistedCandidate {
 }
 
 impl CommunityDelistedAppDetail {
-    pub fn from_local_archive(
+    pub(crate) fn from_local_archive(
         app: &ArchiveApp,
         artist_name: Option<String>,
         icon_asset: Option<String>,
@@ -5088,21 +5079,17 @@ impl CommunityDelistedAppDetail {
 #[derive(Deserialize)]
 struct PrepareContributionRequest {
     app_id: String,
-    owner: Option<String>,
-    repo: Option<String>,
+    #[serde(default)]
+    notes: Vec<String>,
 }
 
 #[derive(Serialize)]
 struct PrepareContributionResponse {
     app_id: String,
     source: String,
-    owner: String,
-    repo: String,
-    path: String,
-    commit_message: String,
-    create_pr: bool,
     github_token_configured: bool,
-    app: ArchiveApp,
+    app: CommunityDelistedAppDetail,
+    icon_path: Option<String>,
     warnings: Vec<String>,
 }
 
@@ -5148,6 +5135,7 @@ fn community_archive_app_path(app_id: &str) -> String {
     format!("apps/delisted/{}.json", app_id)
 }
 
+#[allow(dead_code)]
 fn community_archive_publish_path(app_id: &str) -> String {
     community_archive_app_path(app_id)
 }
@@ -5232,6 +5220,7 @@ async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
     response.json::<ArchiveApp>().await.ok()
 }
 
+#[allow(dead_code)]
 async fn fetch_community_delisted_app_detail(app_id: &str) -> Option<CommunityDelistedAppDetail> {
     let client = Client::new();
     let url = format!("{}/{}", community_archive_base_url(), community_archive_app_path(app_id));
@@ -5343,6 +5332,7 @@ fn mask_github_token(token: &str) -> String {
     format!("{}****{}", &trimmed[..4], &trimmed[trimmed.len() - 4..])
 }
 
+#[allow(dead_code)]
 async fn ensure_archive_icon_base64(app: &mut ArchiveApp) -> Result<(), String> {
     if app.icon_base64.is_some() {
         return Ok(());
@@ -5400,11 +5390,9 @@ async fn ensure_archive_icon_base64(app: &mut ArchiveApp) -> Result<(), String> 
     Ok(())
 }
 
-fn build_publish_path(body: &CommunityPublishRequest) -> String {
-    body.path
-        .clone()
-        .filter(|path| !path.trim().is_empty())
-        .unwrap_or_else(|| format!("data/{}.json", body.app_id))
+#[allow(dead_code)]
+fn build_publish_path(app_id: &str) -> String {
+    format!("data/{}.json", app_id)
 }
 
 async fn get_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
@@ -5471,19 +5459,104 @@ async fn delete_github_token(
     }
 }
 
+/// 获取 GitHub 仓库中指定文件的 SHA（如果存在）
+#[allow(dead_code)]
+async fn github_get_file_sha(
+    client: &Client,
+    token: &str,
+    owner: &str,
+    repo: &str,
+    file_path: &str,
+    branch: &str,
+) -> Option<String> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        owner,
+        repo,
+        urlencoding::encode(file_path)
+    );
+    let resp = client
+        .get(&url)
+        .bearer_auth(token)
+        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .query(&[("ref", branch)])
+        .send()
+        .await
+        .ok()?;
+
+    if resp.status().as_u16() == 404 {
+        return None;
+    }
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.json::<Value>()
+        .await
+        .ok()
+        .and_then(|v| v.get("sha").and_then(|s| s.as_str()).map(String::from))
+}
+
+/// 上传单个文件到 GitHub 仓库指定分支
+async fn github_upload_file(
+    client: &Client,
+    token: &str,
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    file_path: &str,
+    content_base64: &str,
+    commit_message: &str,
+    existing_sha: Option<&str>,
+) -> Result<Value, String> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        owner,
+        repo,
+        urlencoding::encode(file_path)
+    );
+    let mut body = serde_json::json!({
+        "message": commit_message,
+        "content": content_base64,
+        "branch": branch,
+    });
+    if let Some(sha) = existing_sha {
+        body["sha"] = serde_json::json!(sha);
+    }
+
+    let resp = client
+        .put(&url)
+        .bearer_auth(token)
+        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("上传文件失败: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(format!("上传文件失败: HTTP {} {}", status, text));
+    }
+
+    resp.json::<Value>()
+        .await
+        .map_err(|e| format!("解析响应失败: {}", e))
+}
+
 async fn publish_community_archive(
     admin: AuthenticatedAdmin,
     body: web::Json<CommunityPublishRequest>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    let owner = body.owner.trim().to_string();
-    let repo = body.repo.trim().to_string();
     let app_id = body.app_id.trim().to_string();
+    let notes = body.notes.clone();
+    let icon_data_base64 = body.icon_data_base64.clone();
 
-    if owner.is_empty() || repo.is_empty() || app_id.is_empty() {
-        return HttpResponse::BadRequest().json(ApiResponse::<()>::error(
-            "owner、repo、app_id 不能为空".to_string(),
-        ));
+    if app_id.is_empty() {
+        return HttpResponse::BadRequest()
+            .json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
     }
 
     let github_token = match data.db.lock().unwrap().get_github_token(&admin.username) {
@@ -5493,178 +5566,120 @@ async fn publish_community_archive(
                 .json(ApiResponse::<()>::error("请先配置 GitHub PAT".to_string()))
         }
         Err(error) => {
-            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
-                "读取 GitHub Token 失败: {}",
-                error
-            )))
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                format!("读取 GitHub Token 失败: {}", error),
+            ))
         }
     };
 
+    // 硬编码目标仓库
+    let owner = "ruanrrn";
+    let repo = "ipa-archive";
+
+    // 从 local archive 或 download records 加载 app 数据
     let file_path = archive_file_path(&app_id);
-    let Some(mut app) = (match load_archive_app_from_path(&file_path) {
-        Ok(app) => app,
+    let (app, source) = match load_archive_app_from_path(&file_path) {
+        Ok(Some(app)) => (app, "local-archive".to_string()),
+        Ok(None) => {
+            let records = {
+                let db = data.db.lock().unwrap();
+                normalize_download_record_artifact_paths(&db, &data.downloads_dir);
+                sync_download_records_from_filesystem(&db, &data.downloads_dir);
+                db.get_all_download_records().unwrap_or_default()
+            };
+            let candidates = build_local_delisted_candidates(records);
+            match candidates.iter().find(|c| c.id == app_id) {
+                Some(candidate) => (to_archive_app_from_candidate(candidate), "download-records".to_string()),
+                None => {
+                    return HttpResponse::NotFound().json(ApiResponse::<()>::error(
+                        "本地归档与待贡献列表中都未找到该应用".to_string(),
+                    ))
+                }
+            }
+        }
         Err(error) => {
             return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
         }
-    }) else {
-        return HttpResponse::NotFound().json(ApiResponse::<()>::error(
-            "本地 archive 记录不存在".to_string(),
-        ));
     };
 
-    if let Err(error) = ensure_archive_icon_base64(&mut app).await {
-        return HttpResponse::BadGateway().json(ApiResponse::<()>::error(error));
-    }
+    // 构建 CommunityDelistedAppDetail
+    let icon_prefix = if app_id.len() >= 2 { &app_id[..2] } else { &app_id[..] };
+    let icon_asset = Some(format!("assets/icons/{}/{}.png", icon_prefix, app_id));
 
-    if let Err(error) = save_archive_app(&file_path, &app) {
-        return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
-    }
+    let detail = CommunityDelistedAppDetail::from_local_archive(
+        &app,
+        app.bundle_id.clone().or_else(|| {
+            // Try to get artist_name from the source candidate info
+            None
+        }),
+        icon_asset,
+        notes,
+    );
 
-    let publish_path = build_publish_path(&body.0);
-    let commit_message = body
-        .commit_message
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| format!("Publish archive {} via ipatool", app.id));
-
-    let archive_json = match serde_json::to_string_pretty(&app) {
+    // 序列化为 JSON
+    let app_json = match serde_json::to_string_pretty(&detail) {
         Ok(json) => json,
         Err(error) => {
             return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
-                "序列化 archive JSON 失败: {}",
+                "序列化 JSON 失败: {}",
                 error
             )))
         }
     };
 
     let client = Client::new();
-    let content_base64 = base64::engine::general_purpose::STANDARD.encode(archive_json.as_bytes());
-    let default_branch = "main".to_string();
+    let default_branch = "main";
+    let timestamp = Utc::now().format("%Y%m%d%H%M%S");
+    let feature_branch = format!("contribute/{}-{}", app_id, timestamp);
 
-    // Step 1: If PR mode, get default branch SHA and create feature branch
-    let use_pr = body.create_pr;
-    let target_branch = if use_pr {
-        let ref_url = format!(
-            "https://api.github.com/repos/{}/{}/git/ref/heads/{}",
-            owner, repo, default_branch
-        );
-        let base_sha = match client
-            .get(&ref_url)
-            .bearer_auth(&github_token)
-            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
-            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-            .send()
-            .await
-        {
-            Ok(response) if response.status().is_success() => {
-                response.json::<Value>().await.ok().and_then(|p| {
-                    p.get("object")
-                        .and_then(|o| o.get("sha"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from)
-                })
-            }
-            _ => {
-                return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
-                    "无法获取默认分支信息，请检查仓库和 PAT 权限".to_string(),
-                ));
-            }
-        };
-
-        let Some(sha) = base_sha else {
-            return HttpResponse::BadGateway()
-                .json(ApiResponse::<()>::error("无法解析默认分支 SHA".to_string()));
-        };
-
-        let timestamp = Utc::now().format("%Y%m%d%H%M%S");
-        let feature_branch = format!("publish/{}-{}", app_id, timestamp);
-
-        // Create branch
-        let create_ref_url = format!("https://api.github.com/repos/{}/{}/git/refs", owner, repo);
-        let create_resp = match client
-            .post(&create_ref_url)
-            .bearer_auth(&github_token)
-            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
-            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-            .json(&serde_json::json!({
-                "ref": format!("refs/heads/{}", feature_branch),
-                "sha": sha,
-            }))
-            .send()
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                return HttpResponse::BadGateway()
-                    .json(ApiResponse::<()>::error(format!("创建分支失败: {}", e)));
-            }
-        };
-
-        if !create_resp.status().is_success() {
-            let status = create_resp.status();
-            let text = create_resp.text().await.unwrap_or_default();
-            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
-                "创建分支失败: HTTP {} {}",
-                status, text
-            )));
-        }
-
-        feature_branch
-    } else {
-        body.branch
-            .clone()
-            .filter(|v| !v.trim().is_empty())
-            .unwrap_or_else(|| default_branch.clone())
-    };
-
-    // Step 2: Check existing file on target branch
-    let github_api = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        owner,
-        repo,
-        urlencoding::encode(&publish_path)
+    // Step 1: 获取默认分支 SHA 并创建 feature branch
+    let ref_url = format!(
+        "https://api.github.com/repos/{}/{}/git/ref/heads/{}",
+        owner, repo, default_branch
     );
-
-    let existing_sha = match client
-        .get(&github_api)
+    let base_sha = match client
+        .get(&ref_url)
         .bearer_auth(&github_token)
         .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
         .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-        .query(&[("ref", target_branch.as_str())])
         .send()
         .await
     {
-        Ok(r) if r.status().is_success() => r
+        Ok(response) if response.status().is_success() => response
             .json::<Value>()
             .await
             .ok()
-            .and_then(|p| p.get("sha").and_then(|v| v.as_str()).map(String::from)),
-        Ok(r) if r.status().as_u16() == 404 => None,
-        Ok(r) => {
-            let s = r.status();
-            let t = r.text().await.unwrap_or_default();
-            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
-                "查询文件失败: HTTP {} {}",
-                s, t
-            )));
-        }
-        Err(e) => {
-            return HttpResponse::BadGateway()
-                .json(ApiResponse::<()>::error(format!("查询文件失败: {}", e)));
+            .and_then(|p| {
+                p.get("object")
+                    .and_then(|o| o.get("sha"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            }),
+        _ => {
+            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
+                "无法获取默认分支信息，请检查仓库和 PAT 权限".to_string(),
+            ))
         }
     };
 
-    // Step 3: Push file to target branch
-    let put_resp = match client
-        .put(&github_api)
+    let Some(sha) = base_sha else {
+        return HttpResponse::BadGateway().json(ApiResponse::<()>::error(
+            "无法解析默认分支 SHA".to_string(),
+        ));
+    };
+
+    let create_ref_url = format!(
+        "https://api.github.com/repos/{}/{}/git/refs",
+        owner, repo
+    );
+    let create_resp = match client
+        .post(&create_ref_url)
         .bearer_auth(&github_token)
         .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
         .header(reqwest::header::ACCEPT, "application/vnd.github+json")
         .json(&serde_json::json!({
-            "message": commit_message.clone(),
-            "content": content_base64,
-            "branch": target_branch,
-            "sha": existing_sha,
+            "ref": format!("refs/heads/{}", feature_branch),
+            "sha": sha,
         }))
         .send()
         .await
@@ -5672,111 +5687,153 @@ async fn publish_community_archive(
         Ok(r) => r,
         Err(e) => {
             return HttpResponse::BadGateway()
-                .json(ApiResponse::<()>::error(format!("推送文件失败: {}", e)));
+                .json(ApiResponse::<()>::error(format!("创建分支失败: {}", e)));
         }
     };
 
-    let put_status = put_resp.status();
-    let put_text = match put_resp.text().await {
-        Ok(t) => t,
-        Err(e) => {
-            return HttpResponse::BadGateway()
-                .json(ApiResponse::<()>::error(format!("读取响应失败: {}", e)));
-        }
-    };
-
-    if !put_status.is_success() {
+    if !create_resp.status().is_success() {
+        let status = create_resp.status();
+        let text = create_resp.text().await.unwrap_or_default();
         return HttpResponse::BadGateway().json(ApiResponse::<()>::error(format!(
-            "推送文件失败: HTTP {} {}",
-            put_status, put_text
+            "创建分支失败: HTTP {} {}",
+            status, text
         )));
     }
 
-    let put_payload: Value = match serde_json::from_str(&put_text) {
-        Ok(p) => p,
+    // Step 2: 上传 app JSON
+    let app_publish_path = format!("apps/delisted/{}.json", app_id);
+    let content_base64 = base64::engine::general_purpose::STANDARD.encode(app_json.as_bytes());
+    let commit_msg = format!("Add delisted app: {} ({})", detail.name, detail.id);
+
+    let upload_result = github_upload_file(
+        &client,
+        &github_token,
+        owner,
+        repo,
+        &feature_branch,
+        &app_publish_path,
+        &content_base64,
+        &commit_msg,
+        None,
+    )
+    .await;
+
+    let commit_sha = match upload_result {
+        Ok(result) => result
+            .get("commit")
+            .and_then(|c| c.get("sha"))
+            .and_then(|v| v.as_str())
+            .map(String::from),
         Err(e) => {
-            return HttpResponse::BadGateway()
-                .json(ApiResponse::<()>::error(format!("解析响应失败: {}", e)));
+            return HttpResponse::BadGateway().json(ApiResponse::<()>::error(e));
         }
     };
 
-    let content = put_payload.get("content").cloned().unwrap_or(Value::Null);
-    let file_sha = content
-        .get("sha")
-        .and_then(|v| v.as_str())
-        .map(String::from);
-    let file_html_url = content
-        .get("html_url")
-        .and_then(|v| v.as_str())
-        .map(String::from);
-    let file_download_url = content
-        .get("download_url")
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    let mut files_committed = vec![app_publish_path];
 
-    // Step 4: If PR mode, create pull request
-    let (final_pr_url, final_pr_number) = if use_pr {
-        let pr_api = format!("https://api.github.com/repos/{}/{}/pulls", owner, repo);
-        let pr_title = format!("Add archive: {} ({})", app.name, app.id);
-        let pr_body = format!(
-            "Auto-generated from ipaTool.\n\nApp: {} ({})\nBundle ID: {}\nVersions: {}",
-            app.name,
-            app.id,
-            app.bundle_id.as_deref().unwrap_or("unknown"),
-            app.versions.len(),
-        );
-
-        match client
-            .post(&pr_api)
-            .bearer_auth(&github_token)
-            .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
-            .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-            .json(&serde_json::json!({
-                "title": pr_title,
-                "body": pr_body,
-                "head": target_branch,
-                "base": default_branch,
-            }))
-            .send()
+    // Step 3: 如果有 icon_data_base64，上传 icon PNG
+    if let Some(icon_b64) = &icon_data_base64 {
+        if !icon_b64.is_empty() {
+            let icon_path = format!("assets/icons/{}/{}.png", icon_prefix, app_id);
+            let icon_commit_msg = format!("Add icon for {} ({})", detail.name, detail.id);
+            if let Err(e) = github_upload_file(
+                &client,
+                &github_token,
+                owner,
+                repo,
+                &feature_branch,
+                &icon_path,
+                icon_b64,
+                &icon_commit_msg,
+                None,
+            )
             .await
-        {
-            Ok(r) if r.status().is_success() => match r.json::<Value>().await {
-                Ok(pr_data) => (
-                    pr_data
-                        .get("html_url")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
-                    pr_data.get("number").and_then(|v| v.as_i64()),
-                ),
-                Err(_) => (None, None),
-            },
-            Ok(r) => {
-                let s = r.status();
-                let t = r.text().await.unwrap_or_default();
-                log::warn!("PR creation failed: HTTP {} {}", s, t);
-                (None, None)
-            }
-            Err(e) => {
-                log::warn!("PR creation failed: {}", e);
-                (None, None)
+            {
+                log::warn!("上传 icon 失败: {}", e);
+            } else {
+                files_committed.push(icon_path);
             }
         }
+    }
+
+    // Step 4: 创建 PR
+    let pr_api = format!("https://api.github.com/repos/{}/{}/pulls", owner, repo);
+    let pr_title = format!("feat: add delisted app {} ({})", detail.name, detail.id);
+    let bundle_id_display = detail.bundle_id.as_deref().unwrap_or("unknown");
+    let version_count = detail.versions.len();
+    let version_summary: Vec<String> = detail
+        .versions
+        .iter()
+        .map(|v| {
+            let size_str = v
+                .size_bytes
+                .map(|s| format!(" ({} bytes)", s))
+                .unwrap_or_default();
+            format!("- {}{}", v.version, size_str)
+        })
+        .collect();
+    let notes_str = if detail.notes.is_empty() {
+        String::new()
     } else {
-        (None, None)
+        format!("\n\n## Notes\n{}", detail.notes.join("\n"))
+    };
+
+    let pr_body = format!(
+        "## Summary\n\n- **App**: {} ({})\n- **Bundle ID**: {}\n- **Versions**: {}\n- **Source**: {}{}\n\n## Versions\n{}",
+        detail.name,
+        detail.id,
+        bundle_id_display,
+        version_count,
+        source,
+        notes_str,
+        version_summary.join("\n"),
+    );
+
+    let (final_pr_url, final_pr_number) = match client
+        .post(&pr_api)
+        .bearer_auth(&github_token)
+        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .json(&serde_json::json!({
+            "title": pr_title,
+            "body": pr_body,
+            "head": feature_branch,
+            "base": default_branch,
+        }))
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => match r.json::<Value>().await {
+            Ok(pr_data) => (
+                pr_data
+                    .get("html_url")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                pr_data.get("number").and_then(|v| v.as_i64()),
+            ),
+            Err(_) => {
+                log::warn!("解析 PR 响应失败");
+                (None, None)
+            }
+        },
+        Ok(r) => {
+            let s = r.status();
+            let t = r.text().await.unwrap_or_default();
+            log::warn!("PR 创建失败: HTTP {} {}", s, t);
+            (None, None)
+        }
+        Err(e) => {
+            log::warn!("PR 创建失败: {}", e);
+            (None, None)
+        }
     };
 
     HttpResponse::Ok().json(ApiResponse::success(CommunityPublishResponse {
-        app_id: app.id,
-        owner,
-        repo,
-        branch: target_branch,
-        path: publish_path,
-        commit_message,
-        sha: file_sha,
-        html_url: file_html_url,
-        download_url: file_download_url,
+        app_id: detail.id,
+        commit_sha,
         pr_url: final_pr_url,
         pr_number: final_pr_number,
+        files_committed,
     }))
 }
 
@@ -5956,16 +6013,16 @@ async fn prepare_community_contribution(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let app_id = body.app_id.trim().to_string();
+    let notes = body.notes.clone();
+
     if app_id.is_empty() {
-        return HttpResponse::BadRequest().json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
+        return HttpResponse::BadRequest()
+            .json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
     }
 
-    let owner = body.owner.clone().unwrap_or_else(|| admin.username.clone());
-    let repo = body.repo.clone().unwrap_or_else(|| "ipa-archive".to_string());
-
     let local_path = archive_file_path(&app_id);
-    let app = match load_archive_app_from_path(&local_path) {
-        Ok(Some(app)) => app,
+    let (app, source) = match load_archive_app_from_path(&local_path) {
+        Ok(Some(app)) => (app, "local-archive".to_string()),
         Ok(None) => {
             let records = {
                 let db = data.db.lock().unwrap();
@@ -5975,7 +6032,7 @@ async fn prepare_community_contribution(
             };
             let candidates = build_local_delisted_candidates(records);
             match candidates.iter().find(|candidate| candidate.id == app_id) {
-                Some(candidate) => to_archive_app_from_candidate(candidate),
+                Some(candidate) => (to_archive_app_from_candidate(candidate), "download-records".to_string()),
                 None => {
                     return HttpResponse::NotFound().json(ApiResponse::<()>::error(
                         "本地归档与待贡献列表中都未找到该应用".to_string(),
@@ -5983,9 +6040,28 @@ async fn prepare_community_contribution(
                 }
             }
         }
-        Err(error) => return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error)),
+        Err(error) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error));
+        }
     };
 
+    // 构建 icon_asset 路径
+    let icon_prefix = if app_id.len() >= 2 {
+        &app_id[..2]
+    } else {
+        &app_id[..]
+    };
+    let icon_path = Some(format!("assets/icons/{}/{}.png", icon_prefix, app_id));
+
+    // 用 CommunityDelistedAppDetail::from_local_archive() 转换
+    let detail = CommunityDelistedAppDetail::from_local_archive(
+        &app,
+        app.bundle_id.clone().or_else(|| None),
+        icon_path.clone(),
+        notes,
+    );
+
+    // 检查 GitHub PAT 配置状态
     let github_token_configured = data
         .db
         .lock()
@@ -5995,25 +6071,29 @@ async fn prepare_community_contribution(
         .flatten()
         .is_some();
 
-    let warnings = vec![
-        "当前 prepare 仅生成预览数据，最终提交仍走 /api/community/publish".to_string(),
-        "建议目标仓库采用 apps/delisted/{app_id}.json 结构，并在 merge 后自动生成 indexes/delisted-lite.json".to_string(),
-    ];
+    // 生成 warnings
+    let mut warnings: Vec<String> = Vec::new();
+    if detail.bundle_id.is_none() {
+        warnings.push("缺少 bundle_id，建议手动补充".to_string());
+    }
+    if detail.artist_name.is_none() {
+        warnings.push("缺少 artist_name（开发者名称）".to_string());
+    }
+    if detail.versions.is_empty() {
+        warnings.push("没有版本信息".to_string());
+    } else if detail.versions.iter().all(|v| v.size_bytes.is_none()) {
+        warnings.push("所有版本均无 size_bytes".to_string());
+    }
+    if icon_path.is_none() {
+        warnings.push("无法构建 icon 路径".to_string());
+    }
 
     HttpResponse::Ok().json(ApiResponse::success(PrepareContributionResponse {
-        app_id: app.id.clone(),
-        source: if local_path.exists() {
-            "local-archive".to_string()
-        } else {
-            "download-records".to_string()
-        },
-        owner,
-        repo,
-        path: community_archive_publish_path(&app.id),
-        commit_message: format!("Add delisted app {} ({})", app.name, app.id),
-        create_pr: true,
+        app_id: detail.id.clone(),
+        source,
         github_token_configured,
-        app,
+        app: detail,
+        icon_path,
         warnings,
     }))
 }
