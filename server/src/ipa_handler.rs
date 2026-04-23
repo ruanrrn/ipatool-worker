@@ -535,13 +535,20 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
 
             tokio::spawn(async move {
                 let start = (i * CHUNK_SIZE) as u64;
-                let end = std::cmp::min(start + CHUNK_SIZE as u64 - 1, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - 1);
+                let end = std::cmp::min(
+                    start + CHUNK_SIZE as u64 - 1,
+                    file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - 1,
+                );
                 let temp_output = cache_dir.join(format!("part{}", i));
 
                 download_chunk(&url, start, end, &temp_output).await?;
 
-                let chunk_bytes = std::cmp::min(CHUNK_SIZE as u64, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - start);
-                let prev = downloaded_total.fetch_add(chunk_bytes, std::sync::atomic::Ordering::Relaxed);
+                let chunk_bytes = std::cmp::min(
+                    CHUNK_SIZE as u64,
+                    file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - start,
+                );
+                let prev =
+                    downloaded_total.fetch_add(chunk_bytes, std::sync::atomic::Ordering::Relaxed);
                 let current = prev + chunk_bytes;
 
                 if let Some(callback) = &progress_callback {
