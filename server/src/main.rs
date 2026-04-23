@@ -5246,7 +5246,41 @@ async fn fetch_community_delisted_app_detail(app_id: &str) -> Option<CommunityDe
     response.json::<CommunityDelistedAppDetail>().await.ok()
 }
 
-fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDelistedCandidate> {
+/// 检查应用是否仍在 App Store 上架
+/// 返回 true 表示仍在商店（不应作为下架候选）
+async fn check_app_still_on_store(app_id: &str) -> bool {
+    let url = format!(
+        "https://itunes.apple.com/lookup?id={}&country=CN",
+        urlencoding::encode(app_id)
+    );
+    let client = reqwest::Client::new();
+    let response = match client.get(&url).send().await {
+        Ok(r) => r,
+        Err(_) => return false, // 网络失败时保守认为不在商店
+    };
+    if !response.status().is_success() {
+        return false;
+    }
+    match response.json::<serde_json::Value>().await {
+        Ok(json) => {
+            json.get("resultCount")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0)
+                > 0
+        }
+        Err(_) => false,
+    }
+}
+
+/// 从本地 archive JSON 补全应用元信息（名称、图标）
+fn load_archive_app_by_id(app_id: &str) -> Option<ArchiveApp> {
+    let file_path = archive_file_path(app_id);
+    load_archive_app_from_path(&file_path).ok().flatten()
+}
+
+async fn build_local_delisted_candidates(
+    records: Vec<DownloadRecord>,
+) -> Vec<LocalDelistedCandidate> {
     let local_archive_ids = std::fs::read_dir(resolve_archive_dir())
         .ok()
         .into_iter()
@@ -5260,6 +5294,7 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
         })
         .collect::<HashSet<_>>();
 
+    // 第一阶段：按 app_id 分组聚合下载记录
     let mut grouped: HashMap<String, LocalDelistedCandidate> = HashMap::new();
 
     for record in records {
@@ -5327,10 +5362,31 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
         }
     }
 
-    let mut items = grouped
-        .into_values()
-        .filter(|item| !item.already_archived_locally)
-        .collect::<Vec<_>>();
+    // 第二阶段：从本地 archive JSON 补全缺失的 name / icon / artist_name
+    for (app_id, candidate) in grouped.iter_mut() {
+        if let Some(archive_app) = load_archive_app_by_id(app_id) {
+            if candidate.name.trim().is_empty() && !archive_app.name.trim().is_empty() {
+                candidate.name = archive_app.name.clone();
+            }
+            if candidate.icon_url.is_none() {
+                candidate.icon_url = archive_app.icon_url.clone();
+            }
+            // ArchiveApp 没有直接存 artist_name，跳过
+        }
+    }
+
+    // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的
+    let mut items = Vec::new();
+    for (app_id, candidate) in grouped.into_iter() {
+        if candidate.already_archived_locally {
+            continue;
+        }
+        // 检查是否仍在商店
+        if check_app_still_on_store(&app_id).await {
+            continue;
+        }
+        items.push(candidate);
+    }
 
     items.sort_by(|a, b| b.last_download_date.cmp(&a.last_download_date));
     items
@@ -5621,7 +5677,7 @@ async fn publish_community_archive(
                 sync_download_records_from_filesystem(&db, &data.downloads_dir);
                 db.get_all_download_records().unwrap_or_default()
             };
-            let candidates = build_local_delisted_candidates(records);
+            let candidates = build_local_delisted_candidates(records).await;
             match candidates.iter().find(|c| c.id == app_id) {
                 Some(candidate) => (
                     to_archive_app_from_candidate(candidate),
@@ -6037,7 +6093,7 @@ async fn get_local_delisted_candidates(data: web::Data<AppState>) -> impl Respon
         sync_download_records_from_filesystem(&db, &data.downloads_dir);
         db.get_all_download_records().unwrap_or_default()
     };
-    let candidates = build_local_delisted_candidates(records);
+    let candidates = build_local_delisted_candidates(records).await;
     HttpResponse::Ok().json(ApiResponse::success(candidates))
 }
 
@@ -6064,7 +6120,7 @@ async fn prepare_community_contribution(
                 sync_download_records_from_filesystem(&db, &data.downloads_dir);
                 db.get_all_download_records().unwrap_or_default()
             };
-            let candidates = build_local_delisted_candidates(records);
+            let candidates = build_local_delisted_candidates(records).await;
             match candidates.iter().find(|candidate| candidate.id == app_id) {
                 Some(candidate) => (
                     to_archive_app_from_candidate(candidate),
