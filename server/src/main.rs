@@ -1577,15 +1577,10 @@ async fn remove_empty_legacy_job_dir(job_root: &Path, job_id: &str) {
     if !legacy_dir.exists() {
         return;
     }
-    match tokio::fs::read_dir(&legacy_dir).await {
-        Ok(mut entries) => match entries.next_entry().await {
-            Ok(None) => {
-                let _ = tokio::fs::remove_dir(&legacy_dir).await;
-            }
-            Ok(Some(_)) => {}
-            Err(_) => {}
-        },
-        Err(_) => {}
+    if let Ok(mut entries) = tokio::fs::read_dir(&legacy_dir).await {
+        if let Ok(None) = entries.next_entry().await {
+            let _ = tokio::fs::remove_dir(&legacy_dir).await;
+        }
     }
 }
 
@@ -5245,7 +5240,7 @@ fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDel
         if record.app_id.trim().is_empty() {
             continue;
         }
-        if record.status.to_ascii_lowercase() != "completed" {
+        if !record.status.eq_ignore_ascii_case("completed") {
             continue;
         }
 
@@ -5498,6 +5493,7 @@ async fn github_get_file_sha(
 }
 
 /// 上传单个文件到 GitHub 仓库指定分支
+#[allow(clippy::too_many_arguments)]
 async fn github_upload_file(
     client: &Client,
     token: &str,
@@ -5608,10 +5604,7 @@ async fn publish_community_archive(
 
     let detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or_else(|| {
-            // Try to get artist_name from the source candidate info
-            None
-        }),
+        app.bundle_id.clone().or(None),
         icon_asset,
         notes,
     );
@@ -6056,7 +6049,7 @@ async fn prepare_community_contribution(
     // 用 CommunityDelistedAppDetail::from_local_archive() 转换
     let detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or_else(|| None),
+        app.bundle_id.clone().or(None),
         icon_path.clone(),
         notes,
     );
