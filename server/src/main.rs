@@ -28,7 +28,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -4903,6 +4903,10 @@ struct ArchiveVersion {
     version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    released_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    size_bytes: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -4955,6 +4959,153 @@ struct CommunityPublishResponse {
     pr_number: Option<i64>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct CommunityDelistedLiteItem {
+    id: String,
+    name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bundle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    artist_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_asset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_url: Option<String>,
+    #[serde(default, alias = "last_seen_version", skip_serializing_if = "Option::is_none")]
+    latest_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+struct CommunityDelistedLiteIndex {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    generated_at: Option<String>,
+    #[serde(default)]
+    schema_version: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+    #[serde(default)]
+    count: usize,
+    #[serde(default)]
+    apps: Vec<CommunityDelistedLiteItem>,
+}
+
+// ---- Community Archive Schema (v1) ----
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CommunityDelistedAppDetail {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_asset: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
+    #[serde(default)]
+    pub delisted: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    pub versions: Vec<CommunityVersion>,
+    pub updated_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CommunityVersion {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub version_id: String,
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub released_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct LocalDelistedCandidate {
+    id: String,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bundle_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    artist_name: Option<String>,
+    versions: Vec<ArchiveVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_download_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_record_count: Option<usize>,
+    #[serde(default)]
+    already_archived_locally: bool,
+}
+
+impl CommunityDelistedAppDetail {
+    pub fn from_local_archive(
+        app: &ArchiveApp,
+        artist_name: Option<String>,
+        icon_asset: Option<String>,
+        notes: Vec<String>,
+    ) -> Self {
+        let now = Utc::now().to_rfc3339();
+        CommunityDelistedAppDetail {
+            id: app.id.clone(),
+            name: app.name.clone(),
+            bundle_id: app.bundle_id.clone(),
+            artist_name: artist_name.or_else(|| {
+                let by = &app.added_by;
+                if !by.is_empty() && by != "user" {
+                    Some(by.clone())
+                } else {
+                    None
+                }
+            }),
+            icon_asset,
+            icon_url: None,
+            delisted: true,
+            notes,
+            versions: app
+                .versions
+                .iter()
+                .map(|v| CommunityVersion {
+                    version_id: v.version_id.clone(),
+                    version: v.version.clone(),
+                    released_at: None,
+                    size_bytes: None,
+                    description: v.description.clone(),
+                })
+                .collect(),
+            updated_at: now,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct PrepareContributionRequest {
+    app_id: String,
+    owner: Option<String>,
+    repo: Option<String>,
+}
+
+#[derive(Serialize)]
+struct PrepareContributionResponse {
+    app_id: String,
+    source: String,
+    owner: String,
+    repo: String,
+    path: String,
+    commit_message: String,
+    create_pr: bool,
+    github_token_configured: bool,
+    app: ArchiveApp,
+    warnings: Vec<String>,
+}
+
 fn archive_file_path(app_id: &str) -> PathBuf {
     resolve_archive_dir().join(format!("{}.json", app_id))
 }
@@ -4977,7 +5128,222 @@ fn save_archive_app(file_path: &Path, app: &ArchiveApp) -> Result<(), String> {
     let json =
         serde_json::to_string_pretty(app).map_err(|error| format!("序列化收藏失败: {}", error))?;
 
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| format!("创建收藏目录失败: {}", error))?;
+    }
+
     std::fs::write(file_path, json).map_err(|error| format!("保存收藏失败: {}", error))
+}
+
+fn community_archive_base_url() -> String {
+    std::env::var("IPA_ARCHIVE_BASE_URL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "https://raw.githubusercontent.com/ruanrrn/ipa-archive/main".to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
+fn community_archive_app_path(app_id: &str) -> String {
+    format!("apps/delisted/{}.json", app_id)
+}
+
+fn community_archive_publish_path(app_id: &str) -> String {
+    community_archive_app_path(app_id)
+}
+
+fn parse_delisted_lite_index(data: Value) -> CommunityDelistedLiteIndex {
+    // 1. 尝试纯数组
+    if let Some(arr) = data.as_array() {
+        let apps: Vec<CommunityDelistedLiteItem> = arr
+            .iter()
+            .filter_map(|item| {
+                serde_json::from_value::<CommunityDelistedLiteItem>(item.clone()).ok()
+            })
+            .collect();
+        return CommunityDelistedLiteIndex {
+            schema_version: 1,
+            source: Some("flat-array".to_string()),
+            count: apps.len(),
+            apps,
+            ..Default::default()
+        };
+    }
+    // 2. 尝试包装对象 { apps: [...] }
+    if let Some(obj) = data.as_object() {
+        if let Some(apps_arr) = obj.get("apps").and_then(|v| v.as_array()) {
+            let apps: Vec<CommunityDelistedLiteItem> = apps_arr
+                .iter()
+                .filter_map(|item| {
+                    serde_json::from_value::<CommunityDelistedLiteItem>(item.clone()).ok()
+                })
+                .collect();
+            return CommunityDelistedLiteIndex {
+                generated_at: obj
+                    .get("generated_at")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                schema_version: obj
+                    .get("schema_version")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(1) as i32,
+                source: obj.get("source").and_then(|v| v.as_str()).map(String::from),
+                count: apps
+                    .len()
+                    .max(obj.get("count").and_then(|v| v.as_i64()).unwrap_or(0) as usize),
+                apps,
+            };
+        }
+    }
+    CommunityDelistedLiteIndex::default()
+}
+
+async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
+    let client = Client::new();
+    let candidates = [
+        format!("{}/indexes/delisted-lite.json", community_archive_base_url()),
+        format!("{}/delisted.json", community_archive_base_url()),
+    ];
+
+    for url in candidates {
+        if let Ok(resp) = client.get(&url).send().await {
+            if !resp.status().is_success() {
+                continue;
+            }
+            if let Ok(data) = resp.json::<Value>().await {
+                if let Ok(index) = serde_json::from_value::<CommunityDelistedLiteIndex>(data.clone()) {
+                    return CommunityDelistedLiteIndex {
+                        count: index.apps.len().max(index.count),
+                        schema_version: if index.schema_version == 0 { 1 } else { index.schema_version },
+                        ..index
+                    };
+                }
+                if let Some(apps) = data.get("apps").and_then(|value| value.as_array()) {
+                    let normalized = apps
+                        .iter()
+                        .filter_map(|item| serde_json::from_value::<CommunityDelistedLiteItem>(item.clone()).ok())
+                        .collect::<Vec<_>>();
+                    return CommunityDelistedLiteIndex {
+                        generated_at: data.get("generated_at").and_then(|value| value.as_str()).map(String::from),
+                        schema_version: 1,
+                        source: Some("legacy-delisted.json".to_string()),
+                        count: normalized.len(),
+                        apps: normalized,
+                    };
+                }
+            }
+        }
+    }
+
+    CommunityDelistedLiteIndex {
+        generated_at: None,
+        schema_version: 1,
+        source: Some("empty-fallback".to_string()),
+        count: 0,
+        apps: Vec::new(),
+    }
+}
+
+async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
+    let client = Client::new();
+    let url = format!("{}/{}", community_archive_base_url(), community_archive_app_path(app_id));
+    let response = client.get(url).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    response.json::<ArchiveApp>().await.ok()
+}
+
+fn build_local_delisted_candidates(records: Vec<DownloadRecord>) -> Vec<LocalDelistedCandidate> {
+    let local_archive_ids = std::fs::read_dir(resolve_archive_dir())
+        .ok()
+        .into_iter()
+        .flat_map(|entries| entries.flatten())
+        .filter_map(|entry| entry.path().file_stem().and_then(|value| value.to_str()).map(String::from))
+        .collect::<HashSet<_>>();
+
+    let mut grouped: HashMap<String, LocalDelistedCandidate> = HashMap::new();
+
+    for record in records {
+        if record.app_id.trim().is_empty() {
+            continue;
+        }
+        if record.status.to_ascii_lowercase() != "completed" {
+            continue;
+        }
+
+        let entry = grouped.entry(record.app_id.clone()).or_insert_with(|| LocalDelistedCandidate {
+            id: record.app_id.clone(),
+            name: record.app_name.clone(),
+            bundle_id: record.bundle_id.clone(),
+            icon_url: record.artwork_url.clone(),
+            artist_name: record.artist_name.clone(),
+            versions: Vec::new(),
+            last_download_date: record.download_date.clone().or(record.created_at.clone()),
+            source_record_count: Some(0),
+            already_archived_locally: local_archive_ids.contains(&record.app_id),
+        });
+
+        if entry.name.trim().is_empty() && !record.app_name.trim().is_empty() {
+            entry.name = record.app_name.clone();
+        }
+        if entry.bundle_id.is_none() {
+            entry.bundle_id = record.bundle_id.clone();
+        }
+        if entry.icon_url.is_none() {
+            entry.icon_url = record.artwork_url.clone();
+        }
+        if entry.artist_name.is_none() {
+            entry.artist_name = record.artist_name.clone();
+        }
+        if entry.last_download_date.is_none() {
+            entry.last_download_date = record.download_date.clone().or(record.created_at.clone());
+        }
+        entry.source_record_count = Some(entry.source_record_count.unwrap_or(0) + 1);
+
+        let version_id = record
+            .job_id
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| record.version.clone().unwrap_or_default());
+        let version_label = record.version.clone().unwrap_or_else(|| "unknown".to_string());
+        if !version_id.trim().is_empty() && !entry.versions.iter().any(|item| item.version_id == version_id) {
+            entry.versions.push(ArchiveVersion {
+                version_id,
+                version: version_label,
+                description: Some("由本地下载记录聚合".to_string()),
+                released_at: None,
+                size_bytes: record.file_size,
+            });
+        }
+    }
+
+    let mut items = grouped
+        .into_values()
+        .filter(|item| !item.already_archived_locally)
+        .collect::<Vec<_>>();
+
+    items.sort_by(|a, b| b.last_download_date.cmp(&a.last_download_date));
+    items
+}
+
+fn to_archive_app_from_candidate(candidate: &LocalDelistedCandidate) -> ArchiveApp {
+    ArchiveApp {
+        id: candidate.id.clone(),
+        name: candidate.name.clone(),
+        icon_url: candidate.icon_url.clone(),
+        icon_bak_url: None,
+        icon_base64: None,
+        icon_content_type: None,
+        bundle_id: candidate.bundle_id.clone(),
+        versions: candidate.versions.clone(),
+        delisted: true,
+        added_at: candidate
+            .last_download_date
+            .clone()
+            .unwrap_or_else(|| Utc::now().to_rfc3339()),
+        added_by: "local-download-records".to_string(),
+    }
 }
 
 fn mask_github_token(token: &str) -> String {
@@ -5510,6 +5876,12 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
                 version.version.clone()
             };
             existing_version.description = version.description.clone();
+            if version.released_at.is_some() {
+                existing_version.released_at = version.released_at.clone();
+            }
+            if version.size_bytes.is_some() {
+                existing_version.size_bytes = version.size_bytes;
+            }
         } else {
             app.versions.push(version.clone());
         }
@@ -5567,18 +5939,95 @@ async fn remove_archive_app(path: web::Path<String>) -> impl Responder {
 }
 
 async fn get_delisted_apps() -> impl Responder {
-    let client = Client::new();
-    let url = "https://raw.githubusercontent.com/ruanrrn/ipa-archive/main/delisted.json";
+    let index = fetch_community_delisted_index().await;
+    HttpResponse::Ok().json(ApiResponse::success(index))
+}
 
-    match client.get(url).send().await {
-        Ok(resp) => match resp.json::<Value>().await {
-            Ok(data) => HttpResponse::Ok().json(ApiResponse::success(data)),
-            Err(_) => {
-                HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] })))
-            }
-        },
-        Err(_) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({ "apps": [] }))),
+async fn get_community_delisted_app(path: web::Path<String>) -> impl Responder {
+    let app_id = path.into_inner();
+    match fetch_community_delisted_app(&app_id).await {
+        Some(app) => HttpResponse::Ok().json(ApiResponse::success(app)),
+        None => HttpResponse::NotFound().json(ApiResponse::<()>::error("社区归档中未找到该应用".to_string())),
     }
+}
+
+async fn get_local_delisted_candidates(data: web::Data<AppState>) -> impl Responder {
+    let records = {
+        let db = data.db.lock().unwrap();
+        normalize_download_record_artifact_paths(&db, &data.downloads_dir);
+        sync_download_records_from_filesystem(&db, &data.downloads_dir);
+        db.get_all_download_records().unwrap_or_default()
+    };
+    let candidates = build_local_delisted_candidates(records);
+    HttpResponse::Ok().json(ApiResponse::success(candidates))
+}
+
+async fn prepare_community_contribution(
+    admin: AuthenticatedAdmin,
+    body: web::Json<PrepareContributionRequest>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let app_id = body.app_id.trim().to_string();
+    if app_id.is_empty() {
+        return HttpResponse::BadRequest().json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
+    }
+
+    let owner = body.owner.clone().unwrap_or_else(|| admin.username.clone());
+    let repo = body.repo.clone().unwrap_or_else(|| "ipa-archive".to_string());
+
+    let local_path = archive_file_path(&app_id);
+    let app = match load_archive_app_from_path(&local_path) {
+        Ok(Some(app)) => app,
+        Ok(None) => {
+            let records = {
+                let db = data.db.lock().unwrap();
+                normalize_download_record_artifact_paths(&db, &data.downloads_dir);
+                sync_download_records_from_filesystem(&db, &data.downloads_dir);
+                db.get_all_download_records().unwrap_or_default()
+            };
+            let candidates = build_local_delisted_candidates(records);
+            match candidates.iter().find(|candidate| candidate.id == app_id) {
+                Some(candidate) => to_archive_app_from_candidate(candidate),
+                None => {
+                    return HttpResponse::NotFound().json(ApiResponse::<()>::error(
+                        "本地归档与待贡献列表中都未找到该应用".to_string(),
+                    ))
+                }
+            }
+        }
+        Err(error) => return HttpResponse::InternalServerError().json(ApiResponse::<()>::error(error)),
+    };
+
+    let github_token_configured = data
+        .db
+        .lock()
+        .unwrap()
+        .get_github_token(&admin.username)
+        .ok()
+        .flatten()
+        .is_some();
+
+    let warnings = vec![
+        "当前 prepare 仅生成预览数据，最终提交仍走 /api/community/publish".to_string(),
+        "建议目标仓库采用 apps/delisted/{app_id}.json 结构，并在 merge 后自动生成 indexes/delisted-lite.json".to_string(),
+    ];
+
+    HttpResponse::Ok().json(ApiResponse::success(PrepareContributionResponse {
+        app_id: app.id.clone(),
+        source: if local_path.exists() {
+            "local-archive".to_string()
+        } else {
+            "download-records".to_string()
+        },
+        owner,
+        repo,
+        path: community_archive_publish_path(&app.id),
+        commit_message: format!("Add delisted app {} ({})", app.name, app.id),
+        create_pr: true,
+        github_token_configured,
+        app,
+        warnings,
+    }))
 }
 
 // 检查更新
@@ -5664,6 +6113,8 @@ async fn main() -> std::io::Result<()> {
                     )
                     // 公开归档数据（不依赖管理员登录）
                     .route("/archive/delisted", web::get().to(get_delisted_apps))
+                    .route("/community/delisted-index", web::get().to(get_delisted_apps))
+                    .route("/community/delisted/{id}", web::get().to(get_community_delisted_app))
                     // 需要管理员认证的路由
                     .service(
                         web::scope("")
@@ -5712,7 +6163,9 @@ async fn main() -> std::io::Result<()> {
                             .route("/github/token", web::get().to(get_github_token))
                             .route("/github/token", web::post().to(save_github_token))
                             .route("/github/token", web::delete().to(delete_github_token))
-                            .route("/community/publish", web::post().to(publish_community_archive)),
+                            .route("/community/publish", web::post().to(publish_community_archive))
+                            .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
+                            .route("/community/prepare-contribution", web::post().to(prepare_community_contribution)),
 
                     ),
             )
