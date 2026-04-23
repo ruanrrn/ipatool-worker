@@ -17,32 +17,15 @@
           v-if="tab.badge"
           :value="tab.badge"
         >
-          <svg
-            class="h-6 w-6"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <component
-              :is="node.tag"
-              v-for="(node, index) in tab.iconNodes"
-              :key="index"
-              v-bind="node.attrs"
-            />
-          </svg>
+          <SvgIcon
+            class="tab-layout__icon h-6 w-6"
+            :icon="tab.icon"
+          />
         </MobileBadge>
-        <svg
+        <SvgIcon
           v-else
-          class="h-6 w-6"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          class="tab-layout__icon h-6 w-6"
+          :icon="tab.icon"
         />
         <span>{{ tab.label }}</span>
       </button>
@@ -105,14 +88,9 @@
           @click="selectTab(tab.id)"
         >
           <div class="mobile-tab__icon-wrap">
-            <svg
-              class="h-6 w-6"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+            <SvgIcon
+              class="tab-layout__icon h-6 w-6"
+              :icon="tab.icon"
             />
             <!-- Badge for queue tab -->
             <span
@@ -130,6 +108,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import MobileBadge from './MobileBadge.vue'
+import SvgIcon from './SvgIcon.vue'
 import Appearance from './Appearance.vue'
 import AccountManager from './AccountManager.vue'
 import ChangePassword from './ChangePassword.vue'
@@ -138,6 +117,10 @@ import DownloadManager from './DownloadManager.vue'
 import IpaManager from './IpaManager.vue'
 import ArchiveApp from './ArchiveApp.vue'
 import Settings from './Settings.vue'
+import homeIcon from '../assets/icons/home.svg?raw'
+import clockIcon from '../assets/icons/clock.svg?raw'
+import bookmarkIcon from '../assets/icons/bookmark.svg?raw'
+import settingsIcon from '../assets/icons/settings.svg?raw'
 
 const appStore = useAppStore()
 const emit = defineEmits(['app-selected', 'download-started', 'accounts-updated', 'remove-item', 'clear-queue', 'logout'])
@@ -165,35 +148,24 @@ const tabs = computed(() => [
  {
   id: 'download',
   label: '首页',
-  iconNodes: [
-    { tag: 'path', attrs: { d: 'M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z' } },
-    { tag: 'path', attrs: { d: 'M9 21V12h6v9' } }
-  ],
+  icon: homeIcon,
   badge: appStore.downloadState.selectedApp ? '1' : null
  },
  {
   id: 'ipa',
   label: '队列',
-  iconNodes: [
-    { tag: 'circle', attrs: { cx: '12', cy: '12', r: '10' } },
-    { tag: 'polyline', attrs: { points: '12 6 12 12 16 14' } }
-  ],
+  icon: clockIcon,
   badge: activeQueueCount.value > 0 ? String(activeQueueCount.value) : null
  },
  {
   id: 'archive',
   label: '收藏',
-  iconNodes: [
-    { tag: 'path', attrs: { d: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' } }
-  ]
+  icon: bookmarkIcon
  },
  {
   id: 'settings',
   label: '设置',
-  iconNodes: [
-    { tag: 'circle', attrs: { cx: '12', cy: '12', r: '3' } },
-    { tag: 'path', attrs: { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.18V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' } }
-  ]
+  icon: settingsIcon
  }
 ])
 
@@ -347,14 +319,14 @@ watch(() => appStore.activeTab, () => {
   height: 24px;
 }
 
-.mobile-tab .mobile-tab__icon-wrap svg {
+.mobile-tab .tab-layout__icon {
   width: 24px;
   height: 24px;
   color: var(--color-text-muted, #6e6e80);
   transition: color 0.2s ease;
 }
 
-.mobile-tab.is-active .mobile-tab__icon-wrap svg {
+.mobile-tab.is-active .tab-layout__icon {
   color: var(--color-primary, #10a37f);
 }
 
@@ -416,11 +388,11 @@ watch(() => appStore.activeTab, () => {
   border-top-color: var(--color-border, #3f3f46);
 }
 
-.dark .mobile-tab .mobile-tab__icon-wrap svg {
+.dark .mobile-tab .tab-layout__icon {
   color: var(--color-text-muted, #a1a1aa);
 }
 
-.dark .mobile-tab.is-active .mobile-tab__icon-wrap svg {
+.dark .mobile-tab.is-active .tab-layout__icon {
   color: var(--color-primary, #34d399);
 }
 

@@ -15,25 +15,10 @@
     class="empty-state"
   >
     <div class="empty-state__icon">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line
-          x1="12"
-          y1="22.08"
-          x2="12"
-          y2="12"
-        />
-      </svg>
+      <SvgIcon
+        class="empty-state__icon-svg"
+        :icon="emptyPackageIcon"
+      />
     </div>
     <p class="empty-state__text">
       {{ text || '暂无数据' }}
@@ -42,6 +27,9 @@
 </template>
 
 <script setup>
+import SvgIcon from './SvgIcon.vue'
+import emptyPackageIcon from '../assets/icons/empty-package.svg?raw'
+
 defineProps({
   type: {
     type: String,
@@ -100,6 +88,10 @@ defineProps({
   margin-bottom: 16px;
   opacity: 0.4;
   color: var(--color-text-muted, #6e6e80);
+}
+.empty-state__icon-svg {
+  width: 48px;
+  height: 48px;
 }
 .dark .empty-state__icon {
   color: var(--color-text-muted, #a1a1aa);

@@ -109,68 +109,26 @@
                   :title="pausedTasks.has(task.id) ? '继续任务' : '暂停任务'"
                   @click="togglePause(task.id)"
                 >
-                  <svg
+                  <SvgIcon
                     v-if="!pausedTasks.has(task.id)"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    stroke="none"
-                  >
-                    <rect
-                      x="6"
-                      y="4"
-                      width="4"
-                      height="16"
-                      rx="1"
-                    />
-                    <rect
-                      x="14"
-                      y="4"
-                      width="4"
-                      height="16"
-                      rx="1"
-                    />
-                  </svg>
-                  <svg
+                    class="h-[14px] w-[14px]"
+                    :icon="pauseIcon"
+                  />
+                  <SvgIcon
                     v-else
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    stroke="none"
-                  >
-                    <polygon points="6,4 20,12 6,20" />
-                  </svg>
+                    class="h-[14px] w-[14px]"
+                    :icon="playIcon"
+                  />
                 </button>
                 <button
                   class="q-btn"
                   title="取消任务"
                   @click="removeTask(task.id)"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <line
-                      x1="18"
-                      y1="6"
-                      x2="6"
-                      y2="18"
-                    />
-                    <line
-                      x1="6"
-                      y1="6"
-                      x2="18"
-                      y2="18"
-                    />
-                  </svg>
+                  <SvgIcon
+                    class="h-[14px] w-[14px]"
+                    :icon="closeIcon"
+                  />
                 </button>
               </div>
             </div>
@@ -225,25 +183,10 @@
                   title="下载"
                   @click="download(item.downloadUrl)"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line
-                      x1="12"
-                      y1="15"
-                      x2="12"
-                      y2="3"
-                    />
-                  </svg>
+                  <SvgIcon
+                    class="h-[14px] w-[14px]"
+                    :icon="downloadIcon"
+                  />
                 </button>
                 <button
                   v-if="item.otaInstallable && item.installUrl"
@@ -251,39 +194,20 @@
                   title="安装"
                   @click="install(item.installUrl)"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                    <path d="M2 17l10 5 10-5" />
-                    <path d="M2 12l10 5 10-5" />
-                  </svg>
+                  <SvgIcon
+                    class="h-[14px] w-[14px]"
+                    :icon="layersIcon"
+                  />
                 </button>
                 <button
                   class="q-btn q-btn--danger"
                   title="删除"
                   @click="removeArtifact(item)"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
+                  <SvgIcon
+                    class="h-[14px] w-[14px]"
+                    :icon="trashIcon"
+                  />
                 </button>
               </div>
             </div>
@@ -315,6 +239,7 @@ import { API_BASE } from '../config.js'
 
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
+import SvgIcon from './SvgIcon.vue'
 import MobileConfirm from './MobileConfirm.vue'
 import AppArtwork from './AppArtwork.vue'
 import ProgressBar from './ProgressBar.vue'
@@ -322,6 +247,12 @@ import EmptyState from './EmptyState.vue'
 import { useAppStore } from '../stores/app'
 import { apiFetch } from '../utils/api.js'
 import { useJobPolling } from '../composables/useJobPolling.js'
+import pauseIcon from '../assets/icons/pause-fill.svg?raw'
+import playIcon from '../assets/icons/play-fill.svg?raw'
+import closeIcon from '../assets/icons/close.svg?raw'
+import downloadIcon from '../assets/icons/download.svg?raw'
+import layersIcon from '../assets/icons/layers.svg?raw'
+import trashIcon from '../assets/icons/trash.svg?raw'
 
 
 const props = defineProps({
@@ -399,7 +330,7 @@ const formatFileSize = (bytes) => {
 // ── Active download tasks ──
 
 // Only show tasks that are NOT in a final state
-const activeTasks = computed(() => props.queue.filter(task => !['completed', 'ready'].includes(task?.status)))
+const activeTasks = computed(() => props.queue.filter(task => ['downloading', 'processing', 'queued', 'waiting', 'running'].includes(task?.status)))
 
 const completedCount = computed(() => artifacts.value.length)
 
@@ -409,12 +340,22 @@ const { syncPolling, stopPolling } = useJobPolling({
   pollInterval: 1500,
   maxFailures: 5,
   onUpdate: (taskId, snapshot) => {
+    // Normalize server status to client status
+    // Server uses: 'queued', 'running', 'ready', 'failed'
+    // Client expects: 'queued', 'downloading', 'processing', 'completed', 'failed'
+    const serverToClientStatus = {
+      'running': 'downloading',
+      'active': 'downloading',
+    }
+    const normalizedStatus = serverToClientStatus[snapshot.status]
+      || (snapshot.status === 'ready' ? 'completed' : snapshot.status)
+
     // Sync task snapshot
     const updates = {
       stage: snapshot.stage || '',
       progress: snapshot.progress ?? 0,
       error: snapshot.error || '',
-      status: snapshot.status === 'ready' ? 'completed' : snapshot.status,
+      status: normalizedStatus,
       packageKind: snapshot.packageKind,
       otaInstallable: snapshot.otaInstallable,
       installMethod: snapshot.installMethod,
@@ -425,6 +366,8 @@ const { syncPolling, stopPolling } = useJobPolling({
   onComplete: async (taskId, snapshot) => {
     // Handle completion
     const updates = {
+      status: 'completed',
+      stage: snapshot.stage || 'done',
       progress: 100,
       downloadUrl: snapshot.downloadUrl,
       installUrl: snapshot.installUrl,
@@ -437,13 +380,18 @@ const { syncPolling, stopPolling } = useJobPolling({
     appStore.updateQueueItem(taskId, updates)
     // Refresh IPA list when download completes
     await loadArtifacts()
+    // Auto-remove from queue after a short delay
+    setTimeout(() => {
+      appStore.removeFromQueue(taskId)
+    }, 1500)
   },
   onFailed: (taskId, snapshot) => {
     // Handle failure - polling already stopped by composable
+    // Normalize status: ensure it's 'failed' regardless of server value
     appStore.updateQueueItem(taskId, {
       stage: snapshot.stage || '',
       error: snapshot.error || '任务失败',
-      status: snapshot.status === 'ready' ? 'completed' : snapshot.status
+      status: snapshot.status === 'ready' ? 'completed' : (snapshot.status === 'failed' || snapshot.status === 'error' ? snapshot.status : 'failed')
     })
   },
   onInterrupted: (taskId, message) => {
@@ -619,6 +567,7 @@ onActivated(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-top: 8px;
 }
 
 .queue-list--completed {

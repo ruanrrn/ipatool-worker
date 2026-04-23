@@ -19,34 +19,10 @@
       v-if="loading"
       class="mobile-button__loading"
     >
-      <svg
+      <SvgIcon
         class="loading-spinner"
-        viewBox="0 0 50 50"
-      >
-        <circle
-          cx="25"
-          cy="25"
-          r="20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="4"
-        >
-          <animate
-            attributeName="stroke-dasharray"
-            from="1 100"
-            to="89 100"
-            dur="1.5s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="stroke-dashoffset"
-            from="0"
-            to="-35"
-            dur="1.5s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      </svg>
+        :icon="spinnerIcon"
+      />
     </span>
 
     <span
@@ -66,6 +42,9 @@
 </template>
 
 <script setup>
+import SvgIcon from './SvgIcon.vue'
+import spinnerIcon from '../assets/icons/spinner.svg?raw'
+
 const props = defineProps({
   type: {
     type: String,

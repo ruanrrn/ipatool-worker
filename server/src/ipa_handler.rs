@@ -11,6 +11,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 const CHUNK_SIZE: usize = 5 * 1024 * 1024;
 const MAX_RETRIES: usize = 5;
 const RETRY_DELAY: u64 = 3000;
+const MAX_CONCURRENT_CHUNKS: usize = 8;
 
 #[derive(Debug, Clone)]
 pub struct DownloadProgress {
@@ -520,34 +521,63 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         downloaded: Some(0),
     });
 
-    let mut downloaded: u64 = 0;
-    let mut progress = vec![0u64; num_chunks];
+    let downloaded_total = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let file_size_atomic = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(file_size));
+    let progress_callback = params.progress_callback.clone();
 
-    for i in 0..num_chunks {
-        let start = (i * CHUNK_SIZE) as u64;
-        let end = std::cmp::min(start + CHUNK_SIZE as u64 - 1, file_size - 1);
-        let temp_output = cache_dir.join(format!("part{}", i));
-        let url = file_url.to_string();
+    let chunk_handles: Vec<_> = (0..num_chunks)
+        .map(|i| {
+            let url = file_url.to_string();
+            let cache_dir = cache_dir.clone();
+            let downloaded_total = downloaded_total.clone();
+            let file_size_atomic = file_size_atomic.clone();
+            let progress_callback = progress_callback.clone();
 
-        download_chunk(&url, start, end, &temp_output).await?;
+            tokio::spawn(async move {
+                let start = (i * CHUNK_SIZE) as u64;
+                let end = std::cmp::min(start + CHUNK_SIZE as u64 - 1, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - 1);
+                let temp_output = cache_dir.join(format!("part{}", i));
 
-        progress[i] = std::cmp::min(CHUNK_SIZE as u64, file_size - (i * CHUNK_SIZE) as u64);
-        downloaded = progress.iter().sum();
+                download_chunk(&url, start, end, &temp_output).await?;
 
-        let percent = ((downloaded as f64 / file_size as f64) * 100.0).min(100.0) as u32;
+                let chunk_bytes = std::cmp::min(CHUNK_SIZE as u64, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - start);
+                let prev = downloaded_total.fetch_add(chunk_bytes, std::sync::atomic::Ordering::Relaxed);
+                let current = prev + chunk_bytes;
 
-        params.on_progress(DownloadProgress {
-            phase: "download-progress".to_string(),
-            message: format!(
-                "[download] 进度 {:.2}MB / {:.2}MB",
-                downloaded as f64 / 1024.0 / 1024.0,
-                file_size as f64 / 1024.0 / 1024.0
-            ),
-            progress: Some(percent as f64),
-            file_size: Some(file_size),
-            downloaded: Some(downloaded),
-        });
+                if let Some(callback) = &progress_callback {
+                    let total = file_size_atomic.load(std::sync::atomic::Ordering::Relaxed);
+                    let percent = ((current as f64 / total as f64) * 100.0).min(100.0);
+                    callback(DownloadProgress {
+                        phase: "download-progress".to_string(),
+                        message: format!(
+                            "[download] 进度 {:.2}MB / {:.2}MB",
+                            current as f64 / 1024.0 / 1024.0,
+                            total as f64 / 1024.0 / 1024.0
+                        ),
+                        progress: Some(percent),
+                        file_size: Some(total),
+                        downloaded: Some(current),
+                    });
+                }
+
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            })
+        })
+        .collect();
+
+    // Consume futures with bounded concurrency to avoid spawning too many at once
+    use futures::stream::{self, StreamExt};
+    let mut chunk_stream = stream::iter(chunk_handles).buffer_unordered(MAX_CONCURRENT_CHUNKS);
+
+    while let Some(result) = chunk_stream.next().await {
+        if let Err(e) = result {
+            // Abort remaining on first failure
+            drop(chunk_stream);
+            return Err(format!("分块下载失败: {}", e).into());
+        }
     }
+
+    let downloaded = downloaded_total.load(std::sync::atomic::Ordering::Relaxed);
 
     params.on_progress(DownloadProgress {
         phase: "merge".to_string(),

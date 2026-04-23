@@ -18,7 +18,7 @@
           <div
             v-for="(account, index) in accounts"
             :key="getAccountKey(account, index)"
-            class="settings-row"
+            class="settings-row settings-row--account"
           >
             <div class="sr-left">
               <div class="sr-icon sr-icon--apple">
@@ -26,10 +26,31 @@
               </div>
               <div class="sr-label">
                 {{ account.email }}
+                <span
+                  v-if="account.lastRefreshedAt != null"
+                  class="sr-freshness"
+                  :class="getFreshnessClass(account.lastRefreshedAt)"
+                >
+                  {{ getFreshnessLabel(account.lastRefreshedAt) }}
+                </span>
               </div>
             </div>
             <div class="sr-right">
-              <span>{{ getRegionLabel(account.region || 'US') }}</span><span class="sr-arrow">›</span>
+              <span>{{ getRegionLabel(account.region || 'US') }}</span>
+              <button
+                class="sr-btn sr-btn--refresh"
+                :disabled="refreshingToken === account.token"
+                @click.stop="handleRefreshAccount(account)"
+              >
+                <span v-if="refreshingToken === account.token" class="sr-btn__spinner" />
+                <span v-else>↻</span>
+              </button>
+              <button
+                class="sr-btn sr-btn--delete"
+                @click.stop="handleDeleteAccount(account)"
+              >
+                ✕
+              </button>
             </div>
           </div>
 
@@ -160,6 +181,19 @@
       type="danger"
       @confirm="handleLogout"
     />
+
+    <!-- Delete Account Confirm -->
+    <MobileConfirm
+      v-model="showDeleteConfirm"
+      icon="🗑️"
+      icon-color="var(--color-danger-soft)"
+      title="确认删除账号？"
+      :message="`将删除账号 ${deleteTarget?.email || ''}，该账号正在进行的任务可能会受影响。`"
+      confirm-text="删除"
+      cancel-text="取消"
+      type="danger"
+      @confirm="confirmDeleteAccount"
+    />
   </div>
 </template>
 
@@ -169,20 +203,45 @@ import { ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useAccounts, accountIdentityKey } from '../composables/useAccounts'
 import { formatRegion } from '../utils/region.js'
+import { API_BASE } from '../config.js'
+import { apiFetch } from '../utils/api.js'
 import MobileConfirm from './MobileConfirm.vue'
 import { Toast } from './MobileToast.vue'
 
 const emit = defineEmits(['logout', 'navigate-to-appearance', 'navigate-to-account', 'navigate-to-changepassword'])
 const appStore = useAppStore()
-const { accounts } = useAccounts()
+const { accounts, loadAccounts } = useAccounts()
 const appVersion = __APP_VERSION__
 const buildId = __APP_BUILD_ID__
 
 const showLogoutConfirm = ref(false)
+const showDeleteConfirm = ref(false)
+const deleteTarget = ref(null)
+const refreshingToken = ref(null)
 
 const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(account) || account?.email || account?.token || account?.dsid || `account-${fallbackIndex}`
 
 const getRegionLabel = (region) => formatRegion(region)
+
+// ---- Account Freshness ----
+// 后端返回 lastRefreshedAt = 距上次认证的秒数
+// 后端 ACCOUNT_REFRESH_AFTER_SECS = 1800 (30 min)
+const FRESHNESS_THRESHOLD = 1800
+
+function getFreshnessLabel(lastRefreshedAt) {
+  const secs = lastRefreshedAt || 0
+  if (secs < 60) return '刚刚'
+  if (secs < 3600) return `${Math.floor(secs / 60)}分钟前`
+  if (secs < 86400) return `${Math.floor(secs / 3600)}小时前`
+  return `${Math.floor(secs / 86400)}天前`
+}
+
+function getFreshnessClass(lastRefreshedAt) {
+  const secs = lastRefreshedAt || 0
+  if (secs < FRESHNESS_THRESHOLD * 0.7) return 'sr-freshness--fresh'   // <21 min
+  if (secs < FRESHNESS_THRESHOLD) return 'sr-freshness--warning'       // <30 min
+  return 'sr-freshness--stale'                                         // >=30 min
+}
 
 // ---- Logout ----
 async function handleLogout() {
@@ -194,6 +253,55 @@ async function handleLogout() {
     performLogout: false,
     toast: false
   })
+}
+
+// ---- Refresh Account ----
+async function handleRefreshAccount(account) {
+  if (!account.token) return
+  refreshingToken.value = account.token
+  try {
+    const { response, data } = await apiFetch(`${API_BASE}/login/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: account.token })
+    })
+    if (response.ok && data?.ok) {
+      Toast.success(`${account.email} 刷新成功`)
+      await loadAccounts()
+    } else {
+      Toast.error(data?.error || '刷新失败')
+    }
+  } catch (e) {
+    Toast.error('刷新请求失败')
+  } finally {
+    refreshingToken.value = null
+  }
+}
+
+// ---- Delete Account ----
+function handleDeleteAccount(account) {
+  deleteTarget.value = account
+  showDeleteConfirm.value = true
+}
+
+async function confirmDeleteAccount() {
+  const account = deleteTarget.value
+  if (!account?.token) return
+  try {
+    const { response, data } = await apiFetch(`${API_BASE}/accounts/${account.token}`, {
+      method: 'DELETE'
+    })
+    if (response.ok) {
+      Toast.success(`${account.email} 已删除`)
+      await loadAccounts()
+    } else {
+      Toast.error(data?.error || '删除失败')
+    }
+  } catch (e) {
+    Toast.error('删除请求失败')
+  } finally {
+    deleteTarget.value = null
+  }
 }
 </script>
 
@@ -348,6 +456,10 @@ async function handleLogout() {
 .sr-label {
   font-size: 15px;
   color: var(--color-text, #0d0d0d);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .dark .sr-label {
   color: var(--color-text, #f5f5f5);
@@ -357,6 +469,39 @@ async function handleLogout() {
 }
 .sr-label--danger {
   color: var(--color-danger, #ef4444);
+}
+
+/* Account freshness indicator */
+.sr-freshness {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.sr-freshness--fresh {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+.sr-freshness--warning {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+.sr-freshness--stale {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+.dark .sr-freshness--fresh {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+}
+.dark .sr-freshness--warning {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+.dark .sr-freshness--stale {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
 }
 
 /* Row right */
@@ -383,5 +528,60 @@ async function handleLogout() {
 
 .dark .sr-icon--apple {
   background: rgba(16, 163, 127, 0.15);
+}
+
+/* Account action buttons */
+.sr-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-base, 8px);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--color-text-muted, #6e6e80);
+}
+.sr-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sr-btn--refresh:active:not(:disabled) {
+  background: var(--color-primary-soft, #ecfdf5);
+  color: var(--color-primary, #10a37f);
+}
+.sr-btn--delete {
+  color: var(--color-text-muted, #6e6e80);
+}
+.sr-btn--delete:active:not(:disabled) {
+  background: var(--color-danger-soft, #fef2f2);
+  color: var(--color-danger, #ef4444);
+}
+.dark .sr-btn {
+  color: var(--color-text-muted, #a1a1aa);
+}
+.dark .sr-btn--refresh:active:not(:disabled) {
+  background: rgba(16, 163, 127, 0.15);
+}
+.dark .sr-btn--delete:active:not(:disabled) {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Refresh spinner */
+.sr-btn__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-text-tertiary, #c0c0c0);
+  border-top-color: var(--color-primary, #10a37f);
+  border-radius: 50%;
+  animation: sr-spin 0.6s linear infinite;
+}
+@keyframes sr-spin {
+  to { transform: rotate(360deg); }
 }
 </style>

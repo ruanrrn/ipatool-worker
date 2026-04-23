@@ -210,6 +210,35 @@ fn read_bundle_executable<R: Read + Seek>(
     Ok(executable)
 }
 
+fn read_bundle_identifier<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
+    app_bundle_name: &str,
+) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let info_path = format!("Payload/{}/Info.plist", app_bundle_name);
+    let info = match read_zip_plist(zip, &info_path) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    let bundle_id = match info {
+        Value::Dictionary(dict) => dict
+            .get("CFBundleIdentifier")
+            .and_then(|value| value.as_string())
+            .map(|value| value.to_string()),
+        _ => None,
+    };
+
+    Ok(bundle_id)
+}
+
+pub fn read_bundle_identifier_from_ipa(
+    path: &Path,
+) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+    let mut zip = read_zip(&path.to_string_lossy())?;
+    let app_bundle_name = find_app_bundle_name(&mut zip)?;
+    read_bundle_identifier(&mut zip, &app_bundle_name)
+}
+
 fn decode_signatures(
     signatures: &[Sinf],
 ) -> Result<Vec<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {

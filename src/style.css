@@ -262,12 +262,15 @@
 
   .download-disabled-hint,
   .auto-login-status,
-  .log-container,
   pre {
     background: var(--surface-muted);
     border: var(--border-width-thin) solid var(--separator);
     border-radius: var(--radius-card);
     color: var(--text-secondary);
+  }
+
+  .download-disabled-hint {
+    padding: 8px 12px;
   }
 
   .text-primary {

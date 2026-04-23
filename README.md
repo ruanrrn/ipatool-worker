@@ -118,6 +118,73 @@ server {
 └── README.md
 ```
 
+## 🧪 移动端真实下载回归脚本 · Mobile Download Regression
+
+用于在 **真实 Chrome + DevTools 手机视口** 下回归验证：
+
+- 应用详情页下载按钮进度是否变化
+- 队列页活跃项进度是否同步变化
+- 到 100% 后是否切换完成态并清空活跃项
+
+脚本位置：`scripts/mobile-download-regression.cjs`
+
+### 运行前提
+
+- 后端服务已启动并可访问 `http://127.0.0.1:8080`
+- 本机已有可复用的 admin session（默认从 `data/ipa-webtool.db` 读取）
+- Chrome 已开启 remote debugging：`--remote-debugging-port=9222`
+
+### 示例
+
+```bash
+node scripts/mobile-download-regression.cjs \
+  --app-id 414478124 \
+  --version 8.0.68
+```
+
+自定义输出路径：
+
+```bash
+node scripts/mobile-download-regression.cjs \
+  --app-id 414478124 \
+  --version 8.0.68 \
+  --output /tmp/wechat-8.0.68.json \
+  --screenshot-dir /tmp/wechat-8.0.68-shots
+```
+
+### 输出
+
+- 结构化结果 JSON：默认 `tmp/mobile-download-regression-result.json`
+- 过程截图目录：默认 `tmp/mobile-download-regression/`
+
+结果 JSON 内含：
+
+- `summary.jobId`
+- `summary.sawNewJob`
+- `summary.reached100`
+- `summary.switchedCompleted`
+- `summary.detailShowedProgress`
+- `summary.queueShowedProgress`
+- `summary.screenshots`
+- `samples[]`（每轮首页/队列页采样、job-info、download-records 顶部记录）
+
+### 参数
+
+```bash
+node scripts/mobile-download-regression.cjs --help
+```
+
+支持：
+
+- `--app-id`
+- `--version`
+- `--base`
+- `--output`
+- `--screenshot-dir`
+- `--browser-url`
+- `--session-db`
+- `--timeout-ms`
+
 ## 📄 License
 
 [MIT](LICENSE)

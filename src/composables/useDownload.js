@@ -75,8 +75,8 @@ export function useDownload(options = {}) {
     if (checkingPurchaseStatus.value) return '正在检测购买状态…'
     if (!purchaseRequired.value) return ''
     const price = getSelectedAppPrice()
-    if (price !== null && price > 0) return '当前账号未购买：请先在 App Store 购买后再下载'
-    return '当前账号未领取：请先在官方 App Store 点击"获取"后再下载'
+    if (price !== null && price > 0) return '当前账号未购买：请先在App Store购买应用'
+    return '当前账号未领取：请先点击"获取应用"后再下载'
   })
 
   const purchaseActionLabel = computed(() => {
@@ -260,7 +260,8 @@ export function useDownload(options = {}) {
     appId,
     appVerId,
     autoPurchase = false,
-    autoInstallRequested = false
+    autoInstallRequested = false,
+    versionLabel = ''
   ) => {
     const accountIndex = selectedAccount.value
     if (accountIndex === null || accountIndex === undefined) {
@@ -302,6 +303,7 @@ export function useDownload(options = {}) {
     addLog(`[进度] 使用账号 ${account.email} 发起任务，token=${String(account.token).slice(0, 8)}…`)
 
     try {
+      const resolvedVersionLabel = String(versionLabel || selectedApp.value?.version || '')
       const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
         method: 'POST',
         headers: {
@@ -314,7 +316,7 @@ export function useDownload(options = {}) {
           autoPurchase: !!autoPurchase,
           appName: selectedApp.value?.trackName || undefined,
           bundleId: selectedApp.value?.bundleId || undefined,
-          appVersion: selectedApp.value?.version || undefined,
+          appVersion: resolvedVersionLabel || undefined,
           artworkUrl: selectedApp.value?.artworkUrl100 || selectedApp.value?.artworkUrl60 || undefined,
           artistName: selectedApp.value?.artistName || undefined
         })
@@ -332,7 +334,11 @@ export function useDownload(options = {}) {
         throw new Error(data.error || '未知错误')
       }
 
-      const { jobId } = data
+      const taskPayload = data?.data || {}
+      const jobId = String(taskPayload?.jobId ?? data?.jobId ?? '').trim()
+      if (!jobId) {
+        throw new Error('下载任务创建成功，但返回中缺少 jobId')
+      }
       addLog(`[进度] 任务已创建：${jobId}`)
 
       // Create queue item
@@ -340,7 +346,7 @@ export function useDownload(options = {}) {
         id: jobId,
         appId: String(appId || selectedApp.value.trackId || ''),
         versionId: String(appVerId || ''),
-        version: String(selectedApp.value?.version || ''),
+        version: resolvedVersionLabel,
         artworkUrl: selectedApp.value?.artworkUrl100 || selectedApp.value?.artworkUrl60 || '',
         appName: selectedApp.value?.trackName || appId,
         artistName: selectedApp.value?.artistName || '',
@@ -354,6 +360,22 @@ export function useDownload(options = {}) {
         logs: logs.value,
         timestamp: new Date().toISOString(),
         updatedAt: new Date().toISOString()
+      }
+
+      if (taskPayload.recordId) {
+        queueItem.recordId = taskPayload.recordId
+      }
+      if (taskPayload.reused != null) {
+        queueItem.reused = !!taskPayload.reused
+      }
+      if (taskPayload.downloadUrl) {
+        queueItem.downloadUrl = taskPayload.downloadUrl
+      }
+      if (taskPayload.installUrl) {
+        queueItem.installUrl = taskPayload.installUrl
+      }
+      if (taskPayload.fileSize) {
+        queueItem.fileSize = taskPayload.fileSize
       }
 
       if (onDownloadStarted) {
@@ -547,6 +569,11 @@ export function useDownload(options = {}) {
 
     const appName = selectedApp.value?.trackName || activeDownloadAppId.value
     notifications.notifyDownloadComplete(appName)
+
+    // Auto-remove from queue after delay so user sees completed state briefly
+    setTimeout(() => {
+      appStore.removeFromQueue(jobId)
+    }, 2000)
   }
 
   const handleDownloadFailed = (jobId, queueItem, error) => {

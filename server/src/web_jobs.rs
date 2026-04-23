@@ -128,6 +128,9 @@ impl JobHandle {
         let percent = progress.progress.unwrap_or(0.0).round().clamp(0.0, 100.0) as u32;
         let progress_event = {
             let mut state = self.state.write().await;
+            if state.status == "ready" || state.status == "failed" {
+                return;
+            }
             state.status = "running".to_string();
             state.stage = progress.phase.clone();
             if progress.progress.is_some() {
@@ -146,6 +149,10 @@ impl JobHandle {
             }
         };
         let _ = self.tx.send(JobEvent::Progress(progress_event));
+    }
+
+    pub async fn status(&self) -> String {
+        self.state.read().await.status.clone()
     }
 
     pub async fn mark_ready(
@@ -226,5 +233,49 @@ impl JobStore {
 
     pub async fn get(&self, job_id: &str) -> Option<JobHandle> {
         self.jobs.read().await.get(job_id).cloned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_progress(phase: &str, percent: f64) -> DownloadProgress {
+        DownloadProgress {
+            phase: phase.to_string(),
+            progress: Some(percent),
+            downloaded: Some(50),
+            file_size: Some(100),
+            message: format!("{} {}%", phase, percent),
+        }
+    }
+
+    #[tokio::test]
+    async fn terminal_ready_state_is_not_overwritten_by_late_progress() {
+        let job = JobHandle::new("job-ready".to_string());
+
+        job.set_running().await;
+        job.mark_ready("/tmp/app.ipa".to_string(), None, None).await;
+        job.update_from_progress(&sample_progress("downloading", 42.0))
+            .await;
+
+        let snapshot = job.snapshot().await;
+        assert_eq!(snapshot.status, "ready");
+        assert_eq!(snapshot.stage, "done");
+        assert_eq!(snapshot.progress, 100);
+    }
+
+    #[tokio::test]
+    async fn terminal_failed_state_is_not_overwritten_by_late_progress() {
+        let job = JobHandle::new("job-failed".to_string());
+
+        job.set_running().await;
+        job.mark_failed("boom").await;
+        job.update_from_progress(&sample_progress("downloading", 80.0))
+            .await;
+
+        let snapshot = job.snapshot().await;
+        assert_eq!(snapshot.status, "failed");
+        assert_eq!(snapshot.error.as_deref(), Some("boom"));
     }
 }

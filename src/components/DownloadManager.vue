@@ -22,73 +22,12 @@
           </template>
         </MobileInput>
 
-        <!-- Account alert when no accounts -->
-        <div
-          v-if="accounts.length === 0"
-          class="account-alert account-alert--fused-bottom"
-        >
-          <div class="flex items-start gap-3">
-            <svg
-              class="w-4 h-4 flex-shrink-0 mt-0.5 text-warning"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <div class="flex-1">
-              <h4 class="text-body font-semibold text-txt">
-                需要先登录账号
-              </h4>
-              <p class="text-caption text-txt-secondary mt-1">
-                请先在"设置"页登录 Apple ID 账号，然后才能搜索应用。
-              </p>
-              <MobileButton 
-                type="primary"
-                size="small"
-                class="mt-2"
-                plain
-                @click="goToAccountTab"
-              >
-                前往登录
-              </MobileButton>
-            </div>
-          </div>
-        </div>
-
-        <!-- Account chip -->
-        <div
-          v-else-if="accounts.length > 1"
-          class="account-select-bar account-select-bar--fused-bottom"
-        >
-          <button
-            v-if="selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== '' && accounts[selectedAccount]"
-            type="button"
-            class="account-picker-chip"
-            @click="showAccountPicker = true"
-          >
-            <AccountChip
-              :email="accounts[selectedAccount].email"
-              :region="getRegionLabel(accounts[selectedAccount]?.region || 'US')"
-              :show-arrow="true"
-            />
-          </button>
-        </div>
-        <!-- Single account display -->
-        <div
-          v-else-if="accounts.length === 1"
-          class="account-select-bar account-select-bar--fused-bottom"
-        >
-          <AccountChip
-            :email="accounts[0].email"
-            :region="getRegionLabel(accounts[0]?.region || 'US')"
-          />
-        </div>
+        <AccountPicker
+          :accounts="accounts"
+          :selected-account="selectedAccount"
+          @update:selected-account="selectedAccount = $event"
+          @go-to-account="goToAccountTab"
+        />
 
         <!-- Direct App ID Confirm Button -->
         <div
@@ -183,57 +122,9 @@
           </div>
         </div>
 
-        <!-- "进行中" Section -->
-        <div v-if="showHomeSections && hasActiveTasks">
-          <SectionHead
-            title="进行中"
-            link-text="查看全部"
-            @link-click="goToQueue"
-          />
-          <div class="recent-list">
-            <div
-              v-for="task in recentActiveTasks"
-              :key="task.id"
-              class="recent-item"
-            >
-              <img 
-                v-if="task.artworkUrl"
-                :src="task.artworkUrl"
-                :alt="task.appName"
-                class="recent-item__icon"
-              >
-              <div
-                v-else
-                class="recent-item__icon recent-item__icon--placeholder"
-              >
-                <i><component :is="Download" /></i>
-              </div>
-              <div class="recent-item__info">
-                <h3 class="recent-item__name">
-                  {{ task.appName || '下载任务' }}
-                </h3>
-                <p class="recent-item__detail">
-                  {{ task.stage || '下载中...' }}
-                </p>
-                <div
-                  v-if="task.progress != null"
-                  class="recent-item__progress"
-                >
-                  <ProgressBar
-                    :percent="task.progress"
-                    :color="getProgressColor(task.status)"
-                    size="mini"
-                  />
-                </div>
-              </div>
-              <span class="recent-item__arrow">›</span>
-            </div>
-          </div>
-        </div>
-
         <!-- Empty State -->
         <div
-          v-if="!selectedApp && showHomeSections && !hasActiveTasks"
+          v-if="!selectedApp && showHomeSections && activeTaskCount <= 0"
           class="empty-state-home"
         >
           <div class="empty-state-home__icon">
@@ -279,19 +170,10 @@
                 v-else
                 class="version-sheet__icon version-sheet__icon--placeholder"
               >
-                <svg
+                <SvgIcon
                   class="w-6 h-6 text-txt-secondary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
+                  :icon="documentIcon"
+                />
               </div>
               <div class="version-sheet__header-info">
                 <h3 class="version-sheet__app-name">
@@ -306,78 +188,72 @@
                 class="version-sheet__close"
                 @click="emit('app-selected', null)"
               >
-                <svg
+                <SvgIcon
                   class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                  :icon="closeIcon"
+                />
               </button>
             </div>
 
 
-            <!-- Version List (radio style) -->
-            <VersionPicker
-              :versions="versions"
-              :selected-version="selectedVersion"
-              :versions-fetched="versionsFetched"
-              :fetching-versions="fetchingVersions"
-              :appid="appid"
-              :format-file-size="formatFileSize"
-              @version-selected="handleVersionSelected"
-            />
-
-            <!-- Purchase Warning -->
-            <div
-              v-if="purchaseRequired && versionsFetched"
-              class="version-sheet__section"
-            >
-              <div class="download-disabled-hint">
-                ⚠️ {{ downloadBlockedReason }}
+            <div class="version-sheet__body">
+              <!-- Version List (radio style) -->
+              <div class="version-sheet__section version-sheet__section--versions">
+                <VersionPicker
+                  :versions="versions"
+                  :selected-version="selectedVersion"
+                  :versions-fetched="versionsFetched"
+                  :fetching-versions="fetchingVersions"
+                  :appid="appid"
+                  :format-file-size="formatFileSize"
+                  @version-selected="handleVersionSelected"
+                />
               </div>
-            </div>
 
-            <!-- Note Input -->
-            <div
-              v-if="versionsFetched"
-              class="version-sheet__section"
-            >
-              <label class="version-sheet__note-label">备注</label>
-              <MobileInput
-                v-model="versionNote"
-                placeholder="可选，给这个版本加个备注..."
-                clearable
-                class="version-sheet__note-input"
+              <!-- Purchase Warning -->
+              <div
+                v-if="purchaseRequired && versionsFetched"
+                class="version-sheet__section"
+              >
+                <div class="download-disabled-hint">
+                  ⚠️ {{ downloadBlockedReason }}
+                </div>
+              </div>
+
+              <!-- Note Input -->
+              <div
+                v-if="versionsFetched && !purchaseRequired"
+                class="version-sheet__section"
+              >
+                <label class="version-sheet__note-label">备注</label>
+                <MobileInput
+                  v-model="versionNote"
+                  placeholder="可选，给这个版本加个备注..."
+                  clearable
+                  class="version-sheet__note-input"
+                />
+                <p class="version-sheet__note-hint">
+                  备注仅在收藏后展示，不填写则为空
+                </p>
+              </div>
+
+              <!-- Progress Panel -->
+              <ProgressPanel
+                :downloading="showCurrentVersionProgressCard"
+                :progress-percent="currentVersionProgressPercent"
+                :progress-stage="currentVersionProgressStage"
+                :download-url="currentVersionDownloadUrl"
+                :install-url="currentVersionInstallUrl"
+                :file-size="currentVersionFileSize"
+                :ota-installable="currentVersionOtaInstallable"
+                :install-method="currentVersionInstallMethod"
+                :inspection="currentVersionInspection"
+                :is-https="isHttps"
+                :current-protocol="currentProtocol"
+                @download-ipa="downloadCompletedIpa"
+                @install-ipa="installDownloadedIpa"
               />
-              <p class="version-sheet__note-hint">
-                备注仅在收藏后展示，不填写则为空
-              </p>
             </div>
-
-            <!-- Progress Panel -->
-            <ProgressPanel
-              :downloading="showCurrentVersionProgressCard"
-              :progress-percent="currentVersionProgressPercent"
-              :progress-stage="currentVersionProgressStage"
-              :logs="logs"
-              :download-url="currentVersionDownloadUrl"
-              :install-url="currentVersionInstallUrl"
-              :file-size="currentVersionFileSize"
-              :ota-installable="currentVersionOtaInstallable"
-              :install-method="currentVersionInstallMethod"
-              :inspection="currentVersionInspection"
-              :is-https="isHttps"
-              :current-protocol="currentProtocol"
-              @download-ipa="downloadCompletedIpa"
-              @install-ipa="installDownloadedIpa"
-            />
 
             <!-- Action Bar (3 buttons in a row) -->
             <div
@@ -400,42 +276,43 @@
               </MobileButton>
               <template v-else>
                 <button
-                  class="version-sheet__action-btn version-sheet__action-btn--secondary"
-                  :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isCurrentVersionDownloaded || showCurrentVersionProgressCard"
-                  :class="{ 'is-disabled': downloadBlocked || isCurrentVersionDownloaded || showCurrentVersionProgressCard }"
-                  @click="directLinkDownload"
+                  v-if="showCurrentVersionProgressCard"
+                  class="version-sheet__action-btn version-sheet__action-btn--progress"
+                  disabled
+                  aria-disabled="true"
                 >
-                  <template v-if="showCurrentVersionProgressCard">
-                    <i><Download /></i>
-                    <span>{{ downloadButtonProgressLabel }}</span>
-                  </template>
-                  <template v-else-if="isCurrentVersionDownloaded">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    ><polyline points="20 6 9 17 4 12" /></svg>
-                    <span>已下载</span>
-                  </template>
-                  <template v-else>
-                    <i><Download /></i>
-                    <span>下载</span>
-                  </template>
+                  <i><component :is="currentVersionProgressMode === 'installing' ? Install : Download" /></i>
+                  <span>{{ currentVersionProgressButtonLabel }}</span>
                 </button>
-                <button
-                  class="version-sheet__action-btn version-sheet__action-btn--primary"
-                  :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || showCurrentVersionProgressCard"
-                  :class="{ 'is-disabled': downloadBlocked || showCurrentVersionProgressCard }"
-                  @click="startInstallFlow"
-                >
-                  <i><Install /></i>
-                  <span>{{ showCurrentVersionProgressCard ? installButtonProgressLabel : '安装' }}</span>
-                </button>
+                <template v-else>
+                  <button
+                    class="version-sheet__action-btn version-sheet__action-btn--secondary"
+                    :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isCurrentVersionDownloaded"
+                    :class="{ 'is-disabled': downloadBlocked || isCurrentVersionDownloaded }"
+                    @click="directLinkDownload"
+                  >
+                    <template v-if="isCurrentVersionDownloaded">
+                      <SvgIcon
+                        class="h-4 w-4"
+                        :icon="checkIcon"
+                      />
+                      <span>已下载</span>
+                    </template>
+                    <template v-else>
+                      <i><Download /></i>
+                      <span>下载</span>
+                    </template>
+                  </button>
+                  <button
+                    class="version-sheet__action-btn version-sheet__action-btn--primary"
+                    :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+                    :class="{ 'is-disabled': downloadBlocked }"
+                    @click="startInstallFlow"
+                  >
+                    <i><Install /></i>
+                    <span>安装</span>
+                  </button>
+                </template>
                 <button
                   class="version-sheet__action-btn version-sheet__action-btn--fav"
                   :class="{ 'is-active': isCurrentAppFavorited }"
@@ -457,21 +334,28 @@
 import { computed, ref, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
+import { API_BASE } from '../config.js'
 import { useAppStore } from '../stores/app'
 import { useSearch } from '../composables/useSearch.js'
+import { useAccounts, accountIdentityKey } from '../composables/useAccounts.js'
 import { Toast } from './MobileToast.vue'
 import { Confirm } from './MobileConfirm.vue'
 import { Search, ArrowRight, Download, Install, Star, StarFilled } from './icons'
-import { useAccounts } from '../composables/useAccounts.js'
 import { useDownload } from '../composables/useDownload.js'
+import { apiFetch } from '../utils/api.js'
+import { formatRegion } from '../utils/region.js'
+import { STORAGE_KEYS } from '../utils/storage.js'
 
 import MobileButton from './MobileButton.vue'
 import MobileInput from './MobileInput.vue'
-import SectionHead from './SectionHead.vue'
-import AccountChip from './AccountChip.vue'
-import ProgressBar from './ProgressBar.vue'
+import AccountPicker from './AccountPicker.vue'
+import SvgIcon from './SvgIcon.vue'
 import ProgressPanel from './ProgressPanel.vue'
 import VersionPicker from './VersionPicker.vue'
+import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
+import documentIcon from '../assets/icons/document.svg?raw'
+import closeIcon from '../assets/icons/close.svg?raw'
+import checkIcon from '../assets/icons/check.svg?raw'
 
 const appStore = useAppStore()
 
@@ -493,6 +377,12 @@ const emit = defineEmits(['download-started', 'app-selected'])
 
 const { accounts, loadAccounts } = useAccounts()
 const selectedAccount = ref(null) // 改为 null 而不是空字符串
+const getRegionLabel = (region) => formatRegion(region)
+const normalizeAccountIndex = (value) => {
+ if (value === null || value === undefined || value === '') return null
+ const parsed = Number.parseInt(String(value), 10)
+ return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+}
 
 // Initialize download composable
 const {
@@ -500,7 +390,6 @@ const {
   showProgress,
   progressPercent,
   progressStage,
-  logs,
   showActionButtons,
   activeDownloadAppId,
   activeDownloadVersionId,
@@ -528,7 +417,7 @@ const {
   onDownloadStarted: (queueItem) => {
     emit('download-started', queueItem)
     // Also sync to store
-    appStore.addQueueItem(queueItem)
+    appStore.addToQueue(queueItem)
   },
   onDownloadComplete: () => {
     // Load downloaded IPA files after completion
@@ -584,7 +473,7 @@ const {
  isAppIdInput,
  handleSearch,
  selectApp,
- confirmDirectAppId,
+  confirmDirectAppId: rawConfirmDirectAppId,
  getSearchResultCategory,
  getSearchResultVersionLabel,
  getSearchResultSizeLabel,
@@ -604,28 +493,27 @@ const selectedVersionRecord = computed(() => {
   return versions.value.find((version) => String(version?.external_identifier ?? version?.version_id ?? version?.id ?? '') === selectedVersionId) || null
 })
 
-const currentVersionMatchValues = computed(() => {
-  const candidates = new Set()
-  const selectedVersionId = String(appVerId.value || selectedVersion.value || '')
-  const selectedVersionLabel = String(
-    selectedVersionRecord.value?.bundle_version
-    ?? selectedVersionRecord.value?.version
-    ?? selectedVersionRecord.value?.name
-    ?? ''
-  )
-  const appFallbackVersion = String(props.selectedApp?.version || '')
+const currentVersionExactId = computed(() => normalizeComparableValue(appVerId.value || selectedVersion.value || ''))
+const currentVersionLabel = computed(() => normalizeComparableValue(
+  selectedVersionRecord.value?.bundle_version
+  ?? selectedVersionRecord.value?.version
+  ?? selectedVersionRecord.value?.name
+  ?? ''
+))
 
-  if (selectedVersionId) candidates.add(normalizeComparableValue(selectedVersionId))
-  if (selectedVersionLabel) candidates.add(normalizeComparableValue(selectedVersionLabel))
+const getCurrentVersionMatchScore = (versionId, versionLabel) => {
+  const normalizedVersionId = normalizeComparableValue(versionId)
+  const normalizedVersionLabel = normalizeComparableValue(versionLabel)
 
-  // 仅在当前还没拿到明确选中版本标签时，才退回到应用列表里的默认版本号。
-  // 否则切换到其他版本后会把原始 app.version 一起带上，导致 1.0.1 已下载时切到 1.0.2 仍误判为已下载。
-  if (!selectedVersionLabel && appFallbackVersion) {
-    candidates.add(normalizeComparableValue(appFallbackVersion))
+  if (currentVersionExactId.value) {
+    if (normalizedVersionId && normalizedVersionId === currentVersionExactId.value) return 4
+    if (!normalizedVersionId && currentVersionLabel.value && normalizedVersionLabel === currentVersionLabel.value) return 1
+    return -1
   }
 
-  return candidates
-})
+  if (currentVersionLabel.value && normalizedVersionLabel === currentVersionLabel.value) return 2
+  return -1
+}
 
 // activeDownloadAppId, activeDownloadVersionId, activeDownloadAccountEmail from useDownload (line 487-489)
 const taskFinalStatuses = new Set(['completed', 'ready', 'failed', 'error'])
@@ -635,59 +523,73 @@ const currentVersionTaskCandidates = computed(() => {
   const idx = selectedAccount.value
   const account = idx === null || idx === undefined ? null : accounts.value[idx]
   const currentAccountEmail = normalizeComparableValue(account?.email)
-  const versionMatchValues = currentVersionMatchValues.value
 
-  if (!currentAppId || !currentAccountEmail || versionMatchValues.size === 0) return []
+  if (!currentAppId || !currentAccountEmail) return []
 
   return appStore.taskQueue
-    .filter((task) => {
-      if (!task) return false
+    .map((task) => {
+      if (!task) return null
       const taskAppId = normalizeComparableValue(task.appId)
       const taskAccountEmail = normalizeComparableValue(task.accountEmail)
-      const taskVersionId = normalizeComparableValue(task.versionId)
-      const taskVersion = normalizeComparableValue(task.version)
+      if (taskAppId !== currentAppId || taskAccountEmail !== currentAccountEmail) return null
 
-      return taskAppId === currentAppId
-        && taskAccountEmail === currentAccountEmail
-        && (versionMatchValues.has(taskVersionId) || versionMatchValues.has(taskVersion))
+      const matchScore = getCurrentVersionMatchScore(task.versionId, task.version)
+      if (matchScore < 0) return null
+
+      return { task, matchScore }
     })
-    .slice()
-    .sort((a, b) => {
-      const aActive = taskFinalStatuses.has(a?.status) ? 0 : 1
-      const bActive = taskFinalStatuses.has(b?.status) ? 0 : 1
-      if (aActive !== bActive) return bActive - aActive
-      const aTime = new Date(a?.updatedAt || a?.timestamp || 0).getTime()
-      const bTime = new Date(b?.updatedAt || b?.timestamp || 0).getTime()
-      return bTime - aTime
+    .filter(Boolean)
+    .sort((left, right) => {
+      if (left.matchScore !== right.matchScore) return right.matchScore - left.matchScore
+      const leftActive = taskFinalStatuses.has(left.task?.status) ? 0 : 1
+      const rightActive = taskFinalStatuses.has(right.task?.status) ? 0 : 1
+      if (leftActive !== rightActive) return rightActive - leftActive
+      const leftTime = new Date(left.task?.updatedAt || left.task?.timestamp || 0).getTime()
+      const rightTime = new Date(right.task?.updatedAt || right.task?.timestamp || 0).getTime()
+      return rightTime - leftTime
     })
+    .map(({ task }) => task)
 })
+
+const hasTaskArtifacts = (task) => !!(task?.downloadUrl || task?.installUrl)
+const isTaskReadyForActions = (task) => {
+  if (!task || !hasTaskArtifacts(task)) return false
+  return taskFinalStatuses.has(task.status) || (task.progress ?? 0) >= 100
+}
 
 const currentVersionTask = computed(() => currentVersionTaskCandidates.value[0] || null)
-const currentVersionActiveTask = computed(() => {
-  const task = currentVersionTask.value
-  return task && !taskFinalStatuses.has(task.status) ? task : null
-})
 const currentVersionReadyTask = computed(() => {
-  const task = currentVersionTask.value
-  if (!task || !taskFinalStatuses.has(task.status)) return null
-  if (!(task.downloadUrl || task.installUrl)) return null
-  return (task.status === 'completed' || task.status === 'ready') ? task : null
+  return currentVersionTaskCandidates.value.find((task) => isTaskReadyForActions(task)) || null
+})
+const currentVersionActiveTask = computed(() => {
+  if (currentVersionReadyTask.value) return null
+  return currentVersionTaskCandidates.value.find((task) => {
+    if (!task || taskFinalStatuses.has(task.status)) return false
+    if (hasTaskArtifacts(task)) return false
+    return (task.progress ?? 0) < 100
+  }) || null
 })
 
 const showCurrentVersionProgressCard = computed(() => !!currentVersionActiveTask.value)
 const currentVersionProgressPercent = computed(() => Number(currentVersionActiveTask.value?.progress ?? 0))
 const currentVersionProgressStage = computed(() => localizeProgressStage(currentVersionActiveTask.value?.stage || '准备中…'))
+const currentVersionProgressMode = computed(() => currentVersionActiveTask.value?.autoInstallRequested ? 'installing' : 'downloading')
 const currentVersionDownloadUrl = computed(() => currentVersionReadyTask.value?.downloadUrl || '')
 const currentVersionInstallUrl = computed(() => currentVersionReadyTask.value?.installUrl || '')
 const currentVersionFileSize = computed(() => Number(currentVersionReadyTask.value?.fileSize || 0))
 const currentVersionOtaInstallable = computed(() => !!currentVersionReadyTask.value?.otaInstallable)
 const currentVersionInstallMethod = computed(() => currentVersionReadyTask.value?.installMethod || '')
 const currentVersionInspection = computed(() => currentVersionReadyTask.value?.inspection || null)
-const downloadButtonProgressLabel = computed(() => `${currentVersionProgressStage.value} ${currentVersionProgressPercent.value}%`)
-const installButtonProgressLabel = computed(() => `处理中 ${currentVersionProgressPercent.value}%`)
+const currentVersionProgressButtonLabel = computed(() => {
+  const percent = Math.max(0, Math.min(100, currentVersionProgressPercent.value))
+  if (currentVersionProgressMode.value === 'installing') {
+    return `${currentVersionProgressStage.value || '安装中'} ${percent}%`
+  }
+  return `${currentVersionProgressStage.value || '下载中'} ${percent}%`
+})
 
 const isCurrentVersionDownloaded = computed(() => {
-  if (!appid.value || currentVersionMatchValues.value.size === 0) return false
+  if (!appid.value) return false
   const idx = selectedAccount.value
   if (idx === null || idx === undefined) return false
   const account = accounts.value[idx]
@@ -699,12 +601,9 @@ const isCurrentVersionDownloaded = computed(() => {
   return downloadedIpaFiles.value.some((file) => {
     const fileAppId = normalizeComparableValue(file.appId)
     const fileAccountEmail = normalizeComparableValue(file.accountEmail)
-    const fileVersion = normalizeComparableValue(file.version)
-    const fileVersionId = normalizeComparableValue(file.versionId)
+    if (fileAppId !== currentAppId || fileAccountEmail !== currentAccountEmail) return false
 
-    return fileAppId === currentAppId
-      && fileAccountEmail === currentAccountEmail
-      && (currentVersionMatchValues.value.has(fileVersion) || currentVersionMatchValues.value.has(fileVersionId))
+    return getCurrentVersionMatchScore(file.versionId, file.version) >= 0
   })
 })
 
@@ -769,28 +668,10 @@ const activeTaskCount = computed(() => {
 })
 
 
-const hasActiveTasks = computed(() => activeTaskCount.value > 0)
-
-const recentActiveTasks = computed(() => {
- return appStore.taskQueue
-  .filter(t => t && ['downloading', 'processing'].includes(t.status))
-  .slice(0, 3)
-})
-
 const showHomeSections = computed(() => {
  return !searching.value && !searchQuery.value.trim() && searchResults.value.length === 0 && !selectedApp.value
 })
 
-const goToQueue = () => {
- appStore.queueTab = 'active'
- appStore.activeTab = 'ipa'
-}
-
-const getProgressColor = (status) => {
- if (status === 'completed' || status === 'ready') return 'var(--color-primary)'
- if (status === 'failed' || status === 'error') return 'var(--color-danger)'
- return 'var(--color-primary)'
-}
 
 const getArchivedVersionCount = (appId) => getArchivedVersionSet(appId).size
 
@@ -886,7 +767,6 @@ const syncStateToStore = () => {
  appStore.updateDownloadState('showProgressPanel', showProgress.value)
  appStore.updateDownloadState('progressPercentage', progressPercent.value)
  appStore.updateDownloadState('progressMessage', progressStage.value)
- appStore.updateDownloadState('progressLogs', logs.value)
  appStore.updateDownloadState('activeDownloadAppId', activeDownloadAppId.value)
  appStore.updateDownloadState('activeDownloadVersionId', activeDownloadVersionId.value)
  appStore.updateDownloadState('activeDownloadAccountEmail', activeDownloadAccountEmail.value)
@@ -913,7 +793,6 @@ const restoreStateFromStore = () => {
  if (state.showProgressPanel !== undefined) showProgress.value = state.showProgressPanel
  if (state.progressPercentage !== undefined) progressPercent.value = state.progressPercentage
  if (state.progressMessage !== undefined) progressStage.value = localizeProgressStage(state.progressMessage)
- if (state.progressLogs !== undefined) logs.value = state.progressLogs
  if (state.activeDownloadAppId !== undefined) activeDownloadAppId.value = state.activeDownloadAppId || ''
  if (state.activeDownloadVersionId !== undefined) activeDownloadVersionId.value = state.activeDownloadVersionId || ''
  if (state.activeDownloadAccountEmail !== undefined) activeDownloadAccountEmail.value = state.activeDownloadAccountEmail || ''
@@ -935,8 +814,40 @@ const restoreStateFromStore = () => {
  }
 }
 
+const resolveInitialSelectedAccount = () => {
+ if (!Array.isArray(accounts.value) || accounts.value.length === 0) return null
+
+ const storeIndex = normalizeAccountIndex(appStore.downloadState?.selectedAccountIndex)
+ if (storeIndex !== null && accounts.value[storeIndex]) return storeIndex
+
+ const savedAccountKey = localStorage.getItem(STORAGE_KEYS.SELECTED_ACCOUNT_KEY)
+ if (savedAccountKey) {
+  const matchedIndex = accounts.value.findIndex(account => accountIdentityKey(account) === savedAccountKey)
+  if (matchedIndex >= 0) return matchedIndex
+ }
+
+ const savedAccountIndex = normalizeAccountIndex(localStorage.getItem(STORAGE_KEYS.SELECTED_ACCOUNT_INDEX))
+ if (savedAccountIndex !== null && accounts.value[savedAccountIndex]) return savedAccountIndex
+
+ return 0
+}
+
+watch(accounts, (nextAccounts) => {
+ if (!Array.isArray(nextAccounts) || nextAccounts.length === 0) {
+  selectedAccount.value = null
+  return
+ }
+
+ const currentIndex = normalizeAccountIndex(selectedAccount.value)
+ if (currentIndex !== null && nextAccounts[currentIndex]) {
+  return
+ }
+
+ selectedAccount.value = resolveInitialSelectedAccount()
+}, { deep: true })
+
 // Watch state changes and sync to store
-watch([selectedAccount, appVerId, versions, selectedVersion, versionsFetched, showProgress, progressPercent, progressStage, logs, searchQuery, searchResults, searchResultPurchaseStatusMap], () => {
+watch([selectedAccount, appVerId, versions, selectedVersion, versionsFetched, showProgress, progressPercent, progressStage, searchQuery, searchResults, searchResultPurchaseStatusMap], () => {
  syncStateToStore()
 }, { deep: true })
 
@@ -1078,6 +989,20 @@ const debouncedFetchVersions = useDebounceFn(() => {
  fetchVersions()
 }, 400)
 
+const confirmDirectAppId = () => {
+ if (selectedAccount.value === '' || selectedAccount.value === null || selectedAccount.value === undefined) {
+  Toast.warning('请先选择账号')
+  return
+ }
+
+ versions.value = []
+ selectedVersion.value = ''
+ appVerId.value = ''
+ versionsFetched.value = false
+ fetchingVersions.value = true
+ rawConfirmDirectAppId()
+}
+
 // Watch for selectedApp changes to auto-fill appid
 watch(() => props.selectedApp, (newApp, oldApp) => {
   const newTrackId = newApp?.trackId ? String(newApp.trackId) : ''
@@ -1091,6 +1016,7 @@ watch(() => props.selectedApp, (newApp, oldApp) => {
     appVerId.value = ''
     versionsFetched.value = false
     versionNote.value = ''
+    fetchingVersions.value = true
     loadArchivedAppIds()
   }
 
@@ -1178,6 +1104,44 @@ const handleVersionSelected = (verId) => {
   selectedVersion.value = verId
   appVerId.value = verId
   syncSelectedVersionNote({ force: true })
+}
+
+const resolveSelectedVersionPayload = () => {
+ const resolvedVersionId = String(selectedVersion.value || appVerId.value || '')
+ const resolvedRecord = versions.value.find((version) => {
+  const candidateId = String(version?.external_identifier ?? version?.version_id ?? version?.id ?? '')
+  return candidateId === resolvedVersionId
+ }) || selectedVersionRecord.value || null
+
+ const resolvedVersionLabel = String(
+  resolvedRecord?.bundle_version
+  ?? resolvedRecord?.version
+  ?? resolvedRecord?.name
+  ?? selectedApp.value?.version
+  ?? ''
+ )
+
+ return {
+  versionId: resolvedVersionId,
+  versionRecord: resolvedRecord,
+  versionLabel: resolvedVersionLabel
+ }
+}
+
+const normalizeVersionSize = (version) => {
+ const rawSize = version?.size
+  ?? version?.fileSizeBytes
+  ?? version?.size_bytes
+  ?? version?.bundleSizeBytes
+  ?? version?.downloadSize
+  ?? version?.download_size
+  ?? version?.file_size
+  ?? version?.appSize
+  ?? version?.app_size
+  ?? 0
+
+ const parsedSize = Number(rawSize)
+ return Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 0
 }
 
 const normalizeFetchedVersion = (version) => {
@@ -1322,11 +1286,17 @@ const installDownloadedIpa = async () => {
 }
 
 const startInstallFlow = async () => {
- await startDownloadWithProgress(appid.value, selectedVersion.value, false, true)
+ const { versionId, versionLabel } = resolveSelectedVersionPayload()
+ selectedVersion.value = versionId
+ appVerId.value = versionId
+ await startDownloadWithProgress(appid.value, versionId, false, true, versionLabel)
 }
 
 const directLinkDownload = async (autoPurchase = false) => {
- await startDownloadWithProgress(appid.value, selectedVersion.value, autoPurchase, false)
+ const { versionId, versionLabel } = resolveSelectedVersionPayload()
+ selectedVersion.value = versionId
+ appVerId.value = versionId
+ await startDownloadWithProgress(appid.value, versionId, autoPurchase, false, versionLabel)
 }
 
 const handleAppStoreReturn = async () => {
@@ -1577,89 +1547,6 @@ onBeforeUnmount(() => {
  color: var(--color-warning);
 }
 
-/* Recent task list */
-.recent-list {
- display: flex;
- flex-direction: column;
-}
-
-.recent-item {
- display: flex;
- align-items: center;
- gap: 12px;
- padding: 10px 0;
- cursor: pointer;
- transition: opacity 0.2s ease;
- border-bottom: 0.5px solid var(--color-border-light);
-}
-
-.recent-item:last-child {
- border-bottom: none;
-}
-
-.recent-item:active {
- opacity: 0.7;
-}
-
-.recent-item__icon {
- width: 40px;
- height: 40px;
- border-radius: 10px;
- object-fit: cover;
- flex-shrink: 0;
-}
-
-.recent-item__icon--placeholder {
- background: var(--color-surface-muted);
- display: flex;
- align-items: center;
- justify-content: center;
- color: var(--color-text-muted);
- font-size: 18px;
-}
-
-.recent-item__info {
- flex: 1;
- min-width: 0;
-}
-
-.recent-item__name {
- font-size: 14px;
- font-weight: 600;
- color: var(--color-text);
- line-height: 1.3;
- overflow: hidden;
- text-overflow: ellipsis;
- white-space: nowrap;
-}
-
-.recent-item__detail {
- font-size: 12px;
- color: var(--color-text-muted);
- margin-top: 1px;
-}
-
-.recent-item__progress {
- margin-top: 4px;
-}
-
-.recent-item__arrow {
- font-size: 16px;
- color: var(--color-text-tertiary);
- flex-shrink: 0;
-}
-
-.recent-item__dl {
- flex-shrink: 0;
- width: 32px;
- height: 32px;
- display: flex;
- align-items: center;
- justify-content: center;
- border-radius: 8px;
- color: var(--color-primary);
-}
-
 /* Selected app card */
 .selected-app-card {
  border-radius: 14px;
@@ -1822,10 +1709,6 @@ onBeforeUnmount(() => {
  color: var(--color-text-muted);
 }
 
-.dark .recent-item__name {
- color: var(--color-text);
-}
-
 .dark .selected-app-card {
  background: var(--color-surface);
  border-color: var(--color-surface-muted);
@@ -1856,19 +1739,6 @@ onBeforeUnmount(() => {
  color: var(--color-text-muted);
 }
 
-.dark .recent-item__icon--placeholder {
- background: var(--color-surface);
- color: var(--color-text-muted);
-}
-
-.dark .recent-item__arrow {
-  color: var(--color-text-tertiary);
-}
-
-.dark .recent-item {
-  border-bottom-color: var(--color-border);
-}
-
 .dark .search-results-hint {
   color: var(--color-text-tertiary);
 }
@@ -1897,10 +1767,6 @@ onBeforeUnmount(() => {
 
 .dark .account-alert .text-txt-secondary {
   color: var(--color-text-muted);
-}
-
-.dark .recent-item__detail {
- color: var(--color-text-muted);
 }
 
 /* ===== Version Selection Bottom Sheet ===== */
@@ -2016,9 +1882,27 @@ onBeforeUnmount(() => {
 }
 
 /* Sheet Sections */
+.version-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
 .version-sheet__section {
- padding: 0 20px;
- margin-bottom: 12px;
+  padding: 0 20px;
+  margin-bottom: 12px;
+}
+
+.version-sheet__section--versions {
+  margin-bottom: 0;
+}
+
+/* Note section: no extra bottom margin */
+.version-sheet__section:has(.version-sheet__note-input) {
+  margin-bottom: 0;
 }
 
 /* Account Row */
@@ -2139,6 +2023,8 @@ onBeforeUnmount(() => {
 /* ===== Bottom Sheet ===== */
 /* Action Bar */
 .version-sheet__actions {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2146,7 +2032,9 @@ onBeforeUnmount(() => {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
   flex-shrink: 0;
+  z-index: 2;
 }
 
 .version-sheet__actions--purchase {
@@ -2204,6 +2092,18 @@ onBeforeUnmount(() => {
 .version-sheet__action-btn--primary.is-disabled {
  opacity: 0.5;
  cursor: not-allowed;
+}
+
+.version-sheet__action-btn--progress {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  flex: 1;
+  cursor: not-allowed;
+  opacity: 0.92;
+}
+
+.version-sheet__action-btn--progress[disabled] {
+  pointer-events: none;
 }
 
 .version-sheet__action-btn--fav {

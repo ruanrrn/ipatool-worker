@@ -31,10 +31,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vue-vendor': ['vue', 'pinia', '@vueuse/core'],
-        }
-      }
+        manualChunks(id) {
+          // Keep api.js in its own chunk to prevent Rollup renaming issues
+          if (id.includes('/utils/api.js')) {
+            return 'api-utils'
+          }
+          // vue-vendor chunk
+          if (id.includes('node_modules/vue') || id.includes('node_modules/pinia') || id.includes('node_modules/@vueuse')) {
+            return 'vue-vendor'
+          }
+        },
+      },
     }
   },
   define: {

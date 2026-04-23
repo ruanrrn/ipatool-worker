@@ -702,6 +702,8 @@ pub struct AccountStore {
     pub store: Store,
     pub account_email: String,
     pub auth_info: Option<AuthInfo>,
+    /// 记录上次成功认证的时间，用于自动刷新判断
+    pub last_authenticated_at: std::time::Instant,
 }
 
 impl AccountStore {
@@ -710,6 +712,7 @@ impl AccountStore {
             store: Store::new(),
             account_email: email.to_string(),
             auth_info: None,
+            last_authenticated_at: std::time::Instant::now(),
         }
     }
 
@@ -745,6 +748,7 @@ impl AccountStore {
                     .map(String::from),
             };
             self.auth_info = Some(auth_info);
+            self.last_authenticated_at = std::time::Instant::now();
         }
 
         Ok(result)
@@ -770,5 +774,10 @@ impl AccountStore {
         self.store
             .ensure_license(app_identifier, app_ver_id, auth_info)
             .await
+    }
+
+    /// 标记认证时间为"刚刚"，供外部刷新成功后调用
+    pub fn touch_authenticated(&mut self) {
+        self.last_authenticated_at = std::time::Instant::now();
     }
 }

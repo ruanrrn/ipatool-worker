@@ -1,8 +1,17 @@
 <template>
   <div class="version-picker">
+    <!-- Fetching Versions (auto-triggered) -->
+    <div
+      v-if="fetchingVersions"
+      class="version-picker__section version-picker__loading-section"
+    >
+      <div class="version-picker__loading-spinner" />
+      <span>正在查询版本...</span>
+    </div>
+
     <!-- Version List (radio style) -->
     <div
-      v-if="versionsFetched && versions.length > 0"
+      v-else-if="versionsFetched && versions.length > 0"
       class="version-picker__section"
     >
       <div class="version-picker__section-header">
@@ -40,24 +49,26 @@
       </div>
     </div>
 
-    <!-- Fetching Versions (auto-triggered) -->
+    <!-- Empty result after fetched -->
     <div
-      v-if="fetchingVersions"
-      class="version-picker__section version-picker__loading-section"
+      v-else-if="versionsFetched"
+      class="version-picker__section version-picker__empty-section"
     >
-      <div class="version-picker__loading-spinner" />
-      <span>正在查询版本...</span>
-    </div>
-
-    <!-- No versions hint -->
-    <div
-      v-else-if="!versionsFetched && versions.length === 0"
-      class="version-picker__section"
-    >
+      <p class="version-picker__empty-title">未查询到可用版本</p>
       <p
         v-if="appid"
         class="version-picker__appid-hint"
       >
+        APPID: <strong class="font-mono">{{ appid }}</strong>
+      </p>
+    </div>
+
+    <!-- Initial hint before fetch -->
+    <div
+      v-else-if="appid"
+      class="version-picker__section"
+    >
+      <p class="version-picker__appid-hint">
         APPID: <strong class="font-mono">{{ appid }}</strong>
       </p>
     </div>
@@ -154,6 +165,19 @@ const normalizeVersionSize = (version) => {
   to { transform: rotate(360deg); }
 }
 
+.version-picker__empty-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.version-picker__empty-title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-txt);
+}
+
 .version-picker__appid-hint {
   padding: 12px 16px;
   background: var(--color-bg-secondary);
@@ -184,15 +208,20 @@ const normalizeVersionSize = (version) => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: min(320px, 34vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
 }
 
 .version-radio-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 12px 12px;
   background: var(--color-bg-secondary);
-  border-radius: 8px;
+  border-radius: var(--radius-xl, 12px);
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;

@@ -66,41 +66,16 @@
         :aria-label="passwordVisible ? '隐藏密码' : '显示密码'"
         @click="togglePassword"
       >
-        <svg
+        <SvgIcon
           v-if="!passwordVisible"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle
-            cx="12"
-            cy="12"
-            r="3"
-          />
-        </svg>
-        <svg
+          class="mobile-input__icon mobile-input__icon--eye"
+          :icon="eyeIcon"
+        />
+        <SvgIcon
           v-else
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-          <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-          <line
-            x1="1"
-            y1="1"
-            x2="23"
-            y2="23"
-          />
-        </svg>
+          class="mobile-input__icon mobile-input__icon--eye"
+          :icon="eyeOffIcon"
+        />
       </button>
 
       <!-- 清除按钮 -->
@@ -108,28 +83,13 @@
         v-else-if="clearable && hasValue && !disabled && !readonly"
         class="mobile-input__clear"
         type="button"
+        aria-label="清空输入"
         @click="handleClear"
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-        >
-          <line
-            x1="6"
-            y1="6"
-            x2="18"
-            y2="18"
-          />
-          <line
-            x1="18"
-            y1="6"
-            x2="6"
-            y2="18"
-          />
-        </svg>
+        <SvgIcon
+          class="mobile-input__icon mobile-input__icon--clear"
+          :icon="closeIcon"
+        />
       </button>
     </div>
 
@@ -152,6 +112,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useId } from 'vue'
+import SvgIcon from './SvgIcon.vue'
+import eyeIcon from '../assets/icons/eye.svg?raw'
+import eyeOffIcon from '../assets/icons/eye-off.svg?raw'
+import closeIcon from '../assets/icons/close.svg?raw'
 
 const props = defineProps({
   modelValue: {
@@ -375,13 +339,34 @@ defineExpose({
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* 清除按钮 — Orbit v3: 20x20 圆形 */
+/* 图标尺寸，直接作用在 SvgIcon 包裹层，避免 raw SVG 在按钮内被撑大 */
+.mobile-input__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.mobile-input__icon--clear {
+  width: 10px;
+  height: 10px;
+}
+
+.mobile-input__icon--eye {
+  width: 18px;
+  height: 18px;
+}
+
+/* 清除按钮 — Orbit v3: 18x18 圆形，避免在搜索框中显得过大 */
 .mobile-input__clear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   padding: 0;
   background: var(--color-border-subtle, #d1d5db);
   border: none;
@@ -390,16 +375,12 @@ defineExpose({
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .mobile-input__clear:active {
   transform: scale(0.9);
   background: var(--color-text-tertiary, #c0c0c0);
-}
-
-.mobile-input__clear svg {
-  width: 12px;
-  height: 12px;
 }
 
 /* 密码眼睛按钮 */

@@ -1233,6 +1233,57 @@ impl Database {
         .optional()
     }
 
+    pub fn find_reusable_download_record(
+        &self,
+        app_id: &str,
+        version: &str,
+        account_email: &str,
+    ) -> Result<Option<DownloadRecord>> {
+        let conn = self.connection.lock().unwrap();
+        conn.query_row(
+            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+                    download_date, status, file_size, file_path, install_url, artwork_url,
+                    artist_name, progress, error, package_kind, ota_installable,
+                    install_method, inspection_json, created_at
+             FROM download_records
+             WHERE app_id = ?
+               AND version = ?
+               AND account_email = ?
+               AND status = 'completed'
+               AND file_path IS NOT NULL
+             ORDER BY download_date DESC, id DESC
+             LIMIT 1",
+            params![app_id, version, account_email],
+            |row| {
+                Ok(DownloadRecord {
+                    id: row.get(0)?,
+                    job_id: row.get(1)?,
+                    app_name: row.get(2)?,
+                    app_id: row.get(3)?,
+                    bundle_id: row.get(4)?,
+                    version: row.get(5)?,
+                    account_email: row.get(6)?,
+                    account_region: row.get(7)?,
+                    download_date: row.get(8)?,
+                    status: row.get(9)?,
+                    file_size: row.get(10)?,
+                    file_path: row.get(11)?,
+                    install_url: row.get(12)?,
+                    artwork_url: row.get(13)?,
+                    artist_name: row.get(14)?,
+                    progress: row.get(15)?,
+                    error: row.get(16)?,
+                    package_kind: row.get(17)?,
+                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
+                    install_method: row.get(19)?,
+                    inspection_json: row.get(20)?,
+                    created_at: row.get(21)?,
+                })
+            },
+        )
+        .optional()
+    }
+
     pub fn delete_download_record(&self, id: i64) -> Result<()> {
         let conn = self.connection.lock().unwrap();
         conn.execute("DELETE FROM download_records WHERE id = ?", params![id])?;
@@ -1613,4 +1664,117 @@ pub struct BatchDownloadItem {
     pub error: Option<String>,
     pub retry_count: i64,
     pub created_at: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_db_path(prefix: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("{}_{}.sqlite", prefix, nonce))
+    }
+
+    fn sample_record(
+        app_id: &str,
+        version: &str,
+        account_email: &str,
+        file_path: &str,
+    ) -> DownloadRecord {
+        DownloadRecord {
+            id: None,
+            job_id: Some("job-1".to_string()),
+            app_name: "WeChat".to_string(),
+            app_id: app_id.to_string(),
+            bundle_id: Some("com.tencent.xin".to_string()),
+            version: Some(version.to_string()),
+            account_email: account_email.to_string(),
+            account_region: Some("CN".to_string()),
+            download_date: Some("2026-04-22T12:00:00Z".to_string()),
+            status: "completed".to_string(),
+            file_size: Some(1024),
+            file_path: Some(file_path.to_string()),
+            install_url: None,
+            artwork_url: None,
+            artist_name: None,
+            progress: Some(100),
+            error: None,
+            package_kind: Some("signed".to_string()),
+            ota_installable: Some(true),
+            install_method: Some("ota".to_string()),
+            inspection_json: None,
+            created_at: None,
+        }
+    }
+
+    #[test]
+    fn find_reusable_download_record_returns_latest_completed_match() {
+        let db_path = temp_db_path("download-record-reuse");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        let old_record = sample_record(
+            "414478124",
+            "8.0.58",
+            "ruan@example.com",
+            "/tmp/wechat-old.ipa",
+        );
+        db.add_download_record(&old_record).unwrap();
+
+        let mut latest_record = sample_record(
+            "414478124",
+            "8.0.58",
+            "ruan@example.com",
+            "/tmp/wechat-latest.ipa",
+        );
+        latest_record.job_id = Some("job-2".to_string());
+        latest_record.download_date = Some("2026-04-22T13:00:00Z".to_string());
+        db.add_download_record(&latest_record).unwrap();
+
+        let reused = db
+            .find_reusable_download_record("414478124", "8.0.58", "ruan@example.com")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(reused.job_id.as_deref(), Some("job-2"));
+        assert_eq!(reused.file_path.as_deref(), Some("/tmp/wechat-latest.ipa"));
+
+        let _ = fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn find_reusable_download_record_ignores_failed_or_other_account_records() {
+        let db_path = temp_db_path("download-record-filter");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        let mut failed = sample_record(
+            "414478124",
+            "8.0.58",
+            "ruan@example.com",
+            "/tmp/wechat-failed.ipa",
+        );
+        failed.status = "failed".to_string();
+        db.add_download_record(&failed).unwrap();
+
+        let other_account = sample_record(
+            "414478124",
+            "8.0.58",
+            "other@example.com",
+            "/tmp/wechat-other.ipa",
+        );
+        db.add_download_record(&other_account).unwrap();
+
+        let reused = db
+            .find_reusable_download_record("414478124", "8.0.58", "ruan@example.com")
+            .unwrap();
+
+        assert!(reused.is_none());
+
+        let _ = fs::remove_file(db_path);
+    }
 }

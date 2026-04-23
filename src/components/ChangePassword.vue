@@ -6,17 +6,10 @@
         class="cp-nav__back"
         @click="emit('back')"
       >
-        <svg
+        <SvgIcon
           class="cp-nav__back-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+          :icon="arrowLeftIcon"
+        />
         返回
       </button>
       <div class="cp-nav__title">
@@ -113,6 +106,8 @@
 </template>
 
 <script setup>
+import SvgIcon from './SvgIcon.vue'
+import arrowLeftIcon from '../assets/icons/arrow-left.svg?raw'
 import { reactive, ref, computed } from 'vue'
 import MobileInput from './MobileInput.vue'
 import { Toast } from './MobileToast.vue'

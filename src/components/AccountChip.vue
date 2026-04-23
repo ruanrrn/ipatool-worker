@@ -10,22 +10,18 @@
       v-if="showArrow"
       class="account-chip__arrow"
     >
-      <svg
+      <SvgIcon
         class="account-chip__arrow-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+        :icon="chevronDownIcon"
+      />
     </span>
   </div>
 </template>
 
 <script setup>
+import SvgIcon from './SvgIcon.vue'
+import chevronDownIcon from '../assets/icons/chevron-down.svg?raw'
+
 defineProps({
   email: {
     type: String,

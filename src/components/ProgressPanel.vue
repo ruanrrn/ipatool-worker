@@ -18,33 +18,16 @@
       </div>
     </div>
 
-    <!-- Logs -->
-    <div
-      v-if="logs"
-      class="log-container"
-    >
-      <pre class="log-text">{{ logs }}</pre>
-    </div>
-
     <!-- Environment Warning -->
     <div
       v-if="!isHttps && currentProtocol !== 'http:'"
       class="status-panel mb-3 p-3"
     >
       <div class="flex items-start space-x-2">
-        <svg
+        <SvgIcon
           class="w-4 h-4 text-txt-secondary mt-0.5 flex-shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
+          :icon="alertTriangleIcon"
+        />
         <div class="flex-1">
           <p class="text-caption text-txt-secondary font-medium">
             环境检测
@@ -135,7 +118,9 @@ import ProgressBar from './ProgressBar.vue'
 import MobileButton from './MobileButton.vue'
 import MobileCard from './MobileCard.vue'
 import MobileTag from './MobileTag.vue'
+import SvgIcon from './SvgIcon.vue'
 import { Download, Install } from './icons'
+import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
 
 defineEmits(['download-ipa', 'install-ipa'])
 
@@ -150,10 +135,6 @@ const props = defineProps({
     default: 0
   },
   progressStage: {
-    type: String,
-    default: ''
-  },
-  logs: {
     type: String,
     default: ''
   },
@@ -224,34 +205,10 @@ const formatFileSize = (bytes) => {
   color: var(--color-text-muted);
 }
 
-.log-container {
-  padding: 12px;
-  font-family: 'SFMono-Regular', Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.6;
-  max-height: 160px;
-  overflow-y: auto;
-  background: var(--color-surface-muted);
-  border: none;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-
-.log-text {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
 .status-panel {
   border-radius: 14px;
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
-}
-
-.dark .log-container {
-  background: var(--color-surface);
-  color: var(--color-text-muted);
 }
 
 .dark .status-panel {

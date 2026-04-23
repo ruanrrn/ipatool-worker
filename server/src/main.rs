@@ -19,9 +19,10 @@ use futures_util::{
 use ipa_webtool_services::DownloadRecord;
 use ipa_webtool_services::{
     canonical_ipa_filename, download_ipa_with_account, generate_plist, get_license_error_message,
-    inspect_ipa_path, AccountStore, AdminUser, BatchItem, Database, DownloadManager,
-    DownloadParams, InstallQuery, IpaInspection, JobEndEvent, JobEvent, JobLogEvent,
-    JobProgressEvent, JobProgressPayload, JobState, JobStore, NewSubscription,
+    inspect_ipa_path, read_bundle_identifier_from_ipa, sanitize_ipa_filename, AccountStore,
+    AdminUser, BatchItem, Database, DownloadManager, DownloadParams, InstallQuery, IpaInspection,
+    JobEndEvent, JobEvent, JobLogEvent, JobProgressEvent, JobProgressPayload, JobState, JobStore,
+    NewSubscription,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,11 @@ use uuid::Uuid;
 const ADMIN_SESSION_COOKIE: &str = "ipa_admin_session";
 const SESSION_TTL_DAYS: i64 = 30;
 const PENDING_MFA_TTL_MINUTES: i64 = 10;
+
+/// Apple 账号自动刷新：每 CHECK_INTERVAL_SECONDS 秒检查一次，
+/// 对已保存密码且距上次认证超过 REFRESH_AFTER_SECS 的账号自动刷新。
+const ACCOUNT_REFRESH_CHECK_INTERVAL_SECS: u64 = 300; // 5 分钟检查一次
+const ACCOUNT_REFRESH_AFTER_SECS: u64 = 1800;         // 30 分钟后视为需要刷新
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -302,6 +308,131 @@ lazy_static::lazy_static! {
 }
 
 const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+
+/// 后台自动刷新 Apple 账号会话的循环任务。
+/// 每隔 ACCOUNT_REFRESH_CHECK_INTERVAL_SECS 扫描一次所有已登录账号，
+/// 对"已保存密码"且"距上次认证超过 ACCOUNT_REFRESH_AFTER_SECS"的账号
+/// 使用保存的密码重新认证，刷新 passwordToken。
+async fn account_auto_refresh_loop(db_arc: Arc<Mutex<Database>>) {
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(ACCOUNT_REFRESH_CHECK_INTERVAL_SECS)).await;
+
+        // 1. 收集需要刷新的账号：token → email
+        let accounts_to_refresh: Vec<(String, String)> = {
+            let accounts = ACCOUNTS.read().await;
+            accounts.iter()
+                .filter(|(_, store)| {
+                    store.auth_info.is_some()
+                        && store.last_authenticated_at.elapsed().as_secs() >= ACCOUNT_REFRESH_AFTER_SECS
+                })
+                .map(|(token, store)| (token.clone(), store.account_email.clone()))
+                .collect()
+        };
+
+        if accounts_to_refresh.is_empty() {
+            continue;
+        }
+
+        log::info!(
+            "[account-auto-refresh] {} account(s) need refresh",
+            accounts_to_refresh.len()
+        );
+
+        // 2. 获取已保存凭证的邮箱集合
+        let saved_emails: std::collections::HashSet<String> = {
+            let db = match db_arc.lock() {
+                Ok(db) => db,
+                Err(_) => continue,
+            };
+            match db.get_all_credentials() {
+                Ok(creds) => creds.into_iter().map(|c| c.email).collect(),
+                Err(_) => continue,
+            }
+        };
+
+        // 3. 逐个刷新
+        for (token, email) in &accounts_to_refresh {
+            if !saved_emails.contains(email.as_str()) {
+                log::debug!(
+                    "[account-auto-refresh] skip {} (no saved credentials)",
+                    email
+                );
+                continue;
+            }
+
+            // 解密密码
+            let password = {
+                let db = match db_arc.lock() {
+                    Ok(db) => db,
+                    Err(_) => continue,
+                };
+                let cred = match db.get_credentials(email) {
+                    Ok(Some(c)) => c,
+                    _ => continue,
+                };
+                let enc_key = match ipa_webtool_services::crypto::ensure_encryption_key(&db) {
+                    Ok(k) => k,
+                    Err(e) => {
+                        log::error!("[account-auto-refresh] encryption key error for {}: {}", email, e);
+                        continue;
+                    }
+                };
+                match ipa_webtool_services::crypto::decrypt(
+                    &cred.password_encrypted,
+                    &cred.iv,
+                    &cred.auth_tag,
+                    &enc_key,
+                ) {
+                    Ok(p) => p,
+                    Err(_) => {
+                        log::error!("[account-auto-refresh] decrypt failed for {}", email);
+                        continue;
+                    }
+                }
+            };
+
+            // 重新认证
+            let mut new_store = AccountStore::new(email);
+            match new_store.authenticate(&password, None).await {
+                Ok(result) => {
+                    let state = result
+                        .get("_state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("failure");
+                    if state == "success" {
+                        let mut accounts = ACCOUNTS.write().await;
+                        if accounts.contains_key(token) {
+                            accounts.insert(token.clone(), new_store);
+                            log::info!(
+                                "[account-auto-refresh] refreshed {} (token {}...)",
+                                email,
+                                &token[..8.min(token.len())]
+                            );
+                        }
+                    } else {
+                        let err_msg = result
+                            .get("customerMessage")
+                            .or(result.get("failureType"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown failure");
+                        log::warn!(
+                            "[account-auto-refresh] auth failed for {}: {}",
+                            email,
+                            err_msg
+                        );
+                    }
+                }
+                Err(e) => {
+                    log::error!(
+                        "[account-auto-refresh] auth error for {}: {}",
+                        email,
+                        e
+                    );
+                }
+            }
+        }
+    }
+}
 
 fn get_account_id_for_token(token: &str) -> String {
     format!("tok_{}", &token[..token.len().min(16)])
@@ -910,6 +1041,11 @@ fn inspection_blocks_install(inspection: &IpaInspection) -> bool {
     !inspection.direct_install_ok
 }
 
+fn is_placeholder_bundle_id(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed.is_empty() || trimmed.eq_ignore_ascii_case("unknown.bundle")
+}
+
 #[derive(Debug, Clone)]
 struct DeliveryDecision {
     package_kind: String,
@@ -1072,7 +1208,20 @@ fn build_record_install_url(
     }
 
     let download_url = build_record_download_url(req, record_id);
-    let bundle_id = record.bundle_id.clone()?;
+    let mut bundle_id = record
+        .bundle_id
+        .clone()
+        .filter(|value| !is_placeholder_bundle_id(value));
+    if bundle_id.is_none() {
+        bundle_id = record
+            .file_path
+            .as_ref()
+            .map(PathBuf::from)
+            .filter(|path| path.exists())
+            .and_then(|path| read_bundle_identifier_from_ipa(&path).ok().flatten())
+            .filter(|value| !is_placeholder_bundle_id(value));
+    }
+    let bundle_id = bundle_id?;
     let bundle_version = record.version.clone().filter(|value| !value.is_empty())?;
     let title = if record.app_name.is_empty() {
         record
@@ -1334,7 +1483,117 @@ fn snapshot_progress_event(snapshot: &JobState) -> JobProgressEvent {
     }
 }
 
-async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> impl Responder {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExistingDownloadResponse {
+    job_id: String,
+    record_id: Option<i64>,
+    app_id: String,
+    version: String,
+    app_name: String,
+    account_email: String,
+    file_path: String,
+    file_size: Option<i64>,
+    download_url: String,
+    install_url: Option<String>,
+    package_kind: String,
+    ota_installable: bool,
+    install_method: String,
+    artwork_url: Option<String>,
+    artist_name: Option<String>,
+    bundle_id: Option<String>,
+    reused: bool,
+    task_dir: String,
+}
+
+fn build_download_task_slug(
+    app_name: Option<&str>,
+    app_id: &str,
+    version: Option<&str>,
+    app_ver_id: Option<&str>,
+) -> String {
+    let name = app_name
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(app_id);
+    let version_part = version
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| app_ver_id.map(str::trim).filter(|value| !value.is_empty()))
+        .unwrap_or("latest");
+    let raw = format!("{}-{}-{}", name, app_id, version_part);
+    sanitize_ipa_filename(&raw)
+        .trim_end_matches(".ipa")
+        .trim_matches('_')
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn build_download_task_slug_uses_stable_sanitized_components() {
+        let slug = build_download_task_slug(Some("微信 / WeChat"), "414478124", Some("8.0.58"), None);
+        assert_eq!(slug, "WeChat-414478124-8.0.58");
+    }
+
+    #[test]
+    fn build_download_task_slug_falls_back_to_app_ver_id_or_latest() {
+        let from_ver_id = build_download_task_slug(None, "414478124", None, Some("123456789"));
+        assert_eq!(from_ver_id, "414478124-414478124-123456789");
+
+        let latest = build_download_task_slug(Some("WeChat"), "414478124", None, None);
+        assert_eq!(latest, "WeChat-414478124-latest");
+    }
+
+    #[tokio::test]
+    async fn remove_empty_legacy_job_dir_only_removes_empty_directory() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("ipatool-job-cleanup-{}", nonce));
+        let empty_dir = root.join("empty-job");
+        let non_empty_dir = root.join("non-empty-job");
+        fs::create_dir_all(&empty_dir).unwrap();
+        fs::create_dir_all(&non_empty_dir).unwrap();
+        fs::write(non_empty_dir.join("artifact.txt"), b"keep").unwrap();
+
+        remove_empty_legacy_job_dir(&root, "empty-job").await;
+        remove_empty_legacy_job_dir(&root, "non-empty-job").await;
+
+        assert!(!empty_dir.exists());
+        assert!(non_empty_dir.exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+}
+
+async fn remove_empty_legacy_job_dir(job_root: &Path, job_id: &str) {
+    let legacy_dir = job_root.join(job_id);
+    if !legacy_dir.exists() {
+        return;
+    }
+    match tokio::fs::read_dir(&legacy_dir).await {
+        Ok(mut entries) => match entries.next_entry().await {
+            Ok(None) => {
+                let _ = tokio::fs::remove_dir(&legacy_dir).await;
+            }
+            Ok(Some(_)) => {}
+            Err(_) => {}
+        },
+        Err(_) => {}
+    }
+}
+
+async fn start_download_direct(
+    req_http: HttpRequest,
+    body: web::Bytes,
+    data: web::Data<AppState>,
+) -> impl Responder {
     let req: StartDownloadDirectRequest = match serde_json::from_slice(&body) {
         Ok(r) => r,
         Err(e) => {
@@ -1414,15 +1673,13 @@ async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> i
         }
     }
 
-    let job_id = Uuid::new_v4().to_string();
-    eprintln!("[start-download-direct] job created: {}", job_id);
-    let job = data.job_store.create_job(job_id.clone()).await;
-    job.append_log(format!("[job] 已创建任务 {}", job_id)).await;
-
     let appid = req.appid.clone();
     let app_ver_id = req.appVerId.clone();
     let app_name_hint = req.appName.clone().filter(|value| !value.is_empty());
-    let bundle_id_hint = req.bundleId.clone().filter(|value| !value.is_empty());
+    let bundle_id_hint = req
+        .bundleId
+        .clone()
+        .filter(|value| !is_placeholder_bundle_id(value));
     let app_version_hint = req.appVersion.clone().filter(|value| !value.is_empty());
     let artwork_url_hint = req.artworkUrl.clone().filter(|value| !value.is_empty());
     let artist_name_hint = req.artistName.clone().filter(|value| !value.is_empty());
@@ -1435,14 +1692,92 @@ async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> i
         .and_then(|db| db.get_account_by_token(&req.token).ok().flatten())
         .map(|account| account.region)
         .filter(|value| !value.is_empty());
+    let app_version_key = app_version_hint
+        .clone()
+        .or_else(|| app_ver_id.clone())
+        .unwrap_or_else(|| "latest".to_string());
+    let task_slug = build_download_task_slug(
+        app_name_hint.as_deref(),
+        &appid,
+        Some(app_version_key.as_str()),
+        app_ver_id.as_deref(),
+    );
+    let job_root = data.downloads_dir.join("jobs");
+    let task_dir = job_root.join(&task_slug);
+
+    if let Ok(db_guard) = data.db.lock() {
+        if let Ok(Some(existing_record)) = db_guard.find_reusable_download_record(
+            &appid,
+            &app_version_key,
+            &account_email,
+        ) {
+            if let Some(file_path) = existing_record.file_path.clone() {
+                let path = PathBuf::from(&file_path);
+                if path.exists() {
+                    let inspection = inspection_for_record(&existing_record)
+                        .or_else(|| inspect_existing_ipa(&path));
+                    let decision = derive_delivery_decision(inspection.as_ref(), true);
+                    let download_url = existing_record
+                        .id
+                        .map(|record_id| build_record_download_url(&req_http, record_id));
+                    drop(db_guard);
+                    let install_url = if decision.ota_installable {
+                        match existing_record.id {
+                            Some(record_id) => {
+                                build_record_install_url(&req_http, &existing_record, record_id)
+                            }
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+                    let response = ExistingDownloadResponse {
+                        job_id: existing_record
+                            .job_id
+                            .clone()
+                            .unwrap_or_else(|| task_slug.clone()),
+                        record_id: existing_record.id,
+                        app_id: existing_record.app_id.clone(),
+                        version: existing_record
+                            .version
+                            .clone()
+                            .unwrap_or_else(|| app_version_key.clone()),
+                        app_name: existing_record.app_name.clone(),
+                        account_email: existing_record.account_email.clone(),
+                        file_path: file_path.clone(),
+                        file_size: existing_record
+                            .file_size
+                            .or_else(|| std::fs::metadata(&path).ok().map(|meta| meta.len() as i64)),
+                        download_url: download_url.unwrap_or_default(),
+                        install_url,
+                        package_kind: decision.package_kind,
+                        ota_installable: decision.ota_installable,
+                        install_method: decision.install_method,
+                        artwork_url: existing_record.artwork_url.clone(),
+                        artist_name: existing_record.artist_name.clone(),
+                        bundle_id: existing_record.bundle_id.clone(),
+                        reused: true,
+                        task_dir: task_dir.to_string_lossy().to_string(),
+                    };
+                    return HttpResponse::Ok().json(ApiResponse::success(response));
+                }
+            }
+        }
+    }
+
+    let job_id = Uuid::new_v4().to_string();
+    eprintln!("[start-download-direct] job created: {}", job_id);
+    let job = data.job_store.create_job(job_id.clone()).await;
+    job.append_log(format!("[job] 已创建任务 {}", job_id)).await;
+    job.append_log(format!("[job] 任务目录：{}", task_dir.display())).await;
+
     let job_for_task = job.clone();
     let job_id_for_task = job_id.clone();
     let db = data.db.clone();
-    let downloads_dir = data.downloads_dir.clone();
+    let task_dir_for_job = task_dir.clone();
 
     tokio::spawn(async move {
-        let job_dir = downloads_dir.join("jobs").join(&job_id_for_task);
-        if let Err(error) = tokio::fs::create_dir_all(&job_dir).await {
+        if let Err(error) = tokio::fs::create_dir_all(&task_dir_for_job).await {
             let message = format!("创建任务目录失败: {}", error);
             job_for_task
                 .append_log(format!("[error] {}", message))
@@ -1450,6 +1785,7 @@ async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> i
             job_for_task.mark_failed(message).await;
             return;
         }
+        remove_empty_legacy_job_dir(&job_root, &job_id_for_task).await;
 
         job_for_task.set_running().await;
         job_for_task
@@ -1466,7 +1802,7 @@ async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> i
                 });
             });
 
-        let download_path = job_dir.to_string_lossy().to_string();
+        let download_path = task_dir_for_job.to_string_lossy().to_string();
         let params = DownloadParams {
             store: &account_store,
             email: &account_email,
@@ -1574,10 +1910,11 @@ async fn start_download_direct(body: web::Bytes, data: web::Data<AppState>) -> i
         }
     });
 
-    HttpResponse::Ok().json(serde_json::json!({
-        "ok": true,
+    HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
         "jobId": job_id,
-    }))
+        "taskDir": task_dir.to_string_lossy().to_string(),
+        "reused": false
+    })))
 }
 
 async fn progress_sse(
@@ -3142,6 +3479,7 @@ async fn get_account_list(data: web::Data<AppState>) -> impl Responder {
             "region": region,
             "displayName": display_name,
             "hasSavedCredentials": has_saved_credentials,
+            "lastRefreshedAt": store.last_authenticated_at.elapsed().as_secs(),
         }));
     }
 
@@ -3845,6 +4183,30 @@ async fn plist_from_token(path: web::Path<String>, data: web::Data<AppState>) ->
         identifier = name_full[idx + 1..].to_string();
     }
 
+    if is_placeholder_bundle_id(&identifier) {
+        if let Some(record_id) = extract_record_id_from_download_url(&link_str) {
+            let record = data
+                .db
+                .lock()
+                .unwrap()
+                .get_download_record(record_id)
+                .ok()
+                .flatten();
+            if let Some(record) = record {
+                if let Some(file_path) = record.file_path.clone() {
+                    let path = PathBuf::from(file_path);
+                    if path.exists() {
+                        if let Ok(Some(real_bundle_id)) = read_bundle_identifier_from_ipa(&path) {
+                            if !is_placeholder_bundle_id(&real_bundle_id) {
+                                identifier = real_bundle_id;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let bundle_version = match version_encode {
         Some(encoded) => match urlencoding::decode(encoded) {
             Ok(v) => v.into_owned(),
@@ -4294,6 +4656,26 @@ async fn download_ipa_file(
         }))
 }
 
+async fn cleanup_empty_jobs_parent(path_buf: &Path, downloads_dir: &Path) {
+    if let Some(parent) = path_buf.parent() {
+        let is_jobs_child = parent
+            .strip_prefix(downloads_dir.join("jobs"))
+            .ok()
+            .is_some();
+        if is_jobs_child {
+            let mut empty = true;
+            if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
+                if entries.next_entry().await.ok().flatten().is_some() {
+                    empty = false;
+                }
+            }
+            if empty {
+                let _ = tokio::fs::remove_dir(parent).await;
+            }
+        }
+    }
+}
+
 async fn delete_ipa_file(path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
     let artifact_id = path.into_inner();
     let file_path = match resolve_artifact_path(&data.downloads_dir, &artifact_id) {
@@ -4310,6 +4692,8 @@ async fn delete_ipa_file(path: web::Path<String>, data: web::Data<AppState>) -> 
             error
         )));
     }
+
+    cleanup_empty_jobs_parent(&file_path, &data.downloads_dir).await;
 
     let file_path_string = file_path.to_string_lossy().to_string();
     let _ = data
@@ -4381,23 +4765,7 @@ async fn cleanup_download_record_file(
         file_deleted = true;
     }
 
-    if let Some(parent) = path_buf.parent() {
-        let is_jobs_child = parent
-            .strip_prefix(data.downloads_dir.join("jobs"))
-            .ok()
-            .is_some();
-        if is_jobs_child {
-            let mut empty = true;
-            if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
-                if entries.next_entry().await.ok().flatten().is_some() {
-                    empty = false;
-                }
-            }
-            if empty {
-                let _ = tokio::fs::remove_dir(parent).await;
-            }
-        }
-    }
+    cleanup_empty_jobs_parent(&path_buf, &data.downloads_dir).await;
 
     if let Err(e) = data.db.lock().unwrap().delete_download_record(id) {
         return HttpResponse::InternalServerError()
@@ -5255,10 +5623,15 @@ async fn main() -> std::io::Result<()> {
     ));
 
     let app_state = web::Data::new(AppState {
-        db: db_arc,
+        db: db_arc.clone(),
         download_manager: download_manager.clone(),
         job_store: JobStore::new(),
         downloads_dir,
+    });
+
+    // 启动 Apple 账号自动刷新后台任务
+    tokio::spawn(async move {
+        account_auto_refresh_loop(db_arc).await;
     });
 
     let bind_address = "0.0.0.0:8080";

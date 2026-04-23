@@ -31,6 +31,7 @@ const normaliseAccount = (acc) => ({
   dsid: acc.dsid,
   region: acc.region || 'US',
   hasSavedCredentials: !!acc.hasSavedCredentials,
+  lastRefreshedAt: acc.lastRefreshedAt ?? 0,
 })
 
 // --- Singleton state (shared across all consumers) ---

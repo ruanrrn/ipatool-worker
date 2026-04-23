@@ -91,43 +91,20 @@
                   title="下载"
                   @click.stop="downloadArchivedVersion(item)"
                 >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line
-                      x1="12"
-                      y1="15"
-                      x2="12"
-                      y2="3"
-                    />
-                  </svg>
+                  <SvgIcon
+                    class="h-[15px] w-[15px]"
+                    :icon="downloadIcon"
+                  />
                 </button>
                 <button
                   class="fav-btn fav-btn--unfav"
                   title="取消收藏"
                   @click.stop="removeFavoriteVersion(item)"
                 >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                  </svg>
+                  <SvgIcon
+                    class="h-[15px] w-[15px]"
+                    :icon="starFilledIcon"
+                  />
                 </button>
               </div>
             </div>
@@ -205,25 +182,10 @@
                   title="下载"
                   @click.stop="downloadArchivedApp(app)"
                 >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line
-                      x1="12"
-                      y1="15"
-                      x2="12"
-                      y2="3"
-                    />
-                  </svg>
+                  <SvgIcon
+                    class="h-[15px] w-[15px]"
+                    :icon="downloadIcon"
+                  />
                 </button>
               </div>
             </div>
@@ -308,6 +270,7 @@ import { API_BASE } from '../config.js'
 
 import { Toast } from './MobileToast.vue'
 import AppArtwork from './AppArtwork.vue'
+import SvgIcon from './SvgIcon.vue'
 import EmptyState from './EmptyState.vue'
 import { useAppStore } from '../stores/app'
 import { STORAGE_KEYS } from '../utils/storage.js'
@@ -315,6 +278,8 @@ import MobileButton from './MobileButton.vue'
 import MobileDialog from './MobileDialog.vue'
 import MobileInput from './MobileInput.vue'
 import { apiFetch } from '../utils/api.js'
+import downloadIcon from '../assets/icons/download.svg?raw'
+import starFilledIcon from '../assets/icons/star-filled.svg?raw'
 
 const appStore = useAppStore()
 
@@ -705,6 +670,7 @@ const downloadArchivedVersion = async (item) => {
         appName: item.name,
         bundleId: item.bundle_id || undefined,
         artworkUrl: item.icon_url || undefined,
+        appVersion: item.version || undefined,
         artistName: item.artist_name || undefined
       })
     })

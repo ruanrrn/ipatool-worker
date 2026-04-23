@@ -21,7 +21,9 @@ pub use ipa_handler::{
 };
 pub use key_manager::KeyManager;
 pub use ota_install::{generate_mobileconfig, generate_plist, InstallQuery};
-pub use signature::{inspect_ipa_path, read_zip, IpaInspection, SignatureClient};
+pub use signature::{
+    inspect_ipa_path, read_bundle_identifier_from_ipa, read_zip, IpaInspection, SignatureClient,
+};
 
 pub use web_jobs::{
     JobEndEvent, JobEvent, JobHandle, JobLogEvent, JobProgressEvent, JobProgressPayload, JobState,

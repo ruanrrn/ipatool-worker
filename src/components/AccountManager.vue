@@ -6,17 +6,10 @@
         class="ap-nav__back"
         @click="emit('close')"
       >
-        <svg
+        <SvgIcon
           class="ap-nav__back-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+          :icon="arrowLeftIcon"
+        />
         返回
       </button>
       <div class="ap-nav__title">
@@ -86,17 +79,10 @@
                 @change="savePassword = $event.target.checked"
               >
               <span class="mobile-checkbox__box">
-                <svg
+                <SvgIcon
                   class="mobile-checkbox__check"
-                  viewBox="0 0 12 10"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="1.5 5 4.5 8 10.5 2" />
-                </svg>
+                  :icon="checkboxCheckIcon"
+                />
               </span>
               <span class="mobile-checkbox__label text-[14px] text-txt dark:text-txt-dark">保存密码以便下次自动登录</span>
             </label>
@@ -116,34 +102,10 @@
               v-if="autoLogging"
               class="flex items-center justify-center gap-2 rounded-xl border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark-muted px-4 py-3 text-body text-txt-secondary dark:text-txt-dark-secondary"
             >
-              <svg
+              <SvgIcon
                 class="h-4 w-4 animate-spin"
-                viewBox="0 0 50 50"
-              >
-                <circle
-                  cx="25"
-                  cy="25"
-                  r="20"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="4"
-                >
-                  <animate
-                    attributeName="stroke-dasharray"
-                    from="1 100"
-                    to="89 100"
-                    dur="1.5s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="stroke-dashoffset"
-                    from="0"
-                    to="-35"
-                    dur="1.5s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              </svg>
+                :icon="spinnerIcon"
+              />
               <span>正在自动登录保存的账号...</span>
             </div>
 
@@ -160,6 +122,10 @@
 </template>
 
 <script setup>
+import SvgIcon from './SvgIcon.vue'
+import arrowLeftIcon from '../assets/icons/arrow-left.svg?raw'
+import checkboxCheckIcon from '../assets/icons/checkbox-check.svg?raw'
+import spinnerIcon from '../assets/icons/spinner.svg?raw'
 import { ref, computed, onMounted } from 'vue'
 import { API_BASE } from '../config.js'
 
