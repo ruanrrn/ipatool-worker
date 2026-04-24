@@ -3,7 +3,9 @@ pub mod crypto;
 pub mod database;
 pub mod download_manager;
 pub mod ipa_handler;
+pub mod ipa_utils;
 pub mod key_manager;
+pub mod models;
 pub mod ota_install;
 pub mod signature;
 pub mod web_jobs;
@@ -29,3 +31,10 @@ pub use web_jobs::{
     JobEndEvent, JobEvent, JobHandle, JobLogEvent, JobProgressEvent, JobProgressPayload, JobState,
     JobStore,
 };
+
+pub use ipa_utils::{
+    extract_itunes_metadata_from_ipa, extract_largest_app_icon_from_ipa, extract_metadata_from_ipa,
+    find_app_bundle_in_zip, plist_string_value, read_plist_from_zip, IpaMetadata,
+};
+
+pub use models::*;

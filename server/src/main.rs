@@ -2,7 +2,6 @@ use actix_files as fs;
 use actix_multipart::Multipart;
 use actix_web::{
     body::{EitherBody, MessageBody},
-    cookie::{time::Duration as CookieDuration, Cookie, SameSite},
     dev::{ServiceRequest, ServiceResponse},
     error::{ErrorInternalServerError, ErrorNotFound, ErrorUnauthorized},
     http::header::{ContentDisposition, DispositionParam, DispositionType},
@@ -11,23 +10,33 @@ use actix_web::{
 };
 use base64::Engine as _;
 use bytes::Bytes;
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use futures_util::{
     future::{ready, Ready},
     stream, StreamExt, TryStreamExt,
+};
+use ipa_webtool_services::models::{
+    build_session_cookie, clear_session_cookie, is_pending_mfa_expired, normalize_mfa_code,
+    normalize_region_code, session_expires_at, unauthorized_response, AdminLoginRequest,
+    ApiResponse, AppMetaQuery, AppleLoginRequest, AuthUserPayload, ChangePasswordRequest,
+    ClaimRequest, ConfirmPurchaseRequest, DeliveryDecision, DownloadArtifact, DownloadRecordView,
+    DownloadRequest, DownloadUrlQuery, ExistingDownloadResponse, IpaArtifactView, JobIdQuery,
+    ManifestQuery, PendingMfaSession, PurchaseCacheEntry, PurchaseStatusBatchRequest,
+    PurchaseStatusQuery, StartDownloadDirectRequest, VersionQuery, ADMIN_SESSION_COOKIE,
+    PENDING_MFA_TTL_MINUTES,
 };
 use ipa_webtool_services::DownloadRecord;
 use ipa_webtool_services::{
     canonical_ipa_filename, download_ipa_with_account, generate_plist, get_license_error_message,
     inspect_ipa_path, read_bundle_identifier_from_ipa, sanitize_ipa_filename, AccountStore,
-    AdminUser, BatchItem, Database, DownloadManager, DownloadParams, InstallQuery, IpaInspection,
-    JobEndEvent, JobEvent, JobLogEvent, JobProgressEvent, JobProgressPayload, JobState, JobStore,
+    BatchItem, Database, DownloadManager, DownloadParams, InstallQuery, IpaInspection, JobEndEvent,
+    JobEvent, JobLogEvent, JobProgressEvent, JobProgressPayload, JobState, JobStore,
     NewSubscription,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -36,181 +45,18 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-const ADMIN_SESSION_COOKIE: &str = "ipa_admin_session";
-const SESSION_TTL_DAYS: i64 = 30;
-const PENDING_MFA_TTL_MINUTES: i64 = 10;
+#[derive(Debug, Clone)]
+struct AuthenticatedAdmin {
+    pub username: String,
+    pub is_default: bool,
+    #[allow(dead_code)]
+    pub session_token: String,
+}
 
 /// Apple 账号自动刷新：每 CHECK_INTERVAL_SECONDS 秒检查一次，
 /// 对已保存密码且距上次认证超过 REFRESH_AFTER_SECS 的账号自动刷新。
 const ACCOUNT_REFRESH_CHECK_INTERVAL_SECS: u64 = 300; // 5 分钟检查一次
 const ACCOUNT_REFRESH_AFTER_SECS: u64 = 1800; // 30 分钟后视为需要刷新
-
-#[derive(Serialize)]
-struct ApiResponse<T> {
-    ok: bool,
-    data: Option<T>,
-    error: Option<String>,
-}
-
-impl<T> ApiResponse<T> {
-    fn success(data: T) -> Self {
-        Self {
-            ok: true,
-            data: Some(data),
-            error: None,
-        }
-    }
-
-    fn error(error: String) -> Self {
-        Self {
-            ok: false,
-            data: None,
-            error: Some(error),
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct VersionQuery {
-    appid: String,
-    region: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-#[allow(dead_code)]
-struct DownloadUrlQuery {
-    token: String,
-    appid: String,
-    appVerId: Option<String>,
-    #[serde(default)]
-    autoPurchase: bool,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct PurchaseStatusQuery {
-    token: String,
-    appid: String,
-    appVerId: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct ClaimRequest {
-    token: String,
-    appid: String,
-    appVerId: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct PurchaseStatusBatchRequest {
-    token: String,
-    appids: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct ConfirmPurchaseRequest {
-    token: String,
-    appid: String,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-#[allow(non_snake_case)]
-struct DownloadRequest {
-    token: String,
-    url: String,
-    appid: Option<String>,
-    appVerId: Option<String>,
-    downloadPath: Option<String>,
-    #[serde(default)]
-    autoPurchase: bool,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct StartDownloadDirectRequest {
-    token: String,
-    appid: String,
-    appVerId: Option<String>,
-    appName: Option<String>,
-    bundleId: Option<String>,
-    appVersion: Option<String>,
-    artworkUrl: Option<String>,
-    artistName: Option<String>,
-    #[serde(default)]
-    autoPurchase: bool,
-}
-
-#[derive(Deserialize)]
-struct AppMetaQuery {
-    appid: String,
-    region: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct JobIdQuery {
-    jobId: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AppleLoginRequest {
-    email: String,
-    password: String,
-    mfa: Option<String>,
-    save_credentials: Option<bool>,
-}
-
-#[derive(Deserialize)]
-struct AdminLoginRequest {
-    username: String,
-    password: String,
-}
-
-#[derive(Deserialize)]
-struct ChangePasswordRequest {
-    current_password: String,
-    new_password: String,
-    new_username: Option<String>,
-}
-
-#[derive(Serialize, Clone)]
-struct AuthUserPayload {
-    username: String,
-    is_default: bool,
-}
-
-impl From<&AdminUser> for AuthUserPayload {
-    fn from(user: &AdminUser) -> Self {
-        Self {
-            username: user.username.clone(),
-            is_default: user.is_default,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct AuthenticatedAdmin {
-    username: String,
-    is_default: bool,
-    #[allow(dead_code)]
-    session_token: String,
-}
-
-#[derive(Deserialize, Default)]
-#[allow(non_snake_case)]
-struct ManifestQuery {
-    url: Option<String>,
-    bundle_id: Option<String>,
-    bundle_version: Option<String>,
-    title: Option<String>,
-    jobId: Option<String>,
-}
 
 // 应用状态
 struct AppState {
@@ -220,87 +66,11 @@ struct AppState {
     downloads_dir: PathBuf,
 }
 
-#[derive(Debug, Clone)]
-struct DownloadArtifact {
-    id: String,
-    path: PathBuf,
-    file_name: String,
-    file_size: u64,
-    modified_at: Option<chrono::DateTime<Utc>>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DownloadRecordView {
-    id: Option<i64>,
-    job_id: Option<String>,
-    app_name: String,
-    app_id: String,
-    bundle_id: Option<String>,
-    version: Option<String>,
-    account_email: String,
-    account_region: Option<String>,
-    download_date: Option<String>,
-    status: String,
-    file_size: Option<i64>,
-    file_path: Option<String>,
-    download_url: Option<String>,
-    install_url: Option<String>,
-    artwork_url: Option<String>,
-    artist_name: Option<String>,
-    progress: Option<i64>,
-    error: Option<String>,
-    package_kind: String,
-    ota_installable: bool,
-    install_method: String,
-    created_at: Option<String>,
-    file_exists: bool,
-    inspection: Option<IpaInspection>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct IpaArtifactView {
-    id: String,
-    file_name: String,
-    file_size: u64,
-    file_path: String,
-    modified_at: Option<String>,
-    app_name: String,
-    app_id: String,
-    bundle_id: Option<String>,
-    version: Option<String>,
-    account_email: Option<String>,
-    account_region: Option<String>,
-    artwork_url: Option<String>,
-    artist_name: Option<String>,
-    record_id: Option<i64>,
-    download_url: String,
-    install_url: Option<String>,
-    package_kind: String,
-    ota_installable: bool,
-    install_method: String,
-    inspection: Option<IpaInspection>,
-}
-
-#[derive(Clone)]
-struct PendingMfaSession {
-    account_store: AccountStore,
-    password_hash: String,
-    created_at: chrono::DateTime<Utc>,
-}
-
 // 模拟的账号存储（生产环境应该使用数据库）
 lazy_static::lazy_static! {
     static ref ACCOUNTS: RwLock<HashMap<String, AccountStore>> = RwLock::new(HashMap::new());
     // MFA 第一轮失败后暂存 AccountStore（保留 GUID），等待用户提交验证码后复用
     static ref PENDING_MFA: RwLock<HashMap<String, PendingMfaSession>> = RwLock::new(HashMap::new());
-}
-
-struct PurchaseCacheEntry {
-    purchased: bool,
-    needs_purchase: bool,
-    cached_at: Instant,
 }
 
 lazy_static::lazy_static! {
@@ -444,22 +214,24 @@ fn get_account_id_for_token(token: &str) -> String {
 }
 
 fn hash_password(password: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(password.as_bytes());
-    hex::encode(hasher.finalize())
+    bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap_or_else(|_| {
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(password.as_bytes());
+        hex::encode(hasher.finalize())
+    })
 }
 
-fn normalize_mfa_code(mfa: Option<&str>) -> Option<String> {
-    mfa.map(|code| code.trim().replace(' ', ""))
-        .filter(|code| !code.is_empty())
-}
-
-fn normalize_region_code(region: &str) -> Option<String> {
-    let normalized = region.trim().to_uppercase();
-    if normalized.len() >= 2 && normalized.len() <= 3 {
-        Some(normalized)
+fn verify_password(password: &str, hash: &str) -> bool {
+    if hash.len() == 60 {
+        bcrypt::verify(password, hash).unwrap_or(false)
     } else {
-        None
+        let old_hash = {
+            use sha2::Digest;
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(password.as_bytes());
+            hex::encode(hasher.finalize())
+        };
+        old_hash == hash
     }
 }
 
@@ -470,10 +242,6 @@ fn resolved_account_region(result: &HashMap<String, Value>, fallback: Option<Str
         .and_then(normalize_region_code)
         .or_else(|| fallback.and_then(|value| normalize_region_code(&value)))
         .unwrap_or_else(|| "US".to_string())
-}
-
-fn is_pending_mfa_expired(created_at: chrono::DateTime<Utc>) -> bool {
-    Utc::now().signed_duration_since(created_at) > Duration::minutes(PENDING_MFA_TTL_MINUTES)
 }
 
 async fn save_pending_mfa(email: &str, password: &str, account_store: AccountStore) {
@@ -510,7 +278,7 @@ async fn take_pending_mfa(email: &str, password: &str) -> Result<AccountStore, S
         ));
     }
 
-    if pending_session.password_hash != hash_password(password) {
+    if !verify_password(password, &pending_session.password_hash) {
         return Err("登录密码已变更，请重新输入账号密码并再次登录以重新发起验证".to_string());
     }
 
@@ -585,37 +353,6 @@ fn apple_auth_failure_details(
     };
 
     (failure_type, user_facing_msg, needs_mfa)
-}
-
-fn session_expires_at() -> String {
-    (Utc::now() + Duration::days(SESSION_TTL_DAYS))
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
-}
-
-fn build_session_cookie(token: &str) -> Cookie<'static> {
-    Cookie::build(ADMIN_SESSION_COOKIE, token.to_string())
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax)
-        .max_age(CookieDuration::days(SESSION_TTL_DAYS))
-        .finish()
-}
-
-fn clear_session_cookie() -> Cookie<'static> {
-    let mut cookie = Cookie::build(ADMIN_SESSION_COOKIE, "")
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax)
-        .finish();
-    cookie.make_removal();
-    cookie
-}
-
-fn unauthorized_response() -> HttpResponse {
-    HttpResponse::Unauthorized().json(ApiResponse::<String>::error(
-        "未登录或登录已过期".to_string(),
-    ))
 }
 
 fn resolve_admin_session(app_state: &AppState, token: &str) -> Result<AuthenticatedAdmin, String> {
@@ -1051,13 +788,6 @@ fn is_placeholder_bundle_id(value: &str) -> bool {
     trimmed.is_empty() || trimmed.eq_ignore_ascii_case("unknown.bundle")
 }
 
-#[derive(Debug, Clone)]
-struct DeliveryDecision {
-    package_kind: String,
-    ota_installable: bool,
-    install_method: String,
-}
-
 fn derive_delivery_decision(
     inspection: Option<&IpaInspection>,
     file_exists: bool,
@@ -1437,6 +1167,7 @@ fn sync_download_records_from_filesystem(db: &Database, downloads_dir: &Path) {
             install_method: None,
             inspection_json: None,
             created_at: None,
+            delisted: None,
         };
         let _ = db.add_download_record(&inferred);
     }
@@ -1486,29 +1217,6 @@ fn snapshot_progress_event(snapshot: &JobState) -> JobProgressEvent {
         }),
         error: snapshot.error.clone(),
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ExistingDownloadResponse {
-    job_id: String,
-    record_id: Option<i64>,
-    app_id: String,
-    version: String,
-    app_name: String,
-    account_email: String,
-    file_path: String,
-    file_size: Option<i64>,
-    download_url: String,
-    install_url: Option<String>,
-    package_kind: String,
-    ota_installable: bool,
-    install_method: String,
-    artwork_url: Option<String>,
-    artist_name: Option<String>,
-    bundle_id: Option<String>,
-    reused: bool,
-    task_dir: String,
 }
 
 fn build_download_task_slug(
@@ -1609,13 +1317,13 @@ async fn start_download_direct(
     };
     let accounts = ACCOUNTS.read().await;
     eprintln!(
-        "[start-download-direct] token={}… appid={} appVerId={:?} autoPurchase={} active_accounts={}",
-        req.token.chars().take(8).collect::<String>(),
-        req.appid,
-        req.appVerId,
-        req.autoPurchase,
-        accounts.len()
-    );
+         "[start-download-direct] token={}… appid={} appVerId={:?} autoPurchase={} active_accounts={}",
+         req.token.chars().take(8).collect::<String>(),
+         req.appid,
+         req.appVerId,
+         req.autoPurchase,
+         accounts.len()
+     );
     let account_store = match accounts.get(&req.token) {
         Some(account) => account.clone(),
         None => {
@@ -1836,20 +1544,37 @@ async fn start_download_direct(
                         .as_ref()
                         .and_then(|value| serde_json::to_string(value).ok());
                     let meta = result.metadata.clone();
+
+                    // 从 IPA 提取完整元数据（iTunesMetadata.plist）
+                    let ipa_meta = ipa_webtool_services::extract_itunes_metadata_from_ipa(
+                        Path::new(&file_path),
+                    );
+
+                    // 如果请求中没有 app_name 和 artwork_url，说明 App Store 查不到
+                    let is_delisted = app_name_hint.is_none() && artwork_url_hint.is_none();
+
                     let record = DownloadRecord {
                         id: None,
                         job_id: Some(job_id_for_task.clone()),
+                        // 优先级：下载metadata > iTunesMetadata(itemName中文名) > hint > 文件名
                         app_name: meta
                             .as_ref()
                             .map(|item| item.bundle_display_name.clone())
                             .filter(|value| !value.is_empty())
+                            .or_else(|| ipa_meta.as_ref().and_then(|m| m.item_name.clone()))
                             .or_else(|| app_name_hint.clone())
+                            .or_else(|| {
+                                ipa_meta
+                                    .as_ref()
+                                    .and_then(|m| m.bundle_display_name.clone())
+                            })
                             .unwrap_or(file_name),
                         app_id: appid.clone(),
                         bundle_id: meta
                             .as_ref()
                             .map(|item| item.bundle_id.clone())
                             .filter(|value| !value.is_empty())
+                            .or_else(|| ipa_meta.as_ref().and_then(|m| m.bundle_id.clone()))
                             .or_else(|| bundle_id_hint.clone()),
                         version: meta
                             .as_ref()
@@ -1868,11 +1593,13 @@ async fn start_download_direct(
                             .as_ref()
                             .map(|item| item.artwork_url.clone())
                             .filter(|value| !value.is_empty())
+                            .or_else(|| ipa_meta.as_ref().and_then(|m| m.icon_url.clone()))
                             .or_else(|| artwork_url_hint.clone()),
                         artist_name: meta
                             .as_ref()
                             .map(|item| item.artist_name.clone())
                             .filter(|value| !value.is_empty())
+                            .or_else(|| ipa_meta.as_ref().and_then(|m| m.artist_name.clone()))
                             .or_else(|| artist_name_hint.clone()),
                         progress: Some(100),
                         error: None,
@@ -1880,9 +1607,14 @@ async fn start_download_direct(
                         ota_installable: Some(decision.ota_installable),
                         install_method: Some(decision.install_method),
                         inspection_json,
+                        delisted: if is_delisted { Some(true) } else { None },
                         created_at: None,
                     };
-                    if let Err(e) = db.lock().unwrap().add_download_record(&record) {
+                    if let Err(e) = db
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .add_download_record(&record)
+                    {
                         eprintln!("[record] Failed to save download record: {}", e);
                     }
                 } else {
@@ -2048,7 +1780,7 @@ async fn get_job_info(
                 .unwrap_or(false);
             let inspection = inspection_for_record(&persisted_record);
             sync_record_delivery(
-                &data.db.lock().unwrap(),
+                &data.db.lock().unwrap_or_else(|e| e.into_inner()),
                 &persisted_record,
                 inspection.as_ref(),
                 file_exists,
@@ -2075,21 +1807,21 @@ async fn get_job_info(
             });
 
             return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
-                "jobId": query.jobId.clone(),
-                "status": if file_exists { "ready" } else { "failed" },
-                "stage": if file_exists { "done" } else { "missing-file" },
-                "progress": if file_exists { 100 } else { persisted_record.progress.unwrap_or(0) },
-                "downloadUrl": download_url,
-                "installUrl": install_url,
-                "packageKind": decision.package_kind,
-                "otaInstallable": decision.ota_installable,
-                "installMethod": decision.install_method,
-                "inspection": inspection,
-                "error": if file_exists { serde_json::Value::Null } else { serde_json::Value::String("任务记录存在，但安装包文件已丢失".to_string()) },
-                "metadata": serde_json::Value::Null,
-                "filePath": persisted_record.file_path,
-                "fileSize": file_size,
-            })));
+                 "jobId": query.jobId.clone(),
+                 "status": if file_exists { "ready" } else { "failed" },
+                 "stage": if file_exists { "done" } else { "missing-file" },
+                 "progress": if file_exists { 100 } else { persisted_record.progress.unwrap_or(0) },
+                 "downloadUrl": download_url,
+                 "installUrl": install_url,
+                 "packageKind": decision.package_kind,
+                 "otaInstallable": decision.ota_installable,
+                 "installMethod": decision.install_method,
+                 "inspection": inspection,
+                 "error": if file_exists { serde_json::Value::Null } else { serde_json::Value::String("任务记录存在，但安装包文件已丢失".to_string()) },
+                 "metadata": serde_json::Value::Null,
+                 "filePath": persisted_record.file_path,
+                 "fileSize": file_size,
+             })));
         }
     };
 
@@ -2180,21 +1912,21 @@ async fn get_job_info(
         .map(|meta| meta.len());
 
     HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
-        "jobId": snapshot.job_id,
-        "status": snapshot.status,
-        "stage": snapshot.stage,
-        "progress": snapshot.progress,
-        "downloadUrl": download_url,
-        "installUrl": install_url,
-        "packageKind": snapshot_decision.package_kind,
-        "otaInstallable": snapshot_decision.ota_installable,
-        "installMethod": snapshot_decision.install_method,
-        "inspection": if persisted_record.is_some() { persisted_record_inspection } else { snapshot_inspection },
-        "error": snapshot.error,
-        "metadata": snapshot.metadata,
-        "filePath": snapshot.file_path,
-        "fileSize": file_size,
-    })))
+         "jobId": snapshot.job_id,
+         "status": snapshot.status,
+         "stage": snapshot.stage,
+         "progress": snapshot.progress,
+         "downloadUrl": download_url,
+         "installUrl": install_url,
+         "packageKind": snapshot_decision.package_kind,
+         "otaInstallable": snapshot_decision.ota_installable,
+         "installMethod": snapshot_decision.install_method,
+         "inspection": if persisted_record.is_some() { persisted_record_inspection } else { snapshot_inspection },
+         "error": snapshot.error,
+         "metadata": snapshot.metadata,
+         "filePath": snapshot.file_path,
+         "fileSize": file_size,
+     })))
 }
 
 // 获取下载链接
@@ -2240,20 +1972,20 @@ async fn get_download_url(query: web::Query<DownloadUrlQuery>) -> impl Responder
                             let metadata = first_song.get("metadata").and_then(|m| m.as_object());
 
                             return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
-                                "url": url,
-                                "fileName": canonical_ipa_filename(
-                                    metadata.and_then(|m| m.get("bundleDisplayName")).and_then(|v| v.as_str()).unwrap_or("app"),
-                                    metadata.and_then(|m| m.get("bundleShortVersionString")).and_then(|v| v.as_str()).unwrap_or("1.0.0"),
-                                    metadata.and_then(|m| m.get("bundleId")).and_then(|v| v.as_str())
-                                ),
-                                "metadata": {
-                                    "bundle_display_name": metadata.and_then(|m| m.get("bundleDisplayName")).and_then(|v| v.as_str()).unwrap_or(""),
-                                    "bundle_short_version_string": metadata.and_then(|m| m.get("bundleShortVersionString")).and_then(|v| v.as_str()).unwrap_or(""),
-                                    "bundle_id": metadata.and_then(|m| m.get("bundleId")).and_then(|v| v.as_str()).unwrap_or(""),
-                                    "artwork_url": metadata.and_then(|m| m.get("artworkUrl")).and_then(|v| v.as_str()).unwrap_or(""),
-                                    "artist_name": metadata.and_then(|m| m.get("artistName")).and_then(|v| v.as_str()).unwrap_or(""),
-                                }
-                            })));
+                                 "url": url,
+                                 "fileName": canonical_ipa_filename(
+                                     metadata.and_then(|m| m.get("bundleDisplayName")).and_then(|v| v.as_str()).unwrap_or("app"),
+                                     metadata.and_then(|m| m.get("bundleShortVersionString")).and_then(|v| v.as_str()).unwrap_or("1.0.0"),
+                                     metadata.and_then(|m| m.get("bundleId")).and_then(|v| v.as_str())
+                                 ),
+                                 "metadata": {
+                                     "bundle_display_name": metadata.and_then(|m| m.get("bundleDisplayName")).and_then(|v| v.as_str()).unwrap_or(""),
+                                     "bundle_short_version_string": metadata.and_then(|m| m.get("bundleShortVersionString")).and_then(|v| v.as_str()).unwrap_or(""),
+                                     "bundle_id": metadata.and_then(|m| m.get("bundleId")).and_then(|v| v.as_str()).unwrap_or(""),
+                                     "artwork_url": metadata.and_then(|m| m.get("artworkUrl")).and_then(|v| v.as_str()).unwrap_or(""),
+                                     "artist_name": metadata.and_then(|m| m.get("artistName")).and_then(|v| v.as_str()).unwrap_or(""),
+                                 }
+                             })));
                         }
                     }
                 }
@@ -2343,7 +2075,7 @@ async fn claim_app(req: web::Json<ClaimRequest>, data: web::Data<AppState>) -> i
                             // Record the purchase in DB
                             let account_id = get_account_id_for_token(&req.token);
                             {
-                                let db = data.db.lock().unwrap();
+                                let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
                                 let _ = db.record_purchase(&account_id, &req.appid, "claim");
                             }
                             // Update memory cache
@@ -2429,7 +2161,7 @@ async fn get_purchase_status(
 
     // L1: Check DB for known purchased apps
     {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(true) = db.is_purchased(&account_id, &appid) {
             return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
                 "purchased": true,
@@ -2446,11 +2178,11 @@ async fn get_purchase_status(
         if let Some(entry) = cache.get(&(account_id.clone(), appid.clone())) {
             if entry.cached_at.elapsed().as_secs() < PURCHASE_CACHE_TTL_SECS {
                 return HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
-                    "purchased": entry.purchased,
-                    "needsPurchase": entry.needs_purchase,
-                    "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
-                    "error": null,
-                })));
+                     "purchased": entry.purchased,
+                     "needsPurchase": entry.needs_purchase,
+                     "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
+                     "error": null,
+                 })));
             }
         }
     }
@@ -2560,7 +2292,7 @@ async fn purchase_status_batch(
 
     // L1: Batch check DB
     let db_purchased: std::collections::HashSet<String> = {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         db.batch_check_purchased(&account_id, &req.appids)
             .unwrap_or_default()
     };
@@ -2597,11 +2329,11 @@ async fn purchase_status_batch(
             if let Some(entry) = cache.get(&(account_id.clone(), appid.clone())) {
                 if entry.cached_at.elapsed().as_secs() < PURCHASE_CACHE_TTL_SECS {
                     results.insert(appid.clone(), serde_json::json!({
-                        "purchased": entry.purchased,
-                        "needsPurchase": entry.needs_purchase,
-                        "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
-                        "error": null,
-                    }));
+                         "purchased": entry.purchased,
+                         "needsPurchase": entry.needs_purchase,
+                         "status": if entry.purchased { "owned" } else if entry.needs_purchase { "not_owned" } else { "unknown" },
+                         "error": null,
+                     }));
                     continue;
                 }
             }
@@ -2742,7 +2474,7 @@ async fn confirm_purchase(
             if state == "success" {
                 // Write to DB (permanent)
                 {
-                    let db = data.db.lock().unwrap();
+                    let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
                     let _ = db.record_purchase(&account_id, &req.appid, "paid_confirm");
                 }
                 // Update memory cache
@@ -3021,6 +2753,7 @@ async fn upload_ipa(mut payload: Multipart, data: web::Data<AppState>) -> impl R
             install_method: Some(decision.install_method),
             inspection_json,
             created_at: None,
+            delisted: None,
         };
         let _ = db.add_download_record(&record);
     }
@@ -3360,9 +3093,9 @@ async fn apple_login(
                     .unwrap_or("");
 
                 log::warn!(
-                    "Apple auth failure: failureType='{}', customerMessage='{}', needs_mfa={}, has_mfa={}",
-                    failure_type, customer_message, needs_mfa, has_mfa
-                );
+                     "Apple auth failure: failureType='{}', customerMessage='{}', needs_mfa={}, has_mfa={}",
+                     failure_type, customer_message, needs_mfa, has_mfa
+                 );
 
                 if needs_mfa && !has_mfa {
                     // 第一轮：暂存 AccountStore 保留 GUID，等用户提交验证码
@@ -3833,7 +3566,7 @@ async fn admin_login(
         }
     };
 
-    if user.password_hash != hash_password(password) {
+    if !verify_password(password, &user.password_hash) {
         log::warn!("[auth:login] wrong password for user: {}", username);
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
@@ -3939,7 +3672,7 @@ async fn change_password(
         }
     };
 
-    if user.password_hash != hash_password(&req.current_password) {
+    if !verify_password(&req.current_password, &user.password_hash) {
         log::warn!(
             "[auth:change-pwd] wrong current password for user={}",
             admin.username
@@ -4334,7 +4067,12 @@ async fn start_batch_download(
 
 // 获取所有批量下载任务
 async fn get_batch_tasks(data: web::Data<AppState>) -> impl Responder {
-    match data.db.lock().unwrap().get_batch_tasks() {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_batch_tasks()
+    {
         Ok(tasks) => HttpResponse::Ok().json(ApiResponse::success(tasks)),
         Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
             "获取批量任务失败: {}",
@@ -4348,7 +4086,12 @@ async fn get_batch_task(path: web::Path<i64>, data: web::Data<AppState>) -> impl
     let batch_id = path.into_inner();
 
     // 获取任务信息
-    let task = match data.db.lock().unwrap().get_batch_tasks() {
+    let task = match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_batch_tasks()
+    {
         Ok(tasks) => tasks.into_iter().find(|t| t.id == Some(batch_id)),
         Err(e) => {
             return HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
@@ -4366,7 +4109,12 @@ async fn get_batch_task(path: web::Path<i64>, data: web::Data<AppState>) -> impl
     let task = task.unwrap();
 
     // 获取任务项目
-    let items = match data.db.lock().unwrap().get_batch_items(batch_id) {
+    let items = match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_batch_items(batch_id)
+    {
         Ok(items) => items,
         Err(e) => {
             return HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
@@ -4386,7 +4134,12 @@ async fn get_batch_task(path: web::Path<i64>, data: web::Data<AppState>) -> impl
 async fn delete_batch_task(path: web::Path<i64>, data: web::Data<AppState>) -> impl Responder {
     let batch_id = path.into_inner();
 
-    match data.db.lock().unwrap().delete_batch_task(batch_id) {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .delete_batch_task(batch_id)
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success("批量任务已删除".to_string())),
         Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!(
             "删除批量任务失败: {}",
@@ -4400,13 +4153,13 @@ async fn delete_batch_task(path: web::Path<i64>, data: web::Data<AppState>) -> i
 // 获取所有下载记录
 async fn get_download_records(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
     {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         normalize_download_record_artifact_paths(&db, &data.downloads_dir);
         sync_download_records_from_filesystem(&db, &data.downloads_dir);
     }
 
     let records = {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         match db.get_all_download_records() {
             Ok(r) => r,
             Err(e) => {
@@ -4436,7 +4189,7 @@ async fn get_download_records(req: HttpRequest, data: web::Data<AppState>) -> im
         .collect();
 
     if !backfill.is_empty() {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         for (record_id, json) in backfill {
             let _ = db.update_download_record_delivery(
                 record_id,
@@ -4533,7 +4286,7 @@ async fn download_record_file(
 
 async fn get_ipa_files(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
     let records = {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         normalize_download_record_artifact_paths(&db, &data.downloads_dir);
         sync_download_records_from_filesystem(&db, &data.downloads_dir);
         db.get_all_download_records().unwrap_or_default()
@@ -4563,7 +4316,7 @@ async fn get_ipa_files(req: HttpRequest, data: web::Data<AppState>) -> impl Resp
         .collect();
 
     if !backfill.is_empty() {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         for (record_id, json) in backfill {
             let _ = db.update_download_record_delivery(
                 record_id,
@@ -4709,7 +4462,12 @@ async fn delete_ipa_file(path: web::Path<String>, data: web::Data<AppState>) -> 
 async fn delete_download_record(path: web::Path<i64>, data: web::Data<AppState>) -> impl Responder {
     let id = path.into_inner();
 
-    match data.db.lock().unwrap().delete_download_record(id) {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .delete_download_record(id)
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success("记录已删除".to_string())),
         Err(e) => HttpResponse::InternalServerError()
             .json(ApiResponse::<String>::error(format!("删除记录失败: {}", e))),
@@ -4717,7 +4475,12 @@ async fn delete_download_record(path: web::Path<i64>, data: web::Data<AppState>)
 }
 
 async fn clear_download_records(data: web::Data<AppState>) -> impl Responder {
-    match data.db.lock().unwrap().clear_all_download_records() {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear_all_download_records()
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success("记录已清空".to_string())),
         Err(e) => HttpResponse::InternalServerError()
             .json(ApiResponse::<String>::error(format!("清空记录失败: {}", e))),
@@ -4730,7 +4493,12 @@ async fn cleanup_download_record_file(
 ) -> impl Responder {
     let id = path.into_inner();
 
-    let record = match data.db.lock().unwrap().get_download_record(id) {
+    let record = match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_download_record(id)
+    {
         Ok(Some(record)) => record,
         Ok(None) => {
             return HttpResponse::NotFound()
@@ -4767,7 +4535,12 @@ async fn cleanup_download_record_file(
 
     cleanup_empty_jobs_parent(&path_buf, &data.downloads_dir).await;
 
-    if let Err(e) = data.db.lock().unwrap().delete_download_record(id) {
+    if let Err(e) = data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .delete_download_record(id)
+    {
         return HttpResponse::InternalServerError()
             .json(ApiResponse::<String>::error(format!("删除记录失败: {}", e)));
     }
@@ -4831,7 +4604,12 @@ struct SubscriptionRequest {
 
 // 获取所有订阅
 async fn get_subscriptions(data: web::Data<AppState>) -> impl Responder {
-    match data.db.lock().unwrap().get_all_subscriptions() {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_all_subscriptions()
+    {
         Ok(subs) => HttpResponse::Ok().json(ApiResponse::success(subs)),
         Err(e) => HttpResponse::InternalServerError()
             .json(ApiResponse::<String>::error(format!("获取订阅失败: {}", e))),
@@ -4853,7 +4631,12 @@ async fn add_subscription(
         artist_name: req.artist_name.as_deref(),
     };
 
-    match data.db.lock().unwrap().add_subscription(&subscription) {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .add_subscription(&subscription)
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success("订阅已添加".to_string())),
         Err(e) => HttpResponse::InternalServerError()
             .json(ApiResponse::<String>::error(format!("添加订阅失败: {}", e))),
@@ -5484,7 +5267,12 @@ fn build_publish_path(app_id: &str) -> String {
 }
 
 async fn get_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
-    match data.db.lock().unwrap().get_github_token(&admin.username) {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_github_token(&admin.username)
+    {
         Ok(Some(token)) => HttpResponse::Ok().json(ApiResponse::success(GitHubTokenResponse {
             configured: true,
             username: admin.username,
@@ -5538,7 +5326,12 @@ async fn delete_github_token(
     admin: AuthenticatedAdmin,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    match data.db.lock().unwrap().delete_github_token(&admin.username) {
+    match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .delete_github_token(&admin.username)
+    {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success(true)),
         Err(error) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!(
             "删除 GitHub Token 失败: {}",
@@ -5648,7 +5441,12 @@ async fn publish_community_archive(
             .json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
     }
 
-    let github_token = match data.db.lock().unwrap().get_github_token(&admin.username) {
+    let github_token = match data
+        .db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get_github_token(&admin.username)
+    {
         Ok(Some(token)) => token.token,
         Ok(None) => {
             return HttpResponse::BadRequest()
@@ -5672,7 +5470,7 @@ async fn publish_community_archive(
         Ok(Some(app)) => (app, "local-archive".to_string()),
         Ok(None) => {
             let records = {
-                let db = data.db.lock().unwrap();
+                let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
                 normalize_download_record_artifact_paths(&db, &data.downloads_dir);
                 sync_download_records_from_filesystem(&db, &data.downloads_dir);
                 db.get_all_download_records().unwrap_or_default()
@@ -5867,15 +5665,15 @@ async fn publish_community_archive(
     };
 
     let pr_body = format!(
-        "## Summary\n\n- **App**: {} ({})\n- **Bundle ID**: {}\n- **Versions**: {}\n- **Source**: {}{}\n\n## Versions\n{}",
-        detail.name,
-        detail.id,
-        bundle_id_display,
-        version_count,
-        source,
-        notes_str,
-        version_summary.join("\n"),
-    );
+         "## Summary\n\n- **App**: {} ({})\n- **Bundle ID**: {}\n- **Versions**: {}\n- **Source**: {}{}\n\n## Versions\n{}",
+         detail.name,
+         detail.id,
+         bundle_id_display,
+         version_count,
+         source,
+         notes_str,
+         version_summary.join("\n"),
+     );
 
     let (final_pr_url, final_pr_number) = match client
         .post(&pr_api)
@@ -6088,7 +5886,7 @@ async fn get_community_delisted_app(path: web::Path<String>) -> impl Responder {
 
 async fn get_local_delisted_candidates(data: web::Data<AppState>) -> impl Responder {
     let records = {
-        let db = data.db.lock().unwrap();
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
         normalize_download_record_artifact_paths(&db, &data.downloads_dir);
         sync_download_records_from_filesystem(&db, &data.downloads_dir);
         db.get_all_download_records().unwrap_or_default()
@@ -6115,7 +5913,7 @@ async fn prepare_community_contribution(
         Ok(Some(app)) => (app, "local-archive".to_string()),
         Ok(None) => {
             let records = {
-                let db = data.db.lock().unwrap();
+                let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
                 normalize_download_record_artifact_paths(&db, &data.downloads_dir);
                 sync_download_records_from_filesystem(&db, &data.downloads_dir);
                 db.get_all_download_records().unwrap_or_default()
@@ -6248,92 +6046,92 @@ async fn main() -> std::io::Result<()> {
     log::info!("Starting server at {}", bind_address);
 
     HttpServer::new(move || {
-        App::new()
-            .app_data(web::JsonConfig::default().limit(2 * 1024 * 1024))
-            .app_data(app_state.clone())
-            .route("/i/{token}.plist", web::get().to(plist_from_token))
-            .service(
-                web::scope("/api")
-                    // 公开路由：管理员认证
-                    .service(
-                        web::scope("/auth")
-                            .route("/login", web::post().to(admin_login))
-                            .route("/logout", web::post().to(logout))
-                            .route("/me", web::get().to(me))
-                            .route("/change-password", web::post().to(change_password)),
-                    )
-                    // 公开 OTA / 下载路由（iOS 安装器不会携带后台登录 cookie）
-                    .service(
-                        web::scope("/public")
-                            .route("/download-file", web::get().to(download_file))
-                            .route("/manifest", web::get().to(get_manifest))
-                            .route("/install", web::get().to(install))
-                            .route("/download-records/{id}/file", web::get().to(download_record_file))
-                            .route("/download-records/{id}/file", web::delete().to(cleanup_download_record_file))
-                            .route("/ipa-files/{id}/download", web::get().to(download_ipa_file)),
-                    )
-                    // 公开归档数据（不依赖管理员登录）
-                    .route("/archive/delisted", web::get().to(get_delisted_apps))
-                    .route("/community/delisted-index", web::get().to(get_delisted_apps))
-                    .route("/community/delisted/{id}", web::get().to(get_community_delisted_app))
-                    // 需要管理员认证的路由
-                    .service(
-                        web::scope("")
-                            .wrap(from_fn(require_auth))
-                            .route("/health", web::get().to(health))
-                            .route("/login", web::post().to(apple_login))
-                            .route("/accounts", web::get().to(get_account_list))
-                            .route("/accounts/{token}", web::delete().to(delete_account))
-                            .route("/credentials", web::get().to(get_credentials_list))
-                            .route("/auto-login", web::post().to(auto_login_all))
-                            .route("/login/refresh", web::post().to(refresh_login))
-                            .route("/versions", web::get().to(get_versions))
-                            .route("/download-url", web::get().to(get_download_url))
-                            .route("/purchase-status", web::get().to(get_purchase_status))
-                            .route("/claim", web::post().to(claim_app))
-                            .route("/purchase-status-batch", web::post().to(purchase_status_batch))
-                            .route("/confirm-purchase", web::post().to(confirm_purchase))
-                            .route("/start-download-direct", web::post().to(start_download_direct))
-                            .route("/progress-sse", web::get().to(progress_sse))
-                            .route("/job-info", web::get().to(get_job_info))
-                            .route("/download", web::post().to(download_ipa))
-                            .route("/upload-ipa", web::post().to(upload_ipa))
-                            .route("/search", web::get().to(search_app))
-                            .route("/app-meta", web::get().to(app_meta))
-                            .route("/batch-download", web::post().to(start_batch_download))
-                            .route("/batch-tasks", web::get().to(get_batch_tasks))
-                            .route("/batch-tasks/{id}", web::get().to(get_batch_task))
-                            .route("/batch-tasks/{id}", web::delete().to(delete_batch_task))
-                            .route("/download-records", web::get().to(get_download_records))
-                            .route("/download-records", web::delete().to(clear_download_records))
-                            .route("/download-records/{id}", web::delete().to(delete_download_record))
-                            .route("/ipa-files", web::get().to(get_ipa_files))
-                            .route("/ipa-files/{id}", web::delete().to(delete_ipa_file))
-                            .route("/cleanup-downloads", web::post().to(cleanup_downloads))
-                            .route("/subscriptions", web::get().to(get_subscriptions))
-                            .route("/subscriptions", web::post().to(add_subscription))
-                            .route("/subscriptions", web::delete().to(remove_subscription))
-                            .route("/check-updates", web::get().to(check_updates))
-                            .route("/archive", web::get().to(get_archive_apps))
-                            .route("/archive", web::post().to(add_archive_app))
-                            .route(
-                                "/archive/{id}/versions/{version_id}",
-                                web::delete().to(remove_archive_app_version),
-                            )
-                            .route("/archive/{id}", web::delete().to(remove_archive_app))
-                            .route("/github/token", web::get().to(get_github_token))
-                            .route("/github/token", web::post().to(save_github_token))
-                            .route("/github/token", web::delete().to(delete_github_token))
-                            .route("/community/publish", web::post().to(publish_community_archive))
-                            .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
-                            .route("/community/prepare-contribution", web::post().to(prepare_community_contribution)),
+         App::new()
+             .app_data(web::JsonConfig::default().limit(2 * 1024 * 1024))
+             .app_data(app_state.clone())
+             .route("/i/{token}.plist", web::get().to(plist_from_token))
+             .service(
+                 web::scope("/api")
+                     // 公开路由：管理员认证
+                     .service(
+                         web::scope("/auth")
+                             .route("/login", web::post().to(admin_login))
+                             .route("/logout", web::post().to(logout))
+                             .route("/me", web::get().to(me))
+                             .route("/change-password", web::post().to(change_password)),
+                     )
+                     // 公开 OTA / 下载路由（iOS 安装器不会携带后台登录 cookie）
+                     .service(
+                         web::scope("/public")
+                             .route("/download-file", web::get().to(download_file))
+                             .route("/manifest", web::get().to(get_manifest))
+                             .route("/install", web::get().to(install))
+                             .route("/download-records/{id}/file", web::get().to(download_record_file))
+                             .route("/download-records/{id}/file", web::delete().to(cleanup_download_record_file))
+                             .route("/ipa-files/{id}/download", web::get().to(download_ipa_file)),
+                     )
+                     // 公开归档数据（不依赖管理员登录）
+                     .route("/archive/delisted", web::get().to(get_delisted_apps))
+                     .route("/community/delisted-index", web::get().to(get_delisted_apps))
+                     .route("/community/delisted/{id}", web::get().to(get_community_delisted_app))
+                     // 需要管理员认证的路由
+                     .service(
+                         web::scope("")
+                             .wrap(from_fn(require_auth))
+                             .route("/health", web::get().to(health))
+                             .route("/login", web::post().to(apple_login))
+                             .route("/accounts", web::get().to(get_account_list))
+                             .route("/accounts/{token}", web::delete().to(delete_account))
+                             .route("/credentials", web::get().to(get_credentials_list))
+                             .route("/auto-login", web::post().to(auto_login_all))
+                             .route("/login/refresh", web::post().to(refresh_login))
+                             .route("/versions", web::get().to(get_versions))
+                             .route("/download-url", web::get().to(get_download_url))
+                             .route("/purchase-status", web::get().to(get_purchase_status))
+                             .route("/claim", web::post().to(claim_app))
+                             .route("/purchase-status-batch", web::post().to(purchase_status_batch))
+                             .route("/confirm-purchase", web::post().to(confirm_purchase))
+                             .route("/start-download-direct", web::post().to(start_download_direct))
+                             .route("/progress-sse", web::get().to(progress_sse))
+                             .route("/job-info", web::get().to(get_job_info))
+                             .route("/download", web::post().to(download_ipa))
+                             .route("/upload-ipa", web::post().to(upload_ipa))
+                             .route("/search", web::get().to(search_app))
+                             .route("/app-meta", web::get().to(app_meta))
+                             .route("/batch-download", web::post().to(start_batch_download))
+                             .route("/batch-tasks", web::get().to(get_batch_tasks))
+                             .route("/batch-tasks/{id}", web::get().to(get_batch_task))
+                             .route("/batch-tasks/{id}", web::delete().to(delete_batch_task))
+                             .route("/download-records", web::get().to(get_download_records))
+                             .route("/download-records", web::delete().to(clear_download_records))
+                             .route("/download-records/{id}", web::delete().to(delete_download_record))
+                             .route("/ipa-files", web::get().to(get_ipa_files))
+                             .route("/ipa-files/{id}", web::delete().to(delete_ipa_file))
+                             .route("/cleanup-downloads", web::post().to(cleanup_downloads))
+                             .route("/subscriptions", web::get().to(get_subscriptions))
+                             .route("/subscriptions", web::post().to(add_subscription))
+                             .route("/subscriptions", web::delete().to(remove_subscription))
+                             .route("/check-updates", web::get().to(check_updates))
+                             .route("/archive", web::get().to(get_archive_apps))
+                             .route("/archive", web::post().to(add_archive_app))
+                             .route(
+                                 "/archive/{id}/versions/{version_id}",
+                                 web::delete().to(remove_archive_app_version),
+                             )
+                             .route("/archive/{id}", web::delete().to(remove_archive_app))
+                             .route("/github/token", web::get().to(get_github_token))
+                             .route("/github/token", web::post().to(save_github_token))
+                             .route("/github/token", web::delete().to(delete_github_token))
+                             .route("/community/publish", web::post().to(publish_community_archive))
+                             .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
+                             .route("/community/prepare-contribution", web::post().to(prepare_community_contribution)),
 
-                    ),
-            )
-            // 托管前端静态文件
-            .service(fs::Files::new("/", "./dist").index_file("index.html"))
-    })
-    .bind(bind_address)?
-    .run()
-    .await
+                     ),
+             )
+             // 托管前端静态文件
+             .service(fs::Files::new("/", "./dist").index_file("index.html"))
+     })
+     .bind(bind_address)?
+     .run()
+     .await
 }

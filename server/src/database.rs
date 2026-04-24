@@ -90,6 +90,7 @@ pub struct DownloadRecord {
     pub ota_installable: Option<bool>,
     pub install_method: Option<String>,
     pub inspection_json: Option<String>,
+    pub delisted: Option<bool>,
     pub created_at: Option<String>,
 }
 
@@ -491,6 +492,16 @@ impl Database {
         if !has_resume_position {
             let _ = conn.execute(
                 "ALTER TABLE download_records ADD COLUMN resume_position INTEGER DEFAULT 0",
+                [],
+            );
+        }
+
+        let has_delisted = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "delisted");
+        if !has_delisted {
+            let _ = conn.execute(
+                "ALTER TABLE download_records ADD COLUMN delisted INTEGER DEFAULT 0",
                 [],
             );
         }
@@ -971,6 +982,7 @@ impl Database {
                  account_email = ?, account_region = ?, status = ?, file_size = ?, file_path = ?,
                  install_url = ?, artwork_url = ?, artist_name = ?, progress = ?, error = ?,
                  package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?,
+                 delisted = ?,
                  download_date = COALESCE(?, download_date)
                  WHERE id = ?",
                 params![
@@ -995,6 +1007,7 @@ impl Database {
                         .map(|value| if value { 1i64 } else { 0i64 }),
                     record.install_method,
                     record.inspection_json,
+                    record.delisted.map(|value| if value { 1i64 } else { 0i64 }),
                     record.download_date,
                     existing_id,
                 ],
@@ -1004,8 +1017,8 @@ impl Database {
 
         conn.execute(
             "INSERT INTO download_records 
-             (job_id, app_name, app_id, bundle_id, version, account_email, account_region, status, file_size, file_path, install_url, artwork_url, artist_name, progress, error, package_kind, ota_installable, install_method, inspection_json, download_date) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
+             (job_id, app_name, app_id, bundle_id, version, account_email, account_region, status, file_size, file_path, install_url, artwork_url, artist_name, progress, error, package_kind, ota_installable, install_method, inspection_json, delisted, download_date) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
             params![
                 record.job_id,
                 record.app_name,
@@ -1026,6 +1039,7 @@ impl Database {
                 record.ota_installable.map(|value| if value { 1i64 } else { 0i64 }),
                 record.install_method,
                 record.inspection_json,
+                record.delisted.map(|value| if value { 1i64 } else { 0i64 }),
                 record.download_date,
             ],
         )?;
@@ -1071,7 +1085,7 @@ impl Database {
             "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              ORDER BY download_date DESC, id DESC",
         )?;
@@ -1099,6 +1113,7 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
                     created_at: row.get(21)?,
                 })
             })?
@@ -1113,7 +1128,7 @@ impl Database {
             "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE id = ? LIMIT 1",
             params![id],
@@ -1140,6 +1155,7 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
                     created_at: row.get(21)?,
                 })
             },
@@ -1153,7 +1169,7 @@ impl Database {
             "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE job_id = ?
              ORDER BY id DESC
@@ -1182,6 +1198,7 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
                     created_at: row.get(21)?,
                 })
             },
@@ -1198,7 +1215,7 @@ impl Database {
             "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE file_path = ?
              ORDER BY id DESC LIMIT 1",
@@ -1226,6 +1243,7 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
                     created_at: row.get(21)?,
                 })
             },
@@ -1244,7 +1262,7 @@ impl Database {
             "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE app_id = ?
                AND version = ?
@@ -1277,6 +1295,7 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
                     created_at: row.get(21)?,
                 })
             },
@@ -1298,7 +1317,8 @@ impl Database {
              account_email = ?, account_region = ?, status = ?, 
              file_size = ?, file_path = ?, install_url = ?, artwork_url = ?, 
              artist_name = ?, progress = ?, error = ?,
-             package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?
+             package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?,
+             delisted = ?
              WHERE id = ?",
             params![
                 updates.app_name,
@@ -1321,6 +1341,9 @@ impl Database {
                     .map(|value| if value { 1i64 } else { 0i64 }),
                 updates.install_method,
                 updates.inspection_json,
+                updates
+                    .delisted
+                    .map(|value| if value { 1i64 } else { 0i64 }),
                 id,
             ],
         )?;
@@ -1709,6 +1732,7 @@ mod tests {
             ota_installable: Some(true),
             install_method: Some("ota".to_string()),
             inspection_json: None,
+            delisted: None,
             created_at: None,
         }
     }

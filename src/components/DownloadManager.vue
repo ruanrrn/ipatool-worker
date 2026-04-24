@@ -44,7 +44,7 @@
           </div>
           <MobileButton
             type="primary"
-            size="default"
+            size="small"
             @click="confirmDirectAppId"
           >
             确认并继续

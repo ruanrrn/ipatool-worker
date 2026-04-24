@@ -244,14 +244,6 @@
                     <span v-if="app.artist_name && app.bundle_id">&nbsp;·&nbsp;</span>
                     <span v-if="app.bundle_id">{{ app.bundle_id }}</span>
                   </div>
-                  <div
-                    v-if="app.last_download_date || app.source_record_count"
-                    class="fav-item__meta"
-                  >
-                    <span v-if="app.source_record_count">{{ app.source_record_count }} 条下载记录</span>
-                    <span v-if="app.source_record_count && app.last_download_date"> · </span>
-                    <span v-if="app.last_download_date">最后下载：{{ app.last_download_date }}</span>
-                  </div>
                 </div>
                 <div class="fav-item__actions">
                   <button
@@ -446,8 +438,6 @@ const normalizeDelistedPayload = (payload) => {
 
 const normalizeCandidateApp = (app) => {
   const normalized = normalizeArchiveApp(app, true)
-  normalized.last_download_date = app?.last_download_date || ''
-  normalized.source_record_count = app?.source_record_count || 0
   normalized.already_archived_locally = Boolean(app?.already_archived_locally)
   return normalized
 }

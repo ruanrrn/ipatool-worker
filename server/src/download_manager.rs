@@ -211,6 +211,7 @@ impl DownloadManager {
                             ota_installable: None,
                             install_method: None,
                             inspection_json: None,
+                            delisted: None,
                             created_at: None,
                         };
                         let _ = db.lock().unwrap().add_download_record(&record);
