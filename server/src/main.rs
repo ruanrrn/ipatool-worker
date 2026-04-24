@@ -67,17 +67,24 @@ struct AppState {
 }
 
 // 模拟的账号存储（生产环境应该使用数据库）
-lazy_static::lazy_static! {
-    static ref ACCOUNTS: RwLock<HashMap<String, AccountStore>> = RwLock::new(HashMap::new());
-    // MFA 第一轮失败后暂存 AccountStore（保留 GUID），等待用户提交验证码后复用
-    static ref PENDING_MFA: RwLock<HashMap<String, PendingMfaSession>> = RwLock::new(HashMap::new());
-}
+// Replaced lazy_static with std::sync::LazyLock
+static ACCOUNTS: std::sync::LazyLock<RwLock<HashMap<String, AccountStore>>> =
+    std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
+static PENDING_MFA: std::sync::LazyLock<RwLock<HashMap<String, PendingMfaSession>>> =
+    std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
 
-lazy_static::lazy_static! {
-    static ref PURCHASE_CACHE: RwLock<std::collections::HashMap<(String, String), PurchaseCacheEntry>> = RwLock::new(std::collections::HashMap::new());
-}
+// Replaced lazy_static with std::sync::LazyLock
+static PURCHASE_CACHE: std::sync::LazyLock<
+    RwLock<std::collections::HashMap<(String, String), PurchaseCacheEntry>>,
+> = std::sync::LazyLock::new(|| RwLock::new(std::collections::HashMap::new()));
 
 const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+
+// TODO: 集成 PURCHASE_CACHE 过期驱逐 - 在每次 cache.write() 后调用 retain
+// async fn evict_expired_purchase_cache() {
+//     let mut cache = PURCHASE_CACHE.write().await;
+//     cache.retain(|_, entry| entry.cached_at.elapsed() < std::time::Duration::from_secs(PURCHASE_CACHE_TTL_SECS));
+// }
 
 /// 后台自动刷新 Apple 账号会话的循环任务。
 /// 每隔 ACCOUNT_REFRESH_CHECK_INTERVAL_SECS 扫描一次所有已登录账号，
@@ -4922,11 +4929,6 @@ fn community_archive_app_path(app_id: &str) -> String {
     format!("apps/delisted/{}.json", app_id)
 }
 
-#[allow(dead_code)]
-fn community_archive_publish_path(app_id: &str) -> String {
-    community_archive_app_path(app_id)
-}
-
 fn parse_delisted_lite_index(data: Value) -> CommunityDelistedLiteIndex {
     // 1. 尝试纯数组
     if let Some(arr) = data.as_array() {
@@ -5012,21 +5014,6 @@ async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
         return None;
     }
     response.json::<ArchiveApp>().await.ok()
-}
-
-#[allow(dead_code)]
-async fn fetch_community_delisted_app_detail(app_id: &str) -> Option<CommunityDelistedAppDetail> {
-    let client = Client::new();
-    let url = format!(
-        "{}/{}",
-        community_archive_base_url(),
-        community_archive_app_path(app_id)
-    );
-    let response = client.get(url).send().await.ok()?;
-    if !response.status().is_success() {
-        return None;
-    }
-    response.json::<CommunityDelistedAppDetail>().await.ok()
 }
 
 /// 检查应用是否仍在 App Store 上架
@@ -5203,69 +5190,6 @@ fn mask_github_token(token: &str) -> String {
     format!("{}****{}", &trimmed[..4], &trimmed[trimmed.len() - 4..])
 }
 
-#[allow(dead_code)]
-async fn ensure_archive_icon_base64(app: &mut ArchiveApp) -> Result<(), String> {
-    if app.icon_base64.is_some() {
-        return Ok(());
-    }
-
-    let Some(icon_url) = app.icon_url.clone() else {
-        return Ok(());
-    };
-
-    let response = Client::new()
-        .get(&icon_url)
-        .send()
-        .await
-        .map_err(|error| format!("下载图标失败: {}", error))?;
-
-    if !response.status().is_success() {
-        return Err(format!("下载图标失败: HTTP {}", response.status()));
-    }
-
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .map(|value| value.to_string())
-        .or_else(|| {
-            icon_url
-                .rsplit('.')
-                .next()
-                .map(|ext| match ext.to_ascii_lowercase().as_str() {
-                    "png" => "image/png".to_string(),
-                    "jpg" | "jpeg" => "image/jpeg".to_string(),
-                    "webp" => "image/webp".to_string(),
-                    "gif" => "image/gif".to_string(),
-                    _ => "application/octet-stream".to_string(),
-                })
-        })
-        .or(Some("application/octet-stream".to_string()));
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|error| format!("读取图标失败: {}", error))?;
-
-    app.icon_base64 = Some(base64::engine::general_purpose::STANDARD.encode(&bytes));
-    app.icon_content_type = content_type.clone();
-    // Set icon_bak_url as data URI for community publishing
-    let ct = content_type
-        .as_deref()
-        .unwrap_or("application/octet-stream");
-    app.icon_bak_url = Some(format!(
-        "data:{};base64,{}",
-        ct,
-        base64::engine::general_purpose::STANDARD.encode(&bytes)
-    ));
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn build_publish_path(app_id: &str) -> String {
-    format!("data/{}.json", app_id)
-}
-
 async fn get_github_token(admin: AuthenticatedAdmin, data: web::Data<AppState>) -> impl Responder {
     match data
         .db
@@ -5338,44 +5262,6 @@ async fn delete_github_token(
             error
         ))),
     }
-}
-
-/// 获取 GitHub 仓库中指定文件的 SHA（如果存在）
-#[allow(dead_code)]
-async fn github_get_file_sha(
-    client: &Client,
-    token: &str,
-    owner: &str,
-    repo: &str,
-    file_path: &str,
-    branch: &str,
-) -> Option<String> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        owner,
-        repo,
-        urlencoding::encode(file_path)
-    );
-    let resp = client
-        .get(&url)
-        .bearer_auth(token)
-        .header(reqwest::header::USER_AGENT, "ipatool-community-publisher")
-        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
-        .query(&[("ref", branch)])
-        .send()
-        .await
-        .ok()?;
-
-    if resp.status().as_u16() == 404 {
-        return None;
-    }
-    if !resp.status().is_success() {
-        return None;
-    }
-    resp.json::<Value>()
-        .await
-        .ok()
-        .and_then(|v| v.get("sha").and_then(|s| s.as_str()).map(String::from))
 }
 
 /// 上传单个文件到 GitHub 仓库指定分支

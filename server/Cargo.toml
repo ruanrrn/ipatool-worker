@@ -35,7 +35,6 @@ bcrypt = "0.17"
 sha2 = "0.10"
 base64 = "0.21"
 chrono = { version = "0.4.38", features = ["serde"] }
-lazy_static = "1.4"
 urlencoding = "2.1"
 
 # 锁定 time crate 版本，避免 edition2024 问题
