@@ -352,7 +352,6 @@ import AccountPicker from './AccountPicker.vue'
 import SvgIcon from './SvgIcon.vue'
 import ProgressPanel from './ProgressPanel.vue'
 import VersionPicker from './VersionPicker.vue'
-import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
 import documentIcon from '../assets/icons/document.svg?raw'
 import closeIcon from '../assets/icons/close.svg?raw'
 import checkIcon from '../assets/icons/check.svg?raw'
@@ -557,7 +556,6 @@ const isTaskReadyForActions = (task) => {
   return taskFinalStatuses.has(task.status) || (task.progress ?? 0) >= 100
 }
 
-const currentVersionTask = computed(() => currentVersionTaskCandidates.value[0] || null)
 const currentVersionReadyTask = computed(() => {
   return currentVersionTaskCandidates.value.find((task) => isTaskReadyForActions(task)) || null
 })
@@ -930,16 +928,16 @@ const toggleFavoriteApp = async () => {
  }]
  }
 
- const { data } = await apiFetch(`${API_BASE}/archive`, {
- method: 'POST',
- credentials: 'include',
- headers: {
- 'Content-Type': 'application/json'
- },
- body: JSON.stringify(payload)
- })
- if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
- if (!data.ok) throw new Error(data.error || '收藏失败')
+  const { response, data } = await apiFetch(`${API_BASE}/archive`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: {
+  'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+  if (!data.ok) throw new Error(data.error || '收藏失败')
  const nextMap = { ...archivedVersionsByApp.value }
  const nextVersions = new Set(getArchivedVersionSet(appId))
  nextVersions.add(versionId)

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiFetch } from '../utils/api.js'
+import { API_BASE } from '../config.js'
 
 export const useAppStore = defineStore('app', () => {
   // 下载任务状态
@@ -42,6 +43,16 @@ export const useAppStore = defineStore('app', () => {
     checked: false,
     loading: false,
     user: null
+  })
+
+  // GitHub PAT 配置状态（只保存后端返回的掩码，不保存明文）
+  const githubTokenStatus = ref({
+    checked: false,
+    loading: false,
+    configured: false,
+    username: '',
+    maskedToken: '',
+    updatedAt: ''
   })
 
   const setAuthUser = (user) => {
@@ -170,6 +181,53 @@ export const useAppStore = defineStore('app', () => {
     accountsUpdateCounter.value++
   }
 
+  const applyGithubTokenStatus = (payload = {}) => {
+    githubTokenStatus.value = {
+      checked: true,
+      loading: false,
+      configured: Boolean(payload.configured),
+      username: payload.username || '',
+      maskedToken: payload.masked_token || payload.maskedToken || '',
+      updatedAt: payload.updated_at || payload.updatedAt || ''
+    }
+  }
+
+  const loadGithubTokenStatus = async () => {
+    githubTokenStatus.value.loading = true
+    try {
+      const { response, data } = await apiFetch(`${API_BASE}/github/token`)
+      if (!response.ok || !data?.ok) throw new Error(data?.error || '读取 GitHub PAT 状态失败')
+      applyGithubTokenStatus(data.data || {})
+      return githubTokenStatus.value
+    } catch (error) {
+      githubTokenStatus.value = {
+        ...githubTokenStatus.value,
+        checked: true,
+        loading: false,
+        configured: false
+      }
+      throw error
+    }
+  }
+
+  const saveGithubToken = async (token) => {
+    const { response, data } = await apiFetch(`${API_BASE}/github/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    })
+    if (!response.ok || !data?.ok) throw new Error(data?.error || '保存 GitHub PAT 失败')
+    applyGithubTokenStatus(data.data || {})
+    return githubTokenStatus.value
+  }
+
+  const deleteGithubToken = async () => {
+    const { response, data } = await apiFetch(`${API_BASE}/github/token`, { method: 'DELETE' })
+    if (!response.ok || !data?.ok) throw new Error(data?.error || '删除 GitHub PAT 失败')
+    applyGithubTokenStatus({ configured: false })
+    return githubTokenStatus.value
+  }
+
   return {
     downloadState,
     taskQueue,
@@ -178,6 +236,7 @@ export const useAppStore = defineStore('app', () => {
     archiveTab,
     accountsUpdateCounter,
     authState,
+    githubTokenStatus,
     setSelectedApp,
     updateDownloadState,
     addToQueue,
@@ -185,6 +244,9 @@ export const useAppStore = defineStore('app', () => {
     removeFromQueue,
     clearQueue,
     triggerAccountsUpdate,
+    loadGithubTokenStatus,
+    saveGithubToken,
+    deleteGithubToken,
     setAuthUser,
     checkAuth,
     loginAdmin,

@@ -197,7 +197,7 @@
             <div class="archive-section__header">
               <div>
                 <div class="archive-section__title">本地待贡献</div>
-                <div class="archive-section__desc">从本地下载记录聚合，可预览后发布到社区归档仓库</div>
+                <div class="archive-section__desc">从本地下载记录聚合，自动过滤社区已收录条目；配置 GitHub PAT 后可贡献</div>
               </div>
               <div class="archive-section__meta">{{ localCandidates.length }} 项</div>
             </div>
@@ -222,7 +222,7 @@
                 v-for="app in localCandidates"
                 :key="`candidate-${app.archive_key || app.id}`"
                 class="fav-item"
-                @click="prepareCandidateContribution(app)"
+                @click="githubTokenConfigured ? prepareCandidateContribution(app) : null"
               >
                 <AppArtwork
                   :src="app.icon_url"
@@ -247,6 +247,7 @@
                 </div>
                 <div class="fav-item__actions">
                   <button
+                    v-if="githubTokenConfigured"
                     class="fav-btn fav-btn--publish"
                     :disabled="contributingAppId === (app.archive_key || app.id)"
                     title="贡献到社区"
@@ -332,7 +333,6 @@ import { useAppStore } from '../stores/app'
 import { STORAGE_KEYS } from '../utils/storage.js'
 import MobileButton from './MobileButton.vue'
 import MobileDialog from './MobileDialog.vue'
-import MobileInput from './MobileInput.vue'
 import { apiFetch } from '../utils/api.js'
 import downloadIcon from '../assets/icons/download.svg?raw'
 import starFilledIcon from '../assets/icons/star-filled.svg?raw'
@@ -348,7 +348,8 @@ const activeTab = computed({
 
 const favorites = ref([])
 const delistedApps = ref([])
-const localCandidates = ref([])
+const localCandidatesRaw = ref([])
+const remoteDelistedIds = ref(new Set())
 const favoritesLoading = ref(false)
 const delistedLoading = ref(false)
 const localCandidatesLoading = ref(false)
@@ -364,6 +365,12 @@ const selectedAccountIndex = ref(null)
 const activeAccount = computed(() => {
   if (selectedAccountIndex.value === null || selectedAccountIndex.value === undefined) return null
   return accounts.value[selectedAccountIndex.value] || null
+})
+
+const githubTokenConfigured = computed(() => appStore.githubTokenStatus.configured)
+const localCandidates = computed(() => {
+  const remoteIds = remoteDelistedIds.value
+  return localCandidatesRaw.value.filter((item) => item.id && !remoteIds.has(String(item.id)))
 })
 
 const normalizeArchiveList = (payload) => {
@@ -601,6 +608,7 @@ const loadDelistedApps = async () => {
       return
     }
     delistedApps.value = normalizeDelistedPayload(data.data).map((item) => normalizeArchiveApp(item, true)).filter((item) => item.id)
+    remoteDelistedIds.value = new Set(delistedApps.value.map((item) => String(item.id)).filter(Boolean))
     applyVersionDefaults(delistedApps.value)
   } catch {
     delistedApps.value = []
@@ -614,13 +622,13 @@ const loadLocalCandidates = async () => {
   try {
     const { response, data } = await apiFetch(`${API_BASE}/local/delisted-candidates`)
     if (!response.ok || !data?.ok) {
-      localCandidates.value = []
+      localCandidatesRaw.value = []
       return
     }
-    localCandidates.value = normalizeArchiveList(data.data).map(normalizeCandidateApp).filter((item) => item.id)
+    localCandidatesRaw.value = normalizeArchiveList(data.data).map(normalizeCandidateApp).filter((item) => item.id)
     applyVersionDefaults(localCandidates.value)
   } catch {
-    localCandidates.value = []
+    localCandidatesRaw.value = []
   } finally {
     localCandidatesLoading.value = false
   }
@@ -628,8 +636,12 @@ const loadLocalCandidates = async () => {
 
 const refreshAll = async () => {
   refreshing.value = true
-  await Promise.all([ensureAccounts(), loadFavorites(), loadDelistedApps(), loadLocalCandidates()])
-  refreshing.value = false
+  try {
+    await Promise.all([ensureAccounts(), loadFavorites(), loadDelistedApps()])
+    await loadLocalCandidates()
+  } finally {
+    refreshing.value = false
+  }
 }
 
 const prepareApp = async (app) => {
@@ -716,12 +728,13 @@ const downloadArchivedApp = async (app) => {
         artistName: app.artist_name || undefined
       })
     })
-    if (!data.ok || !data.jobId) {
-      throw new Error(data.error || '创建下载任务失败')
+    const jobId = data?.jobId || data?.data?.jobId || data?.data?.job_id || data?.job_id
+    if (!data?.ok || !jobId) {
+      throw new Error(data?.error || '创建下载任务失败')
     }
 
     appStore.addToQueue({
-      id: data.jobId,
+      id: jobId,
       appName: app.name,
       artworkUrl: app.icon_url || '',
       artistName: app.artist_name || '',
@@ -794,6 +807,14 @@ const openPublishDialog = (prepared) => {
 }
 
 const prepareCandidateContribution = async (app) => {
+  if (!githubTokenConfigured.value) {
+    Toast.warning('请先到设置页配置 GitHub PAT')
+    return
+  }
+  if (remoteDelistedIds.value.has(String(app.id))) {
+    Toast.warning('该应用已存在于社区归档，无需重复贡献')
+    return
+  }
   contributingAppId.value = app.archive_key || app.id
   try {
     const { response, data } = await apiFetch(`${API_BASE}/community/prepare-contribution`, {
@@ -851,7 +872,7 @@ const doPublish = async () => {
         icon_data_base64: iconBase64,
       }),
     })
-    if (!data?.ok) throw new Error(data?.error || '发布失败')
+    if (!response.ok || !data?.ok) throw new Error(data?.error || '发布失败')
     const d = data.data
     const msg = d.pr_url
       ? `✅ PR 已创建: ${d.pr_url}\n提交文件: ${d.files_committed?.join(', ') || ''}`
@@ -866,9 +887,23 @@ const doPublish = async () => {
   }
 }
 
-onMounted(refreshAll)
+onMounted(async () => {
+  await Promise.all([
+    refreshAll(),
+    appStore.loadGithubTokenStatus().catch((error) => {
+      console.warn('[ArchiveApp] loadGithubTokenStatus failed:', error.message)
+    })
+  ])
+})
 
-onActivated(refreshAll)
+onActivated(async () => {
+  await Promise.all([
+    refreshAll(),
+    appStore.loadGithubTokenStatus().catch((error) => {
+      console.warn('[ArchiveApp] loadGithubTokenStatus failed:', error.message)
+    })
+  ])
+})
 </script>
 
 <style scoped>

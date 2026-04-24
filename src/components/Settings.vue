@@ -73,7 +73,63 @@
           </button>
         </div>
 
-        <!-- Section 2: 外观 -->
+        <!-- Section 2: GitHub PAT -->
+        <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
+          GitHub 贡献
+        </p>
+        <div class="settings-card settings-card--github">
+          <div class="settings-row settings-row--stacked">
+            <div class="github-token__header">
+              <div class="sr-left">
+                <div class="sr-icon sr-icon--github">GH</div>
+                <div class="sr-label">GitHub PAT</div>
+              </div>
+              <span
+                class="github-token__status"
+                :class="githubTokenConfigured ? 'github-token__status--ok' : 'github-token__status--empty'"
+              >
+                {{ githubTokenConfigured ? '已配置' : '未配置' }}
+              </span>
+            </div>
+            <div class="github-token__desc">
+              用于把本地下架候选提交到官方 ipa-archive 仓库。PAT 只保存在后端，前端不回显明文。
+            </div>
+            <div
+              v-if="githubTokenConfigured"
+              class="github-token__meta"
+            >
+              <span v-if="githubTokenMasked">{{ githubTokenMasked }}</span>
+              <span v-if="githubTokenUpdatedAt">更新于 {{ githubTokenUpdatedAt }}</span>
+            </div>
+            <input
+              v-model="githubTokenInput"
+              class="github-token__input"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="粘贴 GitHub fine-grained PAT"
+            >
+            <div class="github-token__actions">
+              <button
+                class="github-token__btn github-token__btn--primary"
+                :disabled="githubTokenSaving || !githubTokenInput.trim()"
+                @click="handleSaveGithubToken"
+              >
+                {{ githubTokenSaving ? '保存中…' : '保存 PAT' }}
+              </button>
+              <button
+                v-if="githubTokenConfigured"
+                class="github-token__btn github-token__btn--danger"
+                :disabled="githubTokenDeleting"
+                @click="handleDeleteGithubToken"
+              >
+                {{ githubTokenDeleting ? '删除中…' : '删除' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: 外观 -->
         <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
           外观
         </p>
@@ -96,7 +152,7 @@
           </button>
         </div>
 
-        <!-- Section 3: 安全 -->
+        <!-- Section 4: 安全 -->
         <p class="section-label text-txt-secondary dark:text-txt-dark-secondary">
           安全
         </p>
@@ -135,7 +191,7 @@
           </button>
         </div>
 
-        <!-- Section 4: 关于 (bottom-pinned, margin-top 24px) -->
+        <!-- Section 5: 关于 (bottom-pinned, margin-top 24px) -->
         <p class="section-label section-label--about text-txt-secondary dark:text-txt-dark-secondary">
           关于
         </p>
@@ -199,7 +255,7 @@
 
 <script setup>
 /* global __APP_VERSION__, __APP_BUILD_ID__ */
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { useAccounts, accountIdentityKey } from '../composables/useAccounts'
 import { formatRegion } from '../utils/region.js'
@@ -218,6 +274,19 @@ const showLogoutConfirm = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteTarget = ref(null)
 const refreshingToken = ref(null)
+const githubTokenInput = ref('')
+const githubTokenSaving = ref(false)
+const githubTokenDeleting = ref(false)
+
+const githubTokenConfigured = computed(() => appStore.githubTokenStatus.configured)
+const githubTokenMasked = computed(() => appStore.githubTokenStatus.maskedToken)
+const githubTokenUpdatedAt = computed(() => {
+  const value = appStore.githubTokenStatus.updatedAt
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+})
 
 const getAccountKey = (account, fallbackIndex = '') => accountIdentityKey(account) || account?.email || account?.token || account?.dsid || `account-${fallbackIndex}`
 
@@ -242,6 +311,41 @@ function getFreshnessClass(lastRefreshedAt) {
   if (secs < FRESHNESS_THRESHOLD) return 'sr-freshness--warning'       // <30 min
   return 'sr-freshness--stale'                                         // >=30 min
 }
+
+// ---- GitHub PAT ----
+async function handleSaveGithubToken() {
+  const token = githubTokenInput.value.trim()
+  if (!token) return
+  githubTokenSaving.value = true
+  try {
+    await appStore.saveGithubToken(token)
+    githubTokenInput.value = ''
+    Toast.success('GitHub PAT 已保存')
+  } catch (error) {
+    Toast.error(error.message || '保存 GitHub PAT 失败')
+  } finally {
+    githubTokenSaving.value = false
+  }
+}
+
+async function handleDeleteGithubToken() {
+  githubTokenDeleting.value = true
+  try {
+    await appStore.deleteGithubToken()
+    githubTokenInput.value = ''
+    Toast.success('GitHub PAT 已删除')
+  } catch (error) {
+    Toast.error(error.message || '删除 GitHub PAT 失败')
+  } finally {
+    githubTokenDeleting.value = false
+  }
+}
+
+onMounted(() => {
+  appStore.loadGithubTokenStatus().catch((error) => {
+    console.warn('Failed to load GitHub token status:', error)
+  })
+})
 
 // ---- Logout ----
 async function handleLogout() {
@@ -271,7 +375,7 @@ async function handleRefreshAccount(account) {
     } else {
       Toast.error(data?.error || '刷新失败')
     }
-  } catch (e) {
+  } catch {
     Toast.error('刷新请求失败')
   } finally {
     refreshingToken.value = null
@@ -297,7 +401,7 @@ async function confirmDeleteAccount() {
     } else {
       Toast.error(data?.error || '删除失败')
     }
-  } catch (e) {
+  } catch {
     Toast.error('删除请求失败')
   } finally {
     deleteTarget.value = null
@@ -396,6 +500,83 @@ async function confirmDeleteAccount() {
 }
 .settings-row--interactive:active {
   background: var(--color-surface-hover, #ececec);
+}
+.settings-row--stacked {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+}
+.github-token__header,
+.github-token__actions,
+.github-token__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sr-icon--github {
+  background: #24292f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.github-token__status {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+}
+.github-token__status--ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.github-token__status--empty {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+.github-token__desc,
+.github-token__meta {
+  color: var(--color-text-muted, #6e6e80);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.github-token__input {
+  width: 100%;
+  border: 1px solid var(--color-border, #ebebeb);
+  border-radius: 10px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #0d0d0d);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+.github-token__input:focus {
+  border-color: var(--color-primary, #2563eb);
+}
+.github-token__btn {
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 13px;
+}
+.github-token__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.github-token__btn--primary {
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+}
+.github-token__btn--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+.dark .github-token__input {
+  background: var(--color-surface-muted, #27272a);
+  border-color: var(--color-surface-muted, #27272a);
+  color: var(--color-text, #f5f5f5);
 }
 .dark .settings-row {
   border-bottom-color: var(--color-surface-muted, #27272a);
