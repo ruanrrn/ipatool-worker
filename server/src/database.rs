@@ -1,7 +1,8 @@
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use std::path::Path;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -527,9 +528,11 @@ impl Database {
     }
 
     fn hash_password(password: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        hex::encode(hasher.finalize())
+        bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap_or_else(|_| {
+            let mut hasher = sha2::Sha256::new();
+            sha2::Digest::update(&mut hasher, password.as_bytes());
+            hex::encode(sha2::Digest::finalize(hasher))
+        })
     }
 
     fn seed_default_admin(conn: &Connection) -> Result<()> {
@@ -541,9 +544,23 @@ impl Database {
             .flatten();
 
         if any_admin.is_none() {
+            let password = std::env::var("IPA_ADMIN_INITIAL_PASSWORD")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| {
+                    let generated = format!("ipatool-{}", Uuid::new_v4());
+                    eprintln!(
+                        "[SECURITY] Generated one-time admin password for first run: {}",
+                        generated
+                    );
+                    eprintln!(
+                        "[SECURITY] Set IPA_ADMIN_INITIAL_PASSWORD to choose a deterministic initial password. Change it immediately after login."
+                    );
+                    generated
+                });
             conn.execute(
                 "INSERT INTO admin_users (username, password_hash, is_default) VALUES (?, ?, ?)",
-                params!["admin", Self::hash_password("admin"), true],
+                params!["admin", Self::hash_password(&password), true],
             )?;
         }
 
@@ -1295,8 +1312,8 @@ impl Database {
                     ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
                     install_method: row.get(19)?,
                     inspection_json: row.get(20)?,
-                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
-                    created_at: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(21)?.map(|value| value != 0),
+                    created_at: row.get(22)?,
                 })
             },
         )

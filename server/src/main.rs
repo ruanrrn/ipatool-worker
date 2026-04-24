@@ -40,7 +40,7 @@ use sha2::Digest;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -80,12 +80,32 @@ static PURCHASE_CACHE: std::sync::LazyLock<
 
 const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
 
-#[allow(dead_code)]
-async fn evict_expired_purchase_cache() {
-    let mut cache = PURCHASE_CACHE.write().await;
-    cache.retain(|_, entry| {
-        entry.cached_at.elapsed() < std::time::Duration::from_secs(PURCHASE_CACHE_TTL_SECS)
-    });
+fn evict_expired_purchase_cache_locked(
+    cache: &mut std::collections::HashMap<(String, String), PurchaseCacheEntry>,
+) {
+    let ttl = Duration::from_secs(PURCHASE_CACHE_TTL_SECS);
+    cache.retain(|_, entry| entry.cached_at.elapsed() < ttl);
+}
+
+fn build_http_client() -> Client {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
+        .pool_idle_timeout(Duration::from_secs(90))
+        .user_agent("ipatool-server")
+        .build()
+        .unwrap_or_else(|error| {
+            log::error!("failed to build HTTP client with timeouts: {}", error);
+            Client::new()
+        })
+}
+
+fn github_contents_api_path(file_path: &str) -> String {
+    file_path
+        .split('/')
+        .map(urlencoding::encode)
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// 后台自动刷新 Apple 账号会话的循环任务。
@@ -623,7 +643,7 @@ async fn get_versions(query: web::Query<VersionQuery>) -> impl Responder {
     let appid = &query.appid;
     let region = query.region.as_deref().unwrap_or("US");
 
-    let client = Client::new();
+    let client = build_http_client();
 
     let url1 = format!(
         "https://api.timbrd.com/apple/app-version/index.php?id={}&country={}",
@@ -2090,6 +2110,7 @@ async fn claim_app(req: web::Json<ClaimRequest>, data: web::Data<AppState>) -> i
                             // Update memory cache
                             {
                                 let mut cache = PURCHASE_CACHE.write().await;
+                                evict_expired_purchase_cache_locked(&mut cache);
                                 cache.insert(
                                     (account_id, req.appid.clone()),
                                     PurchaseCacheEntry {
@@ -2215,6 +2236,7 @@ async fn get_purchase_status(
                 // Update memory cache
                 {
                     let mut cache = PURCHASE_CACHE.write().await;
+                    evict_expired_purchase_cache_locked(&mut cache);
                     cache.insert(
                         (account_id, appid),
                         PurchaseCacheEntry {
@@ -2252,6 +2274,7 @@ async fn get_purchase_status(
             // Update memory cache (not purchased, with TTL)
             {
                 let mut cache = PURCHASE_CACHE.write().await;
+                evict_expired_purchase_cache_locked(&mut cache);
                 cache.insert(
                     (account_id.clone(), appid.clone()),
                     PurchaseCacheEntry {
@@ -2373,6 +2396,7 @@ async fn purchase_status_batch(
     // Process Apple results
     {
         let mut cache = PURCHASE_CACHE.write().await;
+        evict_expired_purchase_cache_locked(&mut cache);
         for (appid, apple_result) in apple_results {
             match apple_result {
                 Ok(result) => {
@@ -2489,6 +2513,7 @@ async fn confirm_purchase(
                 // Update memory cache
                 {
                     let mut cache = PURCHASE_CACHE.write().await;
+                    evict_expired_purchase_cache_locked(&mut cache);
                     cache.insert(
                         (account_id.clone(), req.appid.clone()),
                         PurchaseCacheEntry {
@@ -2527,6 +2552,7 @@ async fn confirm_purchase(
             // Update memory cache even for not-purchased result
             {
                 let mut cache = PURCHASE_CACHE.write().await;
+                evict_expired_purchase_cache_locked(&mut cache);
                 cache.insert(
                     (account_id.clone(), req.appid.clone()),
                     PurchaseCacheEntry {
@@ -2597,11 +2623,10 @@ async fn download_file_with_progress(
     url: &str,
     filepath: &str,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    use reqwest::Client;
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
 
-    let client = Client::new();
+    let client = build_http_client();
     let response = client.get(url).send().await?;
 
     if !response.status().is_success() {
@@ -2836,8 +2861,6 @@ fn format_itunes_app(app: &serde_json::Value) -> serde_json::Value {
 }
 
 async fn app_meta(query: web::Query<AppMetaQuery>) -> impl Responder {
-    use reqwest::Client;
-
     let region = query.region.as_deref().unwrap_or("US");
     let url = format!(
         "https://itunes.apple.com/lookup?id={}&country={}",
@@ -2845,7 +2868,7 @@ async fn app_meta(query: web::Query<AppMetaQuery>) -> impl Responder {
         region
     );
 
-    match Client::new().get(&url).send().await {
+    match build_http_client().get(&url).send().await {
         Ok(response) => {
             if !response.status().is_success() {
                 return HttpResponse::InternalServerError().json(ApiResponse::<String>::error(
@@ -2882,8 +2905,6 @@ async fn app_meta(query: web::Query<AppMetaQuery>) -> impl Responder {
 async fn search_app(
     query: web::Query<std::collections::HashMap<String, String>>,
 ) -> impl Responder {
-    use reqwest::Client;
-
     let term = match query.get("term") {
         Some(t) => t.as_str(),
         None => "",
@@ -2916,7 +2937,7 @@ async fn search_app(
         limit
     );
 
-    let client = Client::new();
+    let client = build_http_client();
     match client.get(&url).send().await {
         Ok(response) => {
             if response.status().is_success() {
@@ -4529,12 +4550,32 @@ async fn cleanup_download_record_file(
     };
 
     let path_buf = PathBuf::from(&file_path);
+    let downloads_root = match tokio::fs::canonicalize(&data.downloads_dir).await {
+        Ok(root) => root,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(ApiResponse::<String>::error(
+                format!("下载目录不可访问: {}", e),
+            ));
+        }
+    };
     let mut freed_bytes = 0u64;
     let mut file_deleted = false;
 
     if let Ok(meta) = tokio::fs::metadata(&path_buf).await {
+        let canonical_path = match tokio::fs::canonicalize(&path_buf).await {
+            Ok(path) => path,
+            Err(e) => {
+                return HttpResponse::BadRequest()
+                    .json(ApiResponse::<String>::error(format!("文件路径无效: {}", e)));
+            }
+        };
+        if !canonical_path.starts_with(&downloads_root) || !meta.is_file() {
+            return HttpResponse::Forbidden().json(ApiResponse::<String>::error(
+                "拒绝删除下载目录之外的文件".to_string(),
+            ));
+        }
         freed_bytes = meta.len();
-        if let Err(e) = tokio::fs::remove_file(&path_buf).await {
+        if let Err(e) = tokio::fs::remove_file(&canonical_path).await {
             return HttpResponse::InternalServerError().json(ApiResponse::<String>::error(
                 format!("删除安装包失败: {}", e),
             ));
@@ -4978,7 +5019,7 @@ fn parse_delisted_lite_index(data: Value) -> CommunityDelistedLiteIndex {
 }
 
 async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
-    let client = Client::new();
+    let client = build_http_client();
     let candidates = [
         format!(
             "{}/indexes/delisted-lite.json",
@@ -5005,7 +5046,7 @@ async fn fetch_community_delisted_index() -> CommunityDelistedLiteIndex {
 }
 
 async fn fetch_community_delisted_app(app_id: &str) -> Option<ArchiveApp> {
-    let client = Client::new();
+    let client = build_http_client();
     let url = format!(
         "{}/{}",
         community_archive_base_url(),
@@ -5025,7 +5066,7 @@ async fn check_app_still_on_store(app_id: &str) -> bool {
         "https://itunes.apple.com/lookup?id={}&country=CN",
         urlencoding::encode(app_id)
     );
-    let client = reqwest::Client::new();
+    let client = build_http_client();
     let response = match client.get(&url).send().await {
         Ok(r) => r,
         Err(_) => return false, // 网络失败时保守认为不在商店
@@ -5283,7 +5324,7 @@ async fn github_upload_file(
         "https://api.github.com/repos/{}/{}/contents/{}",
         owner,
         repo,
-        urlencoding::encode(file_path)
+        github_contents_api_path(file_path)
     );
     let mut body = serde_json::json!({
         "message": commit_message,
@@ -5327,6 +5368,11 @@ async fn publish_community_archive(
     if app_id.is_empty() {
         return HttpResponse::BadRequest()
             .json(ApiResponse::<()>::error("app_id 不能为空".to_string()));
+    }
+    if !app_id.chars().all(|ch| ch.is_ascii_digit()) {
+        return HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+            "app_id 必须是数字 Apple ID".to_string(),
+        ));
     }
 
     let github_token = match data
@@ -5407,10 +5453,13 @@ async fn publish_community_archive(
         }
     };
 
-    let client = Client::new();
-    let default_branch = "main";
+    let client = build_http_client();
+    let default_branch = std::env::var("IPA_ARCHIVE_DEFAULT_BRANCH")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "main".to_string());
     let timestamp = Utc::now().format("%Y%m%d%H%M%S");
-    let feature_branch = format!("contribute/{}-{}", app_id, timestamp);
+    let feature_branch = format!("contribute/{}-{}-{}", app_id, timestamp, Uuid::new_v4());
 
     // Step 1: 获取默认分支 SHA 并创建 feature branch
     let ref_url = format!(
@@ -5954,9 +6003,8 @@ async fn main() -> std::io::Result<()> {
                              .route("/download-file", web::get().to(download_file))
                              .route("/manifest", web::get().to(get_manifest))
                              .route("/install", web::get().to(install))
-                             .route("/download-records/{id}/file", web::get().to(download_record_file))
-                             .route("/download-records/{id}/file", web::delete().to(cleanup_download_record_file))
-                             .route("/ipa-files/{id}/download", web::get().to(download_ipa_file)),
+                            .route("/download-records/{id}/file", web::get().to(download_record_file))
+                            .route("/ipa-files/{id}/download", web::get().to(download_ipa_file)),
                      )
                      // 公开归档数据（不依赖管理员登录）
                      .route("/archive/delisted", web::get().to(get_delisted_apps))
@@ -5992,8 +6040,12 @@ async fn main() -> std::io::Result<()> {
                              .route("/batch-tasks/{id}", web::delete().to(delete_batch_task))
                              .route("/download-records", web::get().to(get_download_records))
                              .route("/download-records", web::delete().to(clear_download_records))
-                             .route("/download-records/{id}", web::delete().to(delete_download_record))
-                             .route("/ipa-files", web::get().to(get_ipa_files))
+.route("/download-records/{id}", web::delete().to(delete_download_record))
+                            .route(
+                                "/download-records/{id}/file",
+                                web::delete().to(cleanup_download_record_file),
+                            )
+                            .route("/ipa-files", web::get().to(get_ipa_files))
                              .route("/ipa-files/{id}", web::delete().to(delete_ipa_file))
                              .route("/cleanup-downloads", web::post().to(cleanup_downloads))
                              .route("/subscriptions", web::get().to(get_subscriptions))
