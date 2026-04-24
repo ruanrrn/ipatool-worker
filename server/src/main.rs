@@ -80,11 +80,13 @@ static PURCHASE_CACHE: std::sync::LazyLock<
 
 const PURCHASE_CACHE_TTL_SECS: u64 = 300; // 5 minutes
 
-// TODO: 集成 PURCHASE_CACHE 过期驱逐 - 在每次 cache.write() 后调用 retain
-// async fn evict_expired_purchase_cache() {
-//     let mut cache = PURCHASE_CACHE.write().await;
-//     cache.retain(|_, entry| entry.cached_at.elapsed() < std::time::Duration::from_secs(PURCHASE_CACHE_TTL_SECS));
-// }
+#[allow(dead_code)]
+async fn evict_expired_purchase_cache() {
+    let mut cache = PURCHASE_CACHE.write().await;
+    cache.retain(|_, entry| {
+        entry.cached_at.elapsed() < std::time::Duration::from_secs(PURCHASE_CACHE_TTL_SECS)
+    });
+}
 
 /// 后台自动刷新 Apple 账号会话的循环任务。
 /// 每隔 ACCOUNT_REFRESH_CHECK_INTERVAL_SECS 扫描一次所有已登录账号，
@@ -5346,9 +5348,9 @@ async fn publish_community_archive(
         }
     };
 
-    // 硬编码目标仓库
-    let owner = "ruanrrn";
-    let repo = "ipa-archive";
+    // 目标仓库（支持环境变量覆盖）
+    let owner = std::env::var("IPA_ARCHIVE_OWNER").unwrap_or_else(|_| "ruanrrn".to_string());
+    let repo = std::env::var("IPA_ARCHIVE_REPO").unwrap_or_else(|_| "ipa-archive".to_string());
 
     // 从 local archive 或 download records 加载 app 数据
     let file_path = archive_file_path(&app_id);
@@ -5480,8 +5482,8 @@ async fn publish_community_archive(
     let upload_result = github_upload_file(
         &client,
         &github_token,
-        owner,
-        repo,
+        &owner,
+        &repo,
         &feature_branch,
         &app_publish_path,
         &content_base64,
@@ -5511,8 +5513,8 @@ async fn publish_community_archive(
             if let Err(e) = github_upload_file(
                 &client,
                 &github_token,
-                owner,
-                repo,
+                &owner,
+                &repo,
                 &feature_branch,
                 &icon_path,
                 icon_b64,
