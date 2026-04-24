@@ -36,7 +36,6 @@ use ipa_webtool_services::{
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::Digest;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -243,11 +242,7 @@ fn get_account_id_for_token(token: &str) -> String {
 }
 
 fn hash_password(password: &str) -> String {
-    bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap_or_else(|_| {
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(password.as_bytes());
-        hex::encode(hasher.finalize())
-    })
+    Database::hash_password(password)
 }
 
 fn verify_password(password: &str, hash: &str) -> bool {
@@ -752,6 +747,144 @@ fn resolve_project_root() -> PathBuf {
     }
 
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+fn resolve_database_path(project_root: &Path) -> PathBuf {
+    std::env::var("DATABASE_PATH")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| project_root.join("data").join("ipa-webtool.db"))
+}
+
+fn print_admin_password_usage(program: &str) {
+    eprintln!("Usage:");
+    eprintln!("  {program} reset-admin-password [--username <username>] --password <new-password>");
+    eprintln!("  {program} reset-admin-password [--username <username>] --password-stdin");
+    eprintln!();
+    eprintln!("Defaults:");
+    eprintln!("  --username admin");
+}
+
+fn read_password_from_stdin() -> std::io::Result<String> {
+    use std::io::Read;
+
+    let mut password = String::new();
+    std::io::stdin().read_to_string(&mut password)?;
+    Ok(password.trim_end_matches(['\r', '\n']).to_string())
+}
+
+fn handle_reset_admin_password_args(args: &[String]) -> std::io::Result<bool> {
+    let Some(command) = args.get(1) else {
+        return Ok(false);
+    };
+    if command != "reset-admin-password" {
+        return Ok(false);
+    }
+
+    let program = args.first().map(String::as_str).unwrap_or("server");
+    let mut username = "admin".to_string();
+    let mut password: Option<String> = None;
+    let mut password_stdin = false;
+
+    let mut index = 2;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--username" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    print_admin_password_usage(program);
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "missing value for --username",
+                    ));
+                };
+                username = value.clone();
+            }
+            "--password" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    print_admin_password_usage(program);
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "missing value for --password",
+                    ));
+                };
+                password = Some(value.clone());
+            }
+            "--password-stdin" => {
+                password_stdin = true;
+            }
+            "--help" | "-h" => {
+                print_admin_password_usage(program);
+                return Ok(true);
+            }
+            other => {
+                print_admin_password_usage(program);
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("unknown argument: {other}"),
+                ));
+            }
+        }
+        index += 1;
+    }
+
+    if username.trim().is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "username must not be empty",
+        ));
+    }
+
+    let new_password = if password_stdin {
+        if password.is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "use either --password or --password-stdin, not both",
+            ));
+        }
+        read_password_from_stdin()?
+    } else {
+        password.unwrap_or_default()
+    };
+
+    if new_password.is_empty() {
+        print_admin_password_usage(program);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "password must not be empty",
+        ));
+    }
+
+    let project_root = resolve_project_root();
+    let db_path = resolve_database_path(&project_root);
+    if !db_path.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("database not found: {}", db_path.display()),
+        ));
+    }
+
+    let db = Database::new(db_path.to_string_lossy().as_ref())
+        .map_err(|e| std::io::Error::other(format!("failed to open database: {e}")))?;
+    let updated = db
+        .reset_admin_password(username.trim(), &new_password)
+        .map_err(|e| std::io::Error::other(format!("failed to reset password: {e}")))?;
+
+    if !updated {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("admin user '{}' not found", username.trim()),
+        ));
+    }
+
+    println!(
+        "Admin password reset successfully for user '{}' in {}. Existing sessions were revoked.",
+        username.trim(),
+        db_path.display()
+    );
+    Ok(true)
 }
 
 fn artifact_id_from_path(path: &Path, downloads_dir: &Path) -> Option<String> {
@@ -5945,11 +6078,16 @@ async fn check_updates(data: web::Data<AppState>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     env_logger::init();
 
+    let args: Vec<String> = std::env::args().collect();
+    if handle_reset_admin_password_args(&args)? {
+        return Ok(());
+    }
+
     // 初始化数据库
     let project_root = resolve_project_root();
     let data_dir = project_root.join("data");
     let downloads_dir = project_root.join("downloads");
-    let db_path = data_dir.join("ipa-webtool.db");
+    let db_path = resolve_database_path(&project_root);
     log::info!("Initializing database at: {}", db_path.display());
     std::fs::create_dir_all(&data_dir).ok();
     std::fs::create_dir_all(&downloads_dir).ok();

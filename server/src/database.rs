@@ -527,12 +527,28 @@ impl Database {
         Ok(())
     }
 
-    fn hash_password(password: &str) -> String {
+    pub fn hash_password(password: &str) -> String {
         bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap_or_else(|_| {
             let mut hasher = sha2::Sha256::new();
             sha2::Digest::update(&mut hasher, password.as_bytes());
             hex::encode(sha2::Digest::finalize(hasher))
         })
+    }
+
+    pub fn reset_admin_password(&self, username: &str, new_password: &str) -> Result<bool> {
+        let conn = self.connection.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        let updated = tx.execute(
+            "UPDATE admin_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+            params![Self::hash_password(new_password), username],
+        )?;
+
+        if updated > 0 {
+            tx.execute("DELETE FROM sessions WHERE username = ?", params![username])?;
+        }
+
+        tx.commit()?;
+        Ok(updated > 0)
     }
 
     fn seed_default_admin(conn: &Connection) -> Result<()> {
@@ -1752,6 +1768,42 @@ mod tests {
             delisted: None,
             created_at: None,
         }
+    }
+
+    #[test]
+    fn reset_admin_password_updates_hash_and_revokes_sessions_without_changing_default_flag() {
+        let db_path = temp_db_path("admin-password-reset");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        db.create_session("session-token", "admin", "2999-01-01 00:00:00")
+            .unwrap();
+        assert!(db.get_session("session-token").unwrap().is_some());
+
+        let before = db.get_admin_user("admin").unwrap().unwrap();
+        assert!(before.is_default);
+        assert!(db
+            .reset_admin_password("admin", "new-secure-password")
+            .unwrap());
+
+        let after = db.get_admin_user("admin").unwrap().unwrap();
+        assert!(after.is_default);
+        assert_ne!(before.password_hash, after.password_hash);
+        assert!(bcrypt::verify("new-secure-password", &after.password_hash).unwrap());
+        assert!(db.get_session("session-token").unwrap().is_none());
+
+        let _ = fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn reset_admin_password_returns_false_for_missing_user() {
+        let db_path = temp_db_path("admin-password-reset-missing");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        assert!(!db
+            .reset_admin_password("missing-admin", "new-secure-password")
+            .unwrap());
+
+        let _ = fs::remove_file(db_path);
     }
 
     #[test]
