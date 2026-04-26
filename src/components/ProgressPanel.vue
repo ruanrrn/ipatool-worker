@@ -4,20 +4,6 @@
     class="progress-panel"
     shadow="never"
   >
-    <!-- Progress Bar (if downloading) -->
-    <div
-      v-if="downloading && progressPercent !== undefined && progressPercent < 100"
-      class="progress-panel__progress"
-    >
-      <ProgressBar
-        :percent="progressPercent"
-        size="default"
-      />
-      <div class="progress-panel__info">
-        <span>{{ progressStage || '下载中' }} {{ progressPercent }}%</span>
-      </div>
-    </div>
-
     <!-- Environment Warning -->
     <div
       v-if="!isHttps && currentProtocol !== 'http:'"
@@ -114,7 +100,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import ProgressBar from './ProgressBar.vue'
 import MobileButton from './MobileButton.vue'
 import MobileCard from './MobileCard.vue'
 import MobileTag from './MobileTag.vue'
@@ -125,19 +110,6 @@ import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
 defineEmits(['download-ipa', 'install-ipa'])
 
 const props = defineProps({
-  // Progress state
-  downloading: {
-    type: Boolean,
-    default: false
-  },
-  progressPercent: {
-    type: Number,
-    default: 0
-  },
-  progressStage: {
-    type: String,
-    default: ''
-  },
   // Download result state
   downloadUrl: {
     type: String,
@@ -175,7 +147,7 @@ const props = defineProps({
 })
 
 const showActionCard = computed(() => {
-  return props.downloading || props.downloadUrl || props.installUrl
+  return props.downloadUrl || props.installUrl
 })
 
 const formatFileSize = (bytes) => {
@@ -190,19 +162,6 @@ const formatFileSize = (bytes) => {
 <style scoped>
 .progress-panel {
   margin-top: 16px;
-}
-
-.progress-panel__progress {
-  margin-bottom: 12px;
-}
-
-.progress-panel__info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--color-text-muted);
 }
 
 .status-panel {

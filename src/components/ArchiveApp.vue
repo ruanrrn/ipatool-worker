@@ -350,6 +350,7 @@ const favorites = ref([])
 const delistedApps = ref([])
 const localCandidatesRaw = ref([])
 const remoteDelistedIds = ref(new Set())
+const inReviewIds = ref(new Set())
 const favoritesLoading = ref(false)
 const delistedLoading = ref(false)
 const localCandidatesLoading = ref(false)
@@ -370,7 +371,7 @@ const activeAccount = computed(() => {
 const githubTokenConfigured = computed(() => appStore.githubTokenStatus.configured)
 const localCandidates = computed(() => {
   const remoteIds = remoteDelistedIds.value
-  return localCandidatesRaw.value.filter((item) => item.id && !remoteIds.has(String(item.id)))
+  return localCandidatesRaw.value.filter((item) => item.id && !remoteIds.has(String(item.id)) && !inReviewIds.value.has(String(item.id)))
 })
 
 const normalizeArchiveList = (payload) => {
@@ -540,9 +541,9 @@ const ensureAccounts = async () => {
   }
 
   try {
-    const { data } = await apiFetch(`${API_BASE}/accounts`)
-    if (data.ok && Array.isArray(data.data)) {
-      accounts.value = data.data.map((account) => ({
+    const { data: res } = await apiFetch(`${API_BASE}/accounts`)
+    if (res.ok && Array.isArray(res.data)) {
+      accounts.value = res.data.map((account) => ({
         token: account.token,
         email: account.email,
         dsid: account.dsid,
@@ -583,13 +584,13 @@ const applyVersionDefaults = (apps) => {
 const loadFavorites = async () => {
   favoritesLoading.value = true
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/archive`)
+    const { response, data: res } = await apiFetch(`${API_BASE}/archive`)
     if (response.status === 401) {
       favorites.value = []
       return
     }
-    if (!response.ok || !data?.ok) throw new Error(data?.error || '加载收藏失败')
-    favorites.value = normalizeArchiveList(data.data ?? data).map((item) => normalizeArchiveApp(item, false))
+    if (!response.ok || !res.ok) throw new Error(res.error || '加载收藏失败')
+    favorites.value = normalizeArchiveList(res.data ?? res).map((item) => normalizeArchiveApp(item, false))
     applyVersionDefaults(favorites.value)
   } catch (error) {
     favorites.value = []
@@ -602,14 +603,23 @@ const loadFavorites = async () => {
 const loadDelistedApps = async () => {
   delistedLoading.value = true
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/community/delisted-index`)
-    if (!response.ok || !data?.ok) {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/delisted-index`)
+    if (!response.ok || !res.ok) {
       delistedApps.value = []
       return
     }
-    delistedApps.value = normalizeDelistedPayload(data.data).map((item) => normalizeArchiveApp(item, true)).filter((item) => item.id)
+    delistedApps.value = normalizeDelistedPayload(res.data).map((item) => normalizeArchiveApp(item, true)).filter((item) => item.id)
     remoteDelistedIds.value = new Set(delistedApps.value.map((item) => String(item.id)).filter(Boolean))
     applyVersionDefaults(delistedApps.value)
+    // 加载审核中的 app IDs
+    try {
+      const { data: res } = await apiFetch('/api/community/contributing-ids')
+      if (res?.ok && res.data) {
+        inReviewIds.value = new Set(res.data.in_review || [])
+      }
+    } catch (e) {
+      console.warn('Failed to load contributing-ids:', e)
+    }
   } catch {
     delistedApps.value = []
   } finally {
@@ -620,12 +630,12 @@ const loadDelistedApps = async () => {
 const loadLocalCandidates = async () => {
   localCandidatesLoading.value = true
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/local/delisted-candidates`)
-    if (!response.ok || !data?.ok) {
+    const { response, data: res } = await apiFetch(`${API_BASE}/local/delisted-candidates`)
+    if (!response.ok || !res.ok) {
       localCandidatesRaw.value = []
       return
     }
-    localCandidatesRaw.value = normalizeArchiveList(data.data).map(normalizeCandidateApp).filter((item) => item.id)
+    localCandidatesRaw.value = normalizeArchiveList(res.data).map(normalizeCandidateApp).filter((item) => item.id)
     applyVersionDefaults(localCandidates.value)
   } catch {
     localCandidatesRaw.value = []
@@ -652,9 +662,9 @@ const prepareApp = async (app) => {
   loadingVersions.value = { ...loadingVersions.value, [key]: true }
   try {
     const region = activeAccount.value?.region || 'US'
-    const { data } = await apiFetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`)
-    if (data.ok && Array.isArray(data.data) && data.data.length) {
-      const versions = sortVersionsDesc(data.data.map(normalizeVersion).filter(Boolean))
+    const { data: res } = await apiFetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`)
+    if (res.ok && Array.isArray(res.data) && res.data.length) {
+      const versions = sortVersionsDesc(res.data.map(normalizeVersion).filter(Boolean))
       loadedVersionsByApp.value = {
         ...loadedVersionsByApp.value,
         [key]: versions
@@ -689,8 +699,8 @@ const removeFavoriteVersion = async (item) => {
     const url = versionId
       ? `${API_BASE}/archive/${encodeURIComponent(item.appId)}/versions/${encodeURIComponent(versionId)}`
       : `${API_BASE}/archive/${encodeURIComponent(item.appId)}`
-    const { data } = await apiFetch(url, { method: 'DELETE' })
-    if (!data.ok) throw new Error(data.error || '取消收藏失败')
+    const { data: res } = await apiFetch(url, { method: 'DELETE' })
+    if (!res.ok) throw new Error(res.error || '取消收藏失败')
     // 重新加载列表
     await loadFavorites()
     Toast.success('已取消收藏')
@@ -712,7 +722,7 @@ const downloadArchivedApp = async (app) => {
 
     downloadingAppId.value = archiveKey
     const versionInfo = getVersionOptions(app).find((item) => item.version_id === selectedVersion)
-    const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
+    const { data: res } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -728,10 +738,15 @@ const downloadArchivedApp = async (app) => {
         artistName: app.artist_name || undefined
       })
     })
-    const jobId = data?.jobId || data?.data?.jobId || data?.data?.job_id || data?.job_id
-    if (!data?.ok || !jobId) {
-      throw new Error(data?.error || '创建下载任务失败')
+    if (!res.ok) {
+      if (res.needsPurchase) {
+        throw new Error(res.error || '当前账号未购买/未领取该应用')
+      }
+      throw new Error(res.error || '创建下载任务失败')
     }
+    const payload = res.data || {}
+    const jobId = payload.jobId
+    if (!jobId) throw new Error('创建下载任务失败')
 
     appStore.addToQueue({
       id: jobId,
@@ -741,13 +756,19 @@ const downloadArchivedApp = async (app) => {
       version: versionInfo?.version || '',
       account,
       accountEmail: account.email || '',
-      status: 'downloading',
+      status: payload.reused ? 'ready' : 'downloading',
       progress: 0,
       logs: '',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...(payload.reused ? {
+        recordId: payload.recordId,
+        downloadUrl: payload.downloadUrl,
+        installUrl: payload.installUrl,
+        fileSize: payload.fileSize
+      } : {})
     })
-    appStore.activeTab = 'ipa'
-    Toast.success('已加入下载队列')
+    appStore.activeTab = payload.reused ? 'history' : 'ipa'
+    Toast.success(payload.reused ? '文件已就绪' : '已加入下载队列')
   } catch (error) {
     Toast.error(error.message || '下载失败')
   } finally {
@@ -760,7 +781,7 @@ const downloadArchivedVersion = async (item) => {
     const account = await requireActiveAccount()
     if (!item.version_id) throw new Error('请先选择版本')
     downloadingAppId.value = item.archive_key || item.appId
-    const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
+    const { data: res } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -774,8 +795,36 @@ const downloadArchivedVersion = async (item) => {
         artistName: item.artist_name || undefined
       })
     })
-    if (!data.ok) throw new Error(data.error || '下载失败')
-    Toast.success(`已提交下载任务：${item.name} v${item.version}`)
+    if (!res.ok) {
+      if (res.needsPurchase) {
+        throw new Error(res.error || '当前账号未购买/未领取该应用')
+      }
+      throw new Error(res.error || '下载失败')
+    }
+    const payload = res.data || {}
+    if (!payload.jobId) throw new Error('创建下载任务失败')
+
+    appStore.addToQueue({
+      id: payload.jobId,
+      appName: item.name,
+      artworkUrl: item.icon_url || '',
+      artistName: item.artist_name || '',
+      version: item.version || '',
+      account,
+      accountEmail: account.email || '',
+      status: payload.reused ? 'ready' : 'downloading',
+      progress: 0,
+      logs: '',
+      timestamp: new Date().toISOString(),
+      ...(payload.reused ? {
+        recordId: payload.recordId,
+        downloadUrl: payload.downloadUrl,
+        installUrl: payload.installUrl,
+        fileSize: payload.fileSize
+      } : {})
+    })
+    appStore.activeTab = payload.reused ? 'history' : 'ipa'
+    Toast.success(payload.reused ? '文件已就绪' : `已加入下载队列：${item.name} v${item.version}`)
   } catch (error) {
     Toast.error(error.message || '下载失败')
   } finally {
@@ -787,9 +836,9 @@ const prepareCommunityApp = async (app) => {
   await prepareApp(app)
   if ((app.versions?.length || 0) > 0) return
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/community/delisted/${encodeURIComponent(app.id)}`)
-    if (!response.ok || !data?.ok) return
-    const fullApp = normalizeArchiveApp(data.data, true)
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/delisted/${encodeURIComponent(app.id)}`)
+    if (!response.ok || !res.ok) return
+    const fullApp = normalizeArchiveApp(res.data, true)
     const key = app.archive_key || app.id
     delistedApps.value = delistedApps.value.map((item) => (item.id === app.id ? { ...item, ...fullApp, archive_key: key } : item))
     applyVersionDefaults(delistedApps.value)
@@ -817,7 +866,7 @@ const prepareCandidateContribution = async (app) => {
   }
   contributingAppId.value = app.archive_key || app.id
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/community/prepare-contribution`, {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/prepare-contribution`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -825,8 +874,8 @@ const prepareCandidateContribution = async (app) => {
         notes: [],
       }),
     })
-    if (!response.ok || !data?.ok) throw new Error(data?.error || '生成贡献预览失败')
-    const prepared = data.data
+    if (!response.ok || !res.ok) throw new Error(res.error || '生成贡献预览失败')
+    const prepared = res.data
     if (!prepared.github_token_configured) {
       Toast.warning('尚未配置 GitHub PAT，发布前请先到设置页保存')
     }
@@ -863,7 +912,7 @@ const doPublish = async () => {
       if (match) iconBase64 = match[1]
     }
     const notes = publishDialog.notes.split('\n').map(s => s.trim()).filter(Boolean)
-    const { response, data } = await apiFetch(`${API_BASE}/community/publish`, {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -872,8 +921,8 @@ const doPublish = async () => {
         icon_data_base64: iconBase64,
       }),
     })
-    if (!response.ok || !data?.ok) throw new Error(data?.error || '发布失败')
-    const d = data.data
+    if (!response.ok || !res.ok) throw new Error(res.error || '发布失败')
+    const d = res.data
     const msg = d.pr_url
       ? `✅ PR 已创建: ${d.pr_url}\n提交文件: ${d.files_committed?.join(', ') || ''}`
       : `✅ 已提交到分支，请手动创建 PR`
@@ -1057,6 +1106,18 @@ onActivated(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.archive-section__header > div:first-child {
+  min-width: 0;
+  flex: 1;
+  max-width: calc(100% - 56px);
+}
+
+.archive-section__meta {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .archive-section__title {
@@ -1104,7 +1165,9 @@ onActivated(async () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .fav-item__name {
@@ -1114,6 +1177,8 @@ onActivated(async () => {
  white-space: nowrap;
  overflow: hidden;
  text-overflow: ellipsis;
+ min-width: 0;
+ flex: 0 1 auto;
 }
 .dark .fav-item__name {
  color: var(--color-text, #f5f5f5);

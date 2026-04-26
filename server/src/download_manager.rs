@@ -176,6 +176,7 @@ impl DownloadManager {
                         let record = DownloadRecord {
                             id: None,
                             job_id: None,
+                            app_version_id: None,
                             app_name: metadata
                                 .as_ref()
                                 .map(|item| item.bundle_display_name.clone())

@@ -1309,6 +1309,7 @@ fn sync_download_records_from_filesystem(db: &Database, downloads_dir: &Path) {
         let inferred = DownloadRecord {
             id: None,
             job_id: None,
+            app_version_id: None,
             app_name,
             app_id: "unknown".to_string(),
             bundle_id: None,
@@ -1408,6 +1409,30 @@ mod tests {
     use super::*;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn test_bcrypt_hash_and_verify() {
+        let hash =
+            bcrypt::hash("admin", bcrypt::DEFAULT_COST).expect("bcrypt::hash should not fail");
+        assert!(
+            hash.starts_with("$2b$"),
+            "bcrypt hash should start with $2b$, got: {}",
+            hash
+        );
+        assert!(bcrypt::verify("admin", &hash).expect("bcrypt::verify should not fail"));
+        assert!(!bcrypt::verify("wrong", &hash).expect("bcrypt::verify should not fail"));
+    }
+
+    #[test]
+    fn test_generate_admin123_hash() {
+        let hash = Database::hash_password("admin123");
+        assert!(hash.len() == 60);
+        // verify roundtrip
+        assert!(bcrypt::verify("admin123", &hash).unwrap());
+        // verify the stored hash in DB
+        let stored = "$2b$12$0PJlomYxFRPWbHTKWypoSelCZjiq0FvqHwFKT.6z38Qv/nnk6Wl/W";
+        assert!(bcrypt::verify("admin123", stored).unwrap());
+    }
 
     #[test]
     fn build_download_task_slug_uses_stable_sanitized_components() {
@@ -1718,6 +1743,7 @@ async fn start_download_direct(
                     let record = DownloadRecord {
                         id: None,
                         job_id: Some(job_id_for_task.clone()),
+                        app_version_id: app_ver_id.clone(),
                         // 优先级：下载metadata > iTunesMetadata(itemName中文名) > hint > 文件名
                         app_name: meta
                             .as_ref()
@@ -2900,6 +2926,7 @@ async fn upload_ipa(mut payload: Multipart, data: web::Data<AppState>) -> impl R
         let record = DownloadRecord {
             id: None,
             job_id: Some(job_id.clone()),
+            app_version_id: None,
             app_name: file_name.trim_end_matches(".ipa").to_string(),
             app_id: "uploaded".to_string(),
             bundle_id: None,
@@ -3730,7 +3757,14 @@ async fn admin_login(
     };
 
     if !verify_password(password, &user.password_hash) {
-        log::warn!("[auth:login] wrong password for user: {}", username);
+        eprintln!(
+            "[DEBUG] wrong password: user={}, hash_prefix={}, hash_len={}, pass_len={}, pass={}",
+            username,
+            &user.password_hash[..8.min(user.password_hash.len())],
+            user.password_hash.len(),
+            password.len(),
+            password
+        );
         return HttpResponse::Unauthorized()
             .json(ApiResponse::<String>::error("用户名或密码错误".to_string()));
     }
@@ -4386,6 +4420,7 @@ async fn get_download_records(req: HttpRequest, data: web::Data<AppState>) -> im
             DownloadRecordView {
                 id: record.id,
                 job_id: record.job_id,
+                app_version_id: record.app_version_id,
                 app_name: record.app_name,
                 app_id: record.app_id,
                 bundle_id: record.bundle_id,
@@ -4516,6 +4551,28 @@ async fn get_ipa_files(req: HttpRequest, data: web::Data<AppState>) -> impl Resp
             } else {
                 None
             };
+            let ipa_meta = ipa_webtool_services::extract_itunes_metadata_from_ipa(&artifact.path);
+            let record_app_name = record
+                .map(|item| item.app_name.clone())
+                .filter(|value| !value.is_empty() && value != "unknown");
+            let record_app_id = record
+                .map(|item| item.app_id.clone())
+                .filter(|value| !value.is_empty() && value != "unknown");
+            let record_bundle_id = record
+                .and_then(|item| item.bundle_id.clone())
+                .filter(|value| !value.is_empty());
+            let record_version = record
+                .and_then(|item| item.version.clone())
+                .filter(|value| !value.is_empty());
+            let record_app_version_id = record
+                .and_then(|item| item.app_version_id.clone())
+                .filter(|value| !value.is_empty());
+            let record_artwork_url = record
+                .and_then(|item| item.artwork_url.clone())
+                .filter(|value| !value.is_empty());
+            let record_artist_name = record
+                .and_then(|item| item.artist_name.clone())
+                .filter(|value| !value.is_empty());
 
             IpaArtifactView {
                 id: artifact.id,
@@ -4523,19 +4580,33 @@ async fn get_ipa_files(req: HttpRequest, data: web::Data<AppState>) -> impl Resp
                 file_size: artifact.file_size,
                 file_path: path_string,
                 modified_at: artifact.modified_at.map(|dt| dt.to_rfc3339()),
-                app_name: record
-                    .map(|item| item.app_name.clone())
-                    .filter(|value| !value.is_empty())
+                app_name: record_app_name
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.item_name.clone()))
+                    .or_else(|| {
+                        ipa_meta
+                            .as_ref()
+                            .and_then(|m| m.bundle_display_name.clone())
+                    })
                     .unwrap_or(fallback_name),
-                app_id: record
-                    .map(|item| item.app_id.clone())
+                app_id: record_app_id
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.item_id.clone()))
                     .unwrap_or_else(|| "unknown".to_string()),
-                bundle_id: record.and_then(|item| item.bundle_id.clone()),
-                version: record.and_then(|item| item.version.clone()),
+                bundle_id: record_bundle_id
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.bundle_id.clone())),
+                version: record_version
+                    .or_else(|| {
+                        ipa_meta
+                            .as_ref()
+                            .and_then(|m| m.bundle_short_version.clone())
+                    })
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.bundle_version.clone())),
+                app_version_id: record_app_version_id,
                 account_email: record.map(|item| item.account_email.clone()),
                 account_region: record.and_then(|item| item.account_region.clone()),
-                artwork_url: record.and_then(|item| item.artwork_url.clone()),
-                artist_name: record.and_then(|item| item.artist_name.clone()),
+                artwork_url: record_artwork_url
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.icon_url.clone())),
+                artist_name: record_artist_name
+                    .or_else(|| ipa_meta.as_ref().and_then(|m| m.artist_name.clone())),
                 record_id: record.and_then(|item| item.id),
                 download_url,
                 install_url,
@@ -4970,6 +5041,8 @@ pub struct CommunityDelistedAppDetail {
     pub delisted: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub countries: Vec<String>,
     pub versions: Vec<CommunityVersion>,
     pub updated_at: String,
 }
@@ -4985,6 +5058,8 @@ pub struct CommunityVersion {
     pub size_bytes: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -5004,6 +5079,8 @@ struct LocalDelistedCandidate {
     source_record_count: Option<usize>,
     #[serde(default)]
     already_archived_locally: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    countries: Vec<String>,
 }
 
 impl CommunityDelistedAppDetail {
@@ -5012,6 +5089,7 @@ impl CommunityDelistedAppDetail {
         artist_name: Option<String>,
         icon_asset: Option<String>,
         notes: Vec<String>,
+        countries: Vec<String>,
     ) -> Self {
         let now = Utc::now().to_rfc3339();
         CommunityDelistedAppDetail {
@@ -5030,15 +5108,17 @@ impl CommunityDelistedAppDetail {
             icon_url: None,
             delisted: true,
             notes,
+            countries,
             versions: app
                 .versions
                 .iter()
                 .map(|v| CommunityVersion {
                     version_id: v.version_id.clone(),
                     version: v.version.clone(),
-                    released_at: None,
-                    size_bytes: None,
+                    released_at: v.released_at.clone(),
+                    size_bytes: v.size_bytes,
                     description: v.description.clone(),
+                    source: "local".to_string(),
                 })
                 .collect(),
             updated_at: now,
@@ -5061,6 +5141,12 @@ struct PrepareContributionResponse {
     app: CommunityDelistedAppDetail,
     icon_path: Option<String>,
     warnings: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct ContributingIdsResponse {
+    archived: Vec<String>,
+    in_review: Vec<String>,
 }
 
 fn archive_file_path(app_id: &str) -> PathBuf {
@@ -5264,6 +5350,7 @@ async fn build_local_delisted_candidates(
                     last_download_date: record.download_date.clone().or(record.created_at.clone()),
                     source_record_count: Some(0),
                     already_archived_locally: local_archive_ids.contains(&record.app_id),
+                    countries: Vec::new(),
                 });
 
         if entry.name.trim().is_empty() && !record.app_name.trim().is_empty() {
@@ -5282,6 +5369,13 @@ async fn build_local_delisted_candidates(
             entry.last_download_date = record.download_date.clone().or(record.created_at.clone());
         }
         entry.source_record_count = Some(entry.source_record_count.unwrap_or(0) + 1);
+
+        if let Some(ref region) = record.account_region {
+            let region = region.trim().to_uppercase();
+            if !region.is_empty() && !entry.countries.contains(&region) {
+                entry.countries.push(region);
+            }
+        }
 
         let version_id = record
             .job_id
@@ -5323,13 +5417,16 @@ async fn build_local_delisted_candidates(
 
     // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的
     let mut items = Vec::new();
-    for (app_id, candidate) in grouped.into_iter() {
+    for (app_id, mut candidate) in grouped.into_iter() {
         if candidate.already_archived_locally {
             continue;
         }
         // 检查是否仍在商店
         if check_app_still_on_store(&app_id).await {
             continue;
+        }
+        if candidate.countries.is_empty() {
+            candidate.countries.push("CN".to_string());
         }
         items.push(candidate);
     }
@@ -5568,11 +5665,34 @@ async fn publish_community_archive(
     };
     let icon_asset = Some(format!("assets/icons/{}/{}.png", icon_prefix, app_id));
 
+    // 收集 countries：从下载记录中推断该 app_id 的 regions
+    let countries = {
+        let records = {
+            let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
+            normalize_download_record_artifact_paths(&db, &data.downloads_dir);
+            sync_download_records_from_filesystem(&db, &data.downloads_dir);
+            db.get_all_download_records().unwrap_or_default()
+        };
+        let regions: HashSet<String> = records
+            .iter()
+            .filter(|r| r.app_id == app_id && r.status.eq_ignore_ascii_case("completed"))
+            .filter_map(|r| r.account_region.as_ref())
+            .map(|r| r.trim().to_uppercase())
+            .filter(|r| !r.is_empty())
+            .collect();
+        if regions.is_empty() {
+            vec!["CN".to_string()]
+        } else {
+            regions.into_iter().collect()
+        }
+    };
+
     let detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
         app.bundle_id.clone().or(None),
         icon_asset,
         notes,
+        countries,
     );
 
     // 序列化为 JSON
@@ -6015,12 +6135,127 @@ async fn prepare_community_contribution(
     let icon_path = Some(format!("assets/icons/{}/{}.png", icon_prefix, app_id));
 
     // 用 CommunityDelistedAppDetail::from_local_archive() 转换
-    let detail = CommunityDelistedAppDetail::from_local_archive(
+    // 收集 countries：从下载记录中推断该 app_id 的 regions
+    let countries = {
+        let records = {
+            let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
+            db.get_all_download_records().unwrap_or_default()
+        };
+        let regions: HashSet<String> = records
+            .iter()
+            .filter(|r| r.app_id == app_id && r.status.eq_ignore_ascii_case("completed"))
+            .filter_map(|r| r.account_region.as_ref())
+            .map(|r| r.trim().to_uppercase())
+            .filter(|r| !r.is_empty())
+            .collect();
+        if regions.is_empty() {
+            vec!["CN".to_string()]
+        } else {
+            regions.into_iter().collect()
+        }
+    };
+
+    let mut detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
         app.bundle_id.clone().or(None),
         icon_path.clone(),
         notes,
+        countries,
     );
+
+    // 版本补全：并行调 timbrd + bilin 获取全量版本历史
+    let region = detail.countries.first().map(|s| s.as_str()).unwrap_or("CN");
+    let app_id_for_api = app_id.clone();
+
+    // timbrd API
+    let timbrd_future = async {
+        let url = format!(
+            "https://api.timbrd.com/apple/app-version/index.php?id={}&country={}",
+            app_id_for_api, region
+        );
+        let client = reqwest::Client::new();
+        match client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+        {
+            Ok(resp) => resp.json::<Vec<serde_json::Value>>().await.ok(),
+            Err(_) => None,
+        }
+    };
+
+    // bilin API
+    let bilin_future = async {
+        let url = format!(
+            "https://apis.bilin.eu.org/history/{}?country={}",
+            app_id_for_api, region
+        );
+        let client = reqwest::Client::new();
+        match client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let val: serde_json::Value = resp.json().await.ok()?;
+                if val["code"].as_i64() == Some(0) {
+                    val["data"].as_array().cloned()
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    };
+
+    let (timbrd_result, bilin_result) = tokio::join!(timbrd_future, bilin_future);
+
+    // 合并版本（本地优先，去重按 version）
+    let mut enriched_versions = detail.versions.clone();
+    let mut existing_versions: HashSet<String> = enriched_versions
+        .iter()
+        .map(|v| v.version.clone())
+        .collect();
+
+    for (api_versions, source_name) in [(timbrd_result, "timbrd"), (bilin_result, "bilin")] {
+        if let Some(versions) = api_versions {
+            for item in &versions {
+                let ver = item["bundle_version"].as_str().unwrap_or("");
+                if ver.is_empty() || existing_versions.contains(ver) {
+                    continue;
+                }
+                enriched_versions.push(CommunityVersion {
+                    version_id: item
+                        .get("external_identifier")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    version: ver.to_string(),
+                    released_at: item
+                        .get("created_at")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    size_bytes: item.get("size").and_then(|v| v.as_i64()),
+                    description: None,
+                    source: source_name.to_string(),
+                });
+                existing_versions.insert(ver.to_string());
+            }
+        }
+    }
+
+    // 语义化版本排序（降序）
+    enriched_versions.sort_by(|a, b| {
+        let parse =
+            |v: &str| -> Vec<u32> { v.split('.').filter_map(|p| p.parse::<u32>().ok()).collect() };
+        let va = parse(&a.version);
+        let vb = parse(&b.version);
+        vb.cmp(&va)
+    });
+
+    detail.versions = enriched_versions;
 
     // 检查 GitHub PAT 配置状态
     let github_token_configured = data
@@ -6056,6 +6291,74 @@ async fn prepare_community_contribution(
         app: detail,
         icon_path,
         warnings,
+    }))
+}
+
+// 从 PR title 提取 (\d+) 格式的 app_id
+fn extract_app_id_from_pr_title(title: &str) -> Option<String> {
+    let start = title.find('(')?;
+    let end = title[start + 1..].find(')')?;
+    let inner = &title[start + 1..start + 1 + end];
+    if inner.chars().all(|c| c.is_ascii_digit()) && !inner.is_empty() {
+        Some(inner.to_string())
+    } else {
+        None
+    }
+}
+
+async fn get_contributing_ids(
+    admin: AuthenticatedAdmin,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let _ = admin; // 需要认证
+
+    // 1. 已收录：从 community index 获取
+    let index = fetch_community_delisted_index().await;
+    let archived: Vec<String> = index.apps.iter().map(|app| app.id.clone()).collect();
+
+    // 2. 审核中：GitHub Search API 查 open PR
+    let mut in_review: Vec<String> = Vec::new();
+
+    // 获取 GitHub token
+    let github_token = {
+        let db = data.db.lock().unwrap_or_else(|e| e.into_inner());
+        db.get_github_token(&admin.username)
+            .ok()
+            .flatten()
+            .map(|t| t.token)
+    };
+
+    if let Some(token) = github_token {
+        let client = reqwest::Client::new();
+        let search_url =
+            "https://api.github.com/search/issues?q=is:pr+is:open+repo:ruanrrn/ipa-archive"
+                .to_string();
+
+        if let Ok(resp) = client
+            .get(&search_url)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", "ipatool-community")
+            .timeout(std::time::Duration::from_secs(15))
+            .send()
+            .await
+        {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(items) = body["items"].as_array() {
+                    for item in items {
+                        if let Some(title) = item["title"].as_str() {
+                            if let Some(app_id) = extract_app_id_from_pr_title(title) {
+                                in_review.push(app_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    HttpResponse::Ok().json(ApiResponse::success(ContributingIdsResponse {
+        archived,
+        in_review,
     }))
 }
 
@@ -6176,8 +6479,9 @@ async fn main() -> std::io::Result<()> {
                              .route("/batch-tasks", web::get().to(get_batch_tasks))
                              .route("/batch-tasks/{id}", web::get().to(get_batch_task))
                              .route("/batch-tasks/{id}", web::delete().to(delete_batch_task))
-                             .route("/download-records", web::get().to(get_download_records))
-                             .route("/download-records", web::delete().to(clear_download_records))
+                            .route("/download-records", web::get().to(get_download_records))
+                            .route("/download-jobs", web::get().to(get_download_records))
+                            .route("/download-records", web::delete().to(clear_download_records))
 .route("/download-records/{id}", web::delete().to(delete_download_record))
                             .route(
                                 "/download-records/{id}/file",
@@ -6202,6 +6506,7 @@ async fn main() -> std::io::Result<()> {
                              .route("/github/token", web::delete().to(delete_github_token))
                              .route("/community/publish", web::post().to(publish_community_archive))
                              .route("/local/delisted-candidates", web::get().to(get_local_delisted_candidates))
+                             .route("/community/contributing-ids", web::get().to(get_contributing_ids))
                              .route("/community/prepare-contribution", web::post().to(prepare_community_contribution)),
 
                      ),

@@ -191,6 +191,8 @@ pub struct DownloadArtifact {
 pub struct DownloadRecordView {
     pub id: Option<i64>,
     pub job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_version_id: Option<String>,
     pub app_name: String,
     pub app_id: String,
     pub bundle_id: Option<String>,
@@ -227,6 +229,8 @@ pub struct IpaArtifactView {
     pub app_id: String,
     pub bundle_id: Option<String>,
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_version_id: Option<String>,
     pub account_email: Option<String>,
     pub account_region: Option<String>,
     pub artwork_url: Option<String>,

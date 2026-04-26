@@ -161,11 +161,14 @@ pub fn get_license_error_message(result: &std::collections::HashMap<String, Valu
         }
     }
 
-    if !customer_message.is_ascii() {
+    if !customer_message.trim().is_empty() {
         return customer_message.to_string();
     }
+    if !failure_type.trim().is_empty() {
+        return failure_type.to_string();
+    }
 
-    customer_message.to_string()
+    "下载失败：Apple 未返回具体错误信息".to_string()
 }
 
 async fn download_chunk(

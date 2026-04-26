@@ -342,6 +342,10 @@ async function handleDeleteGithubToken() {
 }
 
 onMounted(() => {
+  loadAccounts().catch((error) => {
+    console.warn('Failed to load accounts:', error)
+  })
+
   appStore.loadGithubTokenStatus().catch((error) => {
     console.warn('Failed to load GitHub token status:', error)
   })
