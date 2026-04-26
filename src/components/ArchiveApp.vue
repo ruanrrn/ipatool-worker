@@ -881,7 +881,7 @@ const prepareCandidateContribution = async (app) => {
     }
     openPublishDialog({
       ...prepared,
-      icon_data_url: app.icon_url || '',
+      icon_data_url: prepared.icon_data_url || app.icon_url || '',
     })
   } catch (error) {
     Toast.error(error.message || '生成贡献预览失败')

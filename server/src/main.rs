@@ -5140,6 +5140,9 @@ struct PrepareContributionResponse {
     github_token_configured: bool,
     app: CommunityDelistedAppDetail,
     icon_path: Option<String>,
+    /// Base64 data URL of the app icon (data:image/png;base64,...)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_data_url: Option<String>,
     warnings: Vec<String>,
 }
 
@@ -6284,12 +6287,53 @@ async fn prepare_community_contribution(
         warnings.push("无法构建 icon 路径".to_string());
     }
 
+    // 下载图标并转为 base64 data URL
+    let icon_data_url = if let Some(ref url) = app.icon_url {
+        if url.starts_with("http") {
+            match reqwest::Client::new()
+                .get(url)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => match resp.bytes().await {
+                    Ok(bytes) => {
+                        use base64::Engine;
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                        Some(format!("data:image/png;base64,{}", b64))
+                    }
+                    Err(_) => {
+                        warnings.push("图标下载失败".to_string());
+                        None
+                    }
+                },
+                Ok(resp) => {
+                    warnings.push(format!("图标下载返回 {}", resp.status()));
+                    None
+                }
+                Err(e) => {
+                    warnings.push(format!("图标下载失败: {}", e));
+                    None
+                }
+            }
+        } else if url.starts_with("data:") {
+            // 已经是 data URL
+            Some(url.clone())
+        } else {
+            None
+        }
+    } else {
+        warnings.push("缺少图标 URL".to_string());
+        None
+    };
+
     HttpResponse::Ok().json(ApiResponse::success(PrepareContributionResponse {
         app_id: detail.id.clone(),
         source,
         github_token_configured,
         app: detail,
         icon_path,
+        icon_data_url,
         warnings,
     }))
 }
