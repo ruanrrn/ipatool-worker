@@ -3,8 +3,9 @@ use crate::SignatureClient;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::io::ErrorKind;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::fs::{self};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -12,6 +13,44 @@ const CHUNK_SIZE: usize = 5 * 1024 * 1024;
 const MAX_RETRIES: usize = 5;
 const RETRY_DELAY: u64 = 3000;
 const MAX_CONCURRENT_CHUNKS: usize = 8;
+
+fn parse_content_range(value: &str) -> Option<(u64, u64, Option<u64>)> {
+    let value = value.trim().strip_prefix("bytes ")?;
+    let (range, total) = value.split_once('/')?;
+    let (start, end) = range.split_once('-')?;
+    let total = if total == "*" {
+        None
+    } else {
+        Some(total.parse().ok()?)
+    };
+
+    Some((start.parse().ok()?, end.parse().ok()?, total))
+}
+
+async fn create_download_cache_dir(
+    download_dir: &Path,
+) -> Result<std::path::PathBuf, Box<dyn std::error::Error + Send + Sync>> {
+    let cache_root = download_dir.join("cache");
+    fs::create_dir_all(&cache_root).await?;
+
+    for attempt in 0..100u32 {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+        let cache_dir = cache_root.join(format!(
+            "download-{}-{}-{}",
+            std::process::id(),
+            now,
+            attempt
+        ));
+
+        match fs::create_dir(&cache_dir).await {
+            Ok(()) => return Ok(cache_dir),
+            Err(err) if err.kind() == ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err.into()),
+        }
+    }
+
+    Err("无法创建唯一下载缓存目录".into())
+}
 
 #[derive(Debug, Clone)]
 pub struct DownloadProgress {
@@ -122,11 +161,14 @@ pub fn get_license_error_message(result: &std::collections::HashMap<String, Valu
         }
     }
 
-    if !customer_message.is_ascii() {
+    if !customer_message.trim().is_empty() {
         return customer_message.to_string();
     }
+    if !failure_type.trim().is_empty() {
+        return failure_type.to_string();
+    }
 
-    customer_message.to_string()
+    "下载失败：Apple 未返回具体错误信息".to_string()
 }
 
 async fn download_chunk(
@@ -136,6 +178,10 @@ async fn download_chunk(
     output: &Path,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = reqwest::Client::new();
+    let expected_len = end
+        .checked_sub(start)
+        .and_then(|value| value.checked_add(1))
+        .ok_or("无效的分块范围")?;
 
     for attempt in 0..MAX_RETRIES {
         let response = client
@@ -144,39 +190,72 @@ async fn download_chunk(
             .send()
             .await?;
 
-        if !response.status().is_success() {
+        if response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
             if attempt < MAX_RETRIES - 1 {
                 tokio::time::sleep(Duration::from_millis(RETRY_DELAY * (attempt as u64 + 1))).await;
                 continue;
             }
-            return Err(format!("无法获取区块: {}", response.status()).into());
+            return Err(format!("无法获取区块: 期望 206，实际 {}", response.status()).into());
+        }
+
+        let content_range = response
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .ok_or("分块响应缺少 Content-Range")?
+            .to_str()?;
+
+        let (range_start, range_end, total_len) = parse_content_range(content_range)
+            .ok_or_else(|| format!("无效的 Content-Range: {}", content_range))?;
+        if range_start != start || range_end != end {
+            return Err(format!(
+                "分块 Content-Range 不匹配: 期望 {}-{}，实际 {}-{}",
+                start, end, range_start, range_end
+            )
+            .into());
+        }
+        if let Some(total_len) = total_len {
+            if total_len <= end {
+                return Err(format!(
+                    "分块 Content-Range 总大小无效: total={} end={}",
+                    total_len, end
+                )
+                .into());
+            }
+        }
+
+        if let Some(content_length) = response.content_length() {
+            if content_length != expected_len {
+                return Err(format!(
+                    "分块 Content-Length 不匹配: 期望 {}，实际 {}",
+                    expected_len, content_length
+                )
+                .into());
+            }
+        }
+
+        let bytes = response.bytes().await?;
+        if bytes.len() as u64 != expected_len {
+            return Err(format!(
+                "分块大小不匹配: 期望 {}，实际 {}",
+                expected_len,
+                bytes.len()
+            )
+            .into());
         }
 
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .append(true)
+            .truncate(true)
             .open(output)
             .await?;
 
-        let bytes = response.bytes().await?;
         file.write_all(&bytes).await?;
 
         return Ok(());
     }
 
     Err("下载重试次数耗尽".into())
-}
-
-async fn clear_cache(cache_dir: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if let Ok(mut entries) = fs::read_dir(cache_dir).await {
-        while let Some(entry) = entries.next_entry().await? {
-            if entry.file_type().await?.is_file() {
-                fs::remove_file(entry.path()).await?;
-            }
-        }
-    }
-    Ok(())
 }
 
 fn get_artwork_from_map(metadata: &serde_json::Map<String, Value>) -> String {
@@ -493,9 +572,7 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
         },
     );
     let output_file_path = download_dir.join(output_file_name);
-    let cache_dir = download_dir.join("cache");
-    fs::create_dir_all(&cache_dir).await?;
-    clear_cache(&cache_dir).await?;
+    let cache_dir = create_download_cache_dir(download_dir).await?;
 
     let response = reqwest::Client::new().get(file_url).send().await?;
 
@@ -525,7 +602,8 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
     let file_size_atomic = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(file_size));
     let progress_callback = params.progress_callback.clone();
 
-    let chunk_handles: Vec<_> = (0..num_chunks)
+    use futures::stream::{self, StreamExt};
+    let mut chunk_stream = stream::iter(0..num_chunks)
         .map(|i| {
             let url = file_url.to_string();
             let cache_dir = cache_dir.clone();
@@ -533,15 +611,22 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
             let file_size_atomic = file_size_atomic.clone();
             let progress_callback = progress_callback.clone();
 
-            tokio::spawn(async move {
+            async move {
                 let start = (i * CHUNK_SIZE) as u64;
-                let end = std::cmp::min(start + CHUNK_SIZE as u64 - 1, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - 1);
+                let end = std::cmp::min(
+                    start + CHUNK_SIZE as u64 - 1,
+                    file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - 1,
+                );
                 let temp_output = cache_dir.join(format!("part{}", i));
 
                 download_chunk(&url, start, end, &temp_output).await?;
 
-                let chunk_bytes = std::cmp::min(CHUNK_SIZE as u64, file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - start);
-                let prev = downloaded_total.fetch_add(chunk_bytes, std::sync::atomic::Ordering::Relaxed);
+                let chunk_bytes = std::cmp::min(
+                    CHUNK_SIZE as u64,
+                    file_size_atomic.load(std::sync::atomic::Ordering::Relaxed) - start,
+                );
+                let prev =
+                    downloaded_total.fetch_add(chunk_bytes, std::sync::atomic::Ordering::Relaxed);
                 let current = prev + chunk_bytes;
 
                 if let Some(callback) = &progress_callback {
@@ -561,20 +646,12 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
                 }
 
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-            })
+            }
         })
-        .collect();
-
-    // Consume futures with bounded concurrency to avoid spawning too many at once
-    use futures::stream::{self, StreamExt};
-    let mut chunk_stream = stream::iter(chunk_handles).buffer_unordered(MAX_CONCURRENT_CHUNKS);
+        .buffer_unordered(MAX_CONCURRENT_CHUNKS);
 
     while let Some(result) = chunk_stream.next().await {
-        if let Err(e) = result {
-            // Abort remaining on first failure
-            drop(chunk_stream);
-            return Err(format!("分块下载失败: {}", e).into());
-        }
+        result.map_err(|e| format!("分块下载失败: {}", e))?;
     }
 
     let downloaded = downloaded_total.load(std::sync::atomic::Ordering::Relaxed);
@@ -596,6 +673,19 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
 
     for i in 0..num_chunks {
         let temp_output = cache_dir.join(format!("part{}", i));
+        let expected_chunk_size =
+            std::cmp::min(CHUNK_SIZE as u64, file_size - (i * CHUNK_SIZE) as u64);
+        let part_metadata = fs::metadata(&temp_output).await?;
+        if part_metadata.len() != expected_chunk_size {
+            return Err(format!(
+                "分块文件大小不匹配: part{} 期望 {}，实际 {}",
+                i,
+                expected_chunk_size,
+                part_metadata.len()
+            )
+            .into());
+        }
+
         let mut temp_file = fs::File::open(&temp_output).await?;
         let mut buffer = Vec::new();
         temp_file.read_to_end(&mut buffer).await?;
@@ -604,6 +694,15 @@ pub async fn download_ipa_with_account<S: AppleAuthService>(
     }
     final_file.flush().await?;
     drop(final_file);
+
+    let merged_size = fs::metadata(&output_file_path).await?.len();
+    if merged_size != file_size {
+        return Err(format!(
+            "合并文件大小不匹配: 期望 {}，实际 {}",
+            file_size, merged_size
+        )
+        .into());
+    }
 
     params.on_progress(DownloadProgress {
         phase: "package".to_string(),

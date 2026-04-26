@@ -44,7 +44,7 @@
           </div>
           <MobileButton
             type="primary"
-            size="default"
+            size="small"
             @click="confirmDirectAppId"
           >
             确认并继续
@@ -239,9 +239,6 @@
 
               <!-- Progress Panel -->
               <ProgressPanel
-                :downloading="showCurrentVersionProgressCard"
-                :progress-percent="currentVersionProgressPercent"
-                :progress-stage="currentVersionProgressStage"
                 :download-url="currentVersionDownloadUrl"
                 :install-url="currentVersionInstallUrl"
                 :file-size="currentVersionFileSize"
@@ -265,6 +262,7 @@
                 v-if="purchaseRequired"
                 :disabled="(!selectedAccount && selectedAccount !== 0) || checkingPurchaseStatus"
                 :loading="claimRequired && claimingSelectedApp"
+                :title="checkingPurchaseStatus ? '正在检测购买状态…' : ''"
                 type="primary"
                 class="version-sheet__purchase-btn version-sheet__purchase-btn--dock"
                 @click="buyOrClaimSelectedApp"
@@ -285,12 +283,13 @@
                   <span>{{ currentVersionProgressButtonLabel }}</span>
                 </button>
                 <template v-else>
-                  <button
-                    class="version-sheet__action-btn version-sheet__action-btn--secondary"
-                    :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isCurrentVersionDownloaded"
-                    :class="{ 'is-disabled': downloadBlocked || isCurrentVersionDownloaded }"
-                    @click="directLinkDownload"
-                  >
+                <button
+                  class="version-sheet__action-btn version-sheet__action-btn--secondary"
+                  :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked || isCurrentVersionDownloaded"
+                  :class="{ 'is-disabled': downloadBlocked || isCurrentVersionDownloaded }"
+                  :title="downloadBlocked ? (checkingPurchaseStatus ? '正在检测购买状态…' : '请先获取应用') : (isCurrentVersionDownloaded ? '已下载' : '下载 IPA')"
+                  @click="directLinkDownload"
+                >
                     <template v-if="isCurrentVersionDownloaded">
                       <SvgIcon
                         class="h-4 w-4"
@@ -303,12 +302,13 @@
                       <span>下载</span>
                     </template>
                   </button>
-                  <button
-                    class="version-sheet__action-btn version-sheet__action-btn--primary"
-                    :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
-                    :class="{ 'is-disabled': downloadBlocked }"
-                    @click="startInstallFlow"
-                  >
+                <button
+                  class="version-sheet__action-btn version-sheet__action-btn--primary"
+                  :disabled="(!selectedAccount && selectedAccount !== 0) || downloadBlocked"
+                  :class="{ 'is-disabled': downloadBlocked }"
+                  :title="downloadBlocked ? (checkingPurchaseStatus ? '正在检测购买状态…' : '请先获取应用') : '安装到设备'"
+                  @click="startInstallFlow"
+                >
                     <i><Install /></i>
                     <span>安装</span>
                   </button>
@@ -352,7 +352,6 @@ import AccountPicker from './AccountPicker.vue'
 import SvgIcon from './SvgIcon.vue'
 import ProgressPanel from './ProgressPanel.vue'
 import VersionPicker from './VersionPicker.vue'
-import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
 import documentIcon from '../assets/icons/document.svg?raw'
 import closeIcon from '../assets/icons/close.svg?raw'
 import checkIcon from '../assets/icons/check.svg?raw'
@@ -557,7 +556,6 @@ const isTaskReadyForActions = (task) => {
   return taskFinalStatuses.has(task.status) || (task.progress ?? 0) >= 100
 }
 
-const currentVersionTask = computed(() => currentVersionTaskCandidates.value[0] || null)
 const currentVersionReadyTask = computed(() => {
   return currentVersionTaskCandidates.value.find((task) => isTaskReadyForActions(task)) || null
 })
@@ -589,6 +587,7 @@ const currentVersionProgressButtonLabel = computed(() => {
 })
 
 const isCurrentVersionDownloaded = computed(() => {
+  if (currentVersionReadyTask.value) return true
   if (!appid.value) return false
   const idx = selectedAccount.value
   if (idx === null || idx === undefined) return false
@@ -930,16 +929,16 @@ const toggleFavoriteApp = async () => {
  }]
  }
 
- const { data } = await apiFetch(`${API_BASE}/archive`, {
- method: 'POST',
- credentials: 'include',
- headers: {
- 'Content-Type': 'application/json'
- },
- body: JSON.stringify(payload)
- })
- if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
- if (!data.ok) throw new Error(data.error || '收藏失败')
+  const { response, data } = await apiFetch(`${API_BASE}/archive`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: {
+  'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(payload)
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+  if (!data.ok) throw new Error(data.error || '收藏失败')
  const nextMap = { ...archivedVersionsByApp.value }
  const nextVersions = new Set(getArchivedVersionSet(appId))
  nextVersions.add(versionId)
@@ -1219,35 +1218,39 @@ appStore.setSelectedApp({
 }
 
 const downloadCompletedIpa = () => {
- if (!currentVersionDownloadUrl.value) {
-  Toast.warning('下载链接未显示')
-  return
- }
+  if (!currentVersionDownloadUrl.value) {
+    Toast.warning('下载链接未显示')
+    return
+  }
 
- window.open(currentVersionDownloadUrl.value, '_blank', 'noopener')
+  window.open(currentVersionDownloadUrl.value, '_blank', 'noopener')
 }
 
 // Wrapper functions that use composable functionality
 const buyOrClaimSelectedApp = async () => {
- const price = getSelectedAppPrice()
+  try {
+    const price = getSelectedAppPrice()
 
- if (price === null) {
-  Toast.show('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。')
-  return
- }
+    if (price === null) {
+      Toast.show('价格未知，无法安全领取/购买。请先在搜索结果确认价格信息。')
+      return
+    }
 
- if (price <= 0) {
-  const account = await resolveActiveAccount()
-  if (!account) return
-  await claimSelectedAppInBackground(appid.value, selectedVersion.value)
-  return
- }
+    if (price <= 0) {
+      const account = await resolveActiveAccount()
+      if (!account) return
+      await claimSelectedAppInBackground(appid.value, selectedVersion.value)
+      return
+    }
 
- const appStoreUrl = props.selectedApp?.trackViewUrl || `https://apps.apple.com/app/id${props.selectedApp.trackId}`
- pendingAppStoreCheck.value = true
- purchaseStatusText.value = '等待完成 App Store 购买后自动复检'
- Toast.info('即将打开 App Store 商品页。完成购买后返回此页，系统会自动重新检测状态。')
- openExternalUrl(appStoreUrl)
+    const appStoreUrl = props.selectedApp?.trackViewUrl || `https://apps.apple.com/app/id${props.selectedApp.trackId}`
+    pendingAppStoreCheck.value = true
+    purchaseStatusText.value = '等待完成 App Store 购买后自动复检'
+    Toast.info('即将打开 App Store 商品页。完成购买后返回此页，系统会自动重新检测状态。')
+    openExternalUrl(appStoreUrl)
+  } catch (error) {
+    Toast.error(error.message || '操作失败')
+  }
 }
 
 const installDownloadedIpa = async () => {
@@ -1286,17 +1289,25 @@ const installDownloadedIpa = async () => {
 }
 
 const startInstallFlow = async () => {
- const { versionId, versionLabel } = resolveSelectedVersionPayload()
- selectedVersion.value = versionId
- appVerId.value = versionId
- await startDownloadWithProgress(appid.value, versionId, false, true, versionLabel)
+  try {
+    const { versionId, versionLabel } = resolveSelectedVersionPayload()
+    selectedVersion.value = versionId
+    appVerId.value = versionId
+    await startDownloadWithProgress(appid.value, versionId, false, true, versionLabel)
+  } catch (error) {
+    Toast.error(error.message || '安装启动失败')
+  }
 }
 
 const directLinkDownload = async (autoPurchase = false) => {
- const { versionId, versionLabel } = resolveSelectedVersionPayload()
- selectedVersion.value = versionId
- appVerId.value = versionId
- await startDownloadWithProgress(appid.value, versionId, autoPurchase, false, versionLabel)
+  try {
+    const { versionId, versionLabel } = resolveSelectedVersionPayload()
+    selectedVersion.value = versionId
+    appVerId.value = versionId
+    await startDownloadWithProgress(appid.value, versionId, autoPurchase, false, versionLabel)
+  } catch (error) {
+    Toast.error(error.message || '下载启动失败')
+  }
 }
 
 const handleAppStoreReturn = async () => {
@@ -2035,6 +2046,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
   flex-shrink: 0;
   z-index: 2;
+  min-height: 48px;
+  transition: all 0.2s ease;
 }
 
 .version-sheet__actions--purchase {

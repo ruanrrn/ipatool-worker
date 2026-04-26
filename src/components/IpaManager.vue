@@ -90,7 +90,7 @@
                     size="default"
                   />
                   <div class="queue-item__progress-info">
-                    <span>{{ task.stage || '下载中' }} {{ task.progress }}%</span>
+                    <span>{{ localizeProgressStage(task.stage || '下载中') }} {{ task.progress }}%</span>
                     <span v-if="task.fileSize">{{ formatFileSize(task.fileSize) }}</span>
                   </div>
                 </div>
@@ -247,6 +247,7 @@ import EmptyState from './EmptyState.vue'
 import { useAppStore } from '../stores/app'
 import { apiFetch } from '../utils/api.js'
 import { useJobPolling } from '../composables/useJobPolling.js'
+import { localizeProgressStage } from '../composables/useDownload.js'
 import pauseIcon from '../assets/icons/pause-fill.svg?raw'
 import playIcon from '../assets/icons/play-fill.svg?raw'
 import closeIcon from '../assets/icons/close.svg?raw'

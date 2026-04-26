@@ -6,6 +6,98 @@ import { useNotifications } from './useNotifications.js'
 import { useAppStore } from '../stores/app.js'
 
 /**
+ * Localize progress stage text to Chinese
+ */
+export function localizeProgressStage(stage) {
+  const raw = String(stage ?? '').trim()
+  if (!raw) return '准备中…'
+  if (/[\u4e00-\u9fff]/.test(raw)) return raw
+
+  const normalized = raw.toLowerCase().replace(/[_\s]+/g, '-')
+  const exactMap = {
+    auth: '获取下载信息',
+    authenticate: '获取下载信息',
+    authentication: '获取下载信息',
+    metadata: '读取元数据',
+    'fetch-metadata': '读取元数据',
+    'download-info': '获取下载信息',
+    'download-start': '开始下载',
+    'start-download': '开始下载',
+    'download-progress': '下载中',
+    downloading: '下载中',
+    download: '下载中',
+    saving: '保存文件',
+    save: '保存文件',
+    merge: '合并分块',
+    merging: '合并分块',
+    sign: '写入签名',
+    signing: '写入签名',
+    extract: '提取信息',
+    extracting: '提取信息',
+    inspect: '校验 IPA',
+    inspecting: '校验 IPA',
+    verify: '校验 IPA',
+    verifying: '校验 IPA',
+    processing: '处理中',
+    process: '处理中',
+    prepare: '准备中…',
+    preparing: '准备中…',
+    queued: '排队中',
+    queue: '排队中',
+    waiting: '等待中',
+    done: '下载已完成',
+    ready: '下载已完成',
+    completed: '下载已完成',
+    complete: '下载已完成',
+    failed: '下载失败',
+    failure: '下载失败',
+    error: '下载失败'
+  }
+
+  if (exactMap[normalized]) return exactMap[normalized]
+  if (normalized.includes('auth') || normalized.includes('credential') || normalized.includes('license')) return '获取下载信息'
+  if (normalized.includes('metadata') || normalized.includes('info')) return '读取元数据'
+  if (normalized.includes('download') && normalized.includes('start')) return '开始下载'
+  if (normalized.includes('download') && normalized.includes('progress')) return '下载中'
+  if (normalized.includes('download') || normalized.includes('transfer')) return '下载中'
+  if (normalized.includes('save') || normalized.includes('write-file')) return '保存文件'
+  if (normalized.includes('merge')) return '合并分块'
+  if (normalized.includes('sign')) return '写入签名'
+  if (normalized.includes('extract')) return '提取信息'
+  if (normalized.includes('inspect') || normalized.includes('verify')) return '校验 IPA'
+  if (normalized.includes('process')) return '处理中'
+  if (normalized.includes('queue')) return '排队中'
+  if (normalized.includes('wait')) return '等待中'
+  if (normalized.includes('prepare')) return '准备中…'
+  if (normalized.includes('ready') || normalized.includes('done') || normalized.includes('complete')) return '下载已完成'
+  if (normalized.includes('fail') || normalized.includes('error')) return '下载失败'
+
+  return '处理中'
+}
+
+function normalizeDownloadedIpaFileForQueue(file) {
+  if (!file) return null
+  return {
+    id: file.id ?? file.recordId ?? file.record_id ?? '',
+    recordId: file.recordId ?? file.record_id ?? file.id ?? null,
+    appId: String(file.appId ?? file.app_id ?? file.trackId ?? ''),
+    appName: String(file.appName ?? file.app_name ?? file.name ?? file.fileName ?? file.file_name ?? ''),
+    accountEmail: String(file.accountEmail ?? file.account_email ?? file.apple_id ?? file.email ?? ''),
+    version: String(file.version ?? file.bundle_version ?? file.appVersion ?? ''),
+    versionId: String(file.versionId ?? file.version_id ?? file.appVerId ?? file.app_version_id ?? file.external_identifier ?? ''),
+    artworkUrl: file.artworkUrl ?? file.artwork_url ?? file.icon_url ?? '',
+    artistName: file.artistName ?? file.artist_name ?? '',
+    downloadUrl: file.downloadUrl ?? file.download_url ?? '',
+    installUrl: file.installUrl ?? file.install_url ?? '',
+    fileSize: file.fileSize ?? file.file_size ?? 0,
+    packageKind: file.packageKind ?? file.package_kind ?? '',
+    otaInstallable: Boolean(file.otaInstallable ?? file.ota_installable),
+    installMethod: file.installMethod ?? file.install_method ?? '',
+    inspection: file.inspection ?? null
+  }
+}
+
+/**
  * Download management composable
  * Handles SSE connections, polling, purchase checks, and download state management
  * @param {Object} options - Configuration options
@@ -98,47 +190,6 @@ export function useDownload(options = {}) {
   const getSelectedAppPrice = () => {
     const price = Number(selectedApp.value?.price)
     return Number.isFinite(price) ? price : null
-  }
-
-  const localizeProgressStage = (stage) => {
-    const raw = String(stage ?? '').trim()
-    if (!raw) return '准备中…'
-    if (/[\u4e00-\u9fff]/.test(raw)) return raw
-
-    const normalized = raw.toLowerCase()
-    const exactMap = {
-      auth: '获取下载信息',
-      'download-start': '开始下载',
-      'download-progress': '下载中',
-      merge: '合并分块',
-      sign: '写入签名',
-      signing: '写入签名',
-      processing: '处理中',
-      prepare: '准备中…',
-      preparing: '准备中…',
-      queued: '排队中',
-      waiting: '等待中',
-      done: '下载已完成',
-      ready: '下载已完成',
-      completed: '下载已完成',
-      failed: '下载失败',
-      error: '下载失败'
-    }
-
-    if (exactMap[normalized]) return exactMap[normalized]
-    if (normalized.includes('auth')) return '获取下载信息'
-    if (normalized.includes('download') && normalized.includes('start')) return '开始下载'
-    if (normalized.includes('download') && normalized.includes('progress')) return '下载中'
-    if (normalized.includes('merge')) return '合并分块'
-    if (normalized.includes('sign')) return '写入签名'
-    if (normalized.includes('process')) return '处理中'
-    if (normalized.includes('queue')) return '排队中'
-    if (normalized.includes('wait')) return '等待中'
-    if (normalized.includes('prepare')) return '准备中…'
-    if (normalized.includes('ready') || normalized.includes('done') || normalized.includes('complete')) return '下载已完成'
-    if (normalized.includes('fail') || normalized.includes('error')) return '下载失败'
-
-    return raw
   }
 
   const formatFileSize = (bytes) => {
@@ -278,7 +329,18 @@ export function useDownload(options = {}) {
 
     if (!autoPurchase) {
       const allowed = await preflightPurchaseGate(account)
-      if (!allowed) return
+      if (!allowed) {
+        const price = getSelectedAppPrice()
+        if (price !== null && price > 0) {
+          addLog('[拦截] 当前账号未购买此应用，请先前往 App Store 购买后再下载')
+        } else if (price !== null && price <= 0) {
+          addLog('[拦截] 当前账号未领取此免费应用，请先点击"获取应用"后再下载')
+        }
+        const downloadBlocked = downloadBlockedReason.value ||
+          (price !== null && price > 0 ? '请先在 App Store 购买此应用' :
+           price !== null && price <= 0 ? '请先获取免费应用' : '当前账号未获取此应用权限')
+        throw new Error(downloadBlocked)
+      }
     }
 
     // Reset progress
@@ -557,6 +619,18 @@ export function useDownload(options = {}) {
     downloadInspection.value = jobData.inspection || null
     showActionButtons.value = !!(jobData.downloadUrl || jobData.installUrl)
 
+    const refreshedFile = await refreshDownloadedFileForTask(jobId, queueItem, jobData)
+    if (refreshedFile) {
+      if (!downloadReadyUrl.value && refreshedFile.downloadUrl) downloadReadyUrl.value = refreshedFile.downloadUrl
+      if (!downloadInstallUrl.value && refreshedFile.installUrl) downloadInstallUrl.value = refreshedFile.installUrl
+      if (!downloadReadyFileSize.value && refreshedFile.fileSize) downloadReadyFileSize.value = refreshedFile.fileSize
+      if (!downloadPackageKind.value && refreshedFile.packageKind) downloadPackageKind.value = refreshedFile.packageKind
+      if (!downloadInspection.value && refreshedFile.inspection) downloadInspection.value = refreshedFile.inspection
+      downloadOtaInstallable.value = downloadOtaInstallable.value || !!refreshedFile.otaInstallable
+      if (!downloadInstallMethod.value && refreshedFile.installMethod) downloadInstallMethod.value = refreshedFile.installMethod
+      showActionButtons.value = !!(downloadReadyUrl.value || downloadInstallUrl.value)
+    }
+
     addLog('[完成] 任务已就绪')
 
     if (queueItem?.autoInstallRequested) {
@@ -570,10 +644,53 @@ export function useDownload(options = {}) {
     const appName = selectedApp.value?.trackName || activeDownloadAppId.value
     notifications.notifyDownloadComplete(appName)
 
-    // Auto-remove from queue after delay so user sees completed state briefly
-    setTimeout(() => {
-      appStore.removeFromQueue(jobId)
-    }, 2000)
+    // 保留完成任务在队列中，详情页可继续用队列项回显下载/安装入口。
+  }
+
+  const refreshDownloadedFileForTask = async (jobId, queueItem, jobData = {}) => {
+    try {
+      const { data } = await apiFetch(`${API_BASE}/ipa-files`, { credentials: 'include' })
+      if (!data?.ok || !Array.isArray(data.data)) return null
+
+      const appId = String(queueItem?.appId || activeDownloadAppId.value || '')
+      const versionId = String(queueItem?.versionId || activeDownloadVersionId.value || '')
+      const accountEmail = String(queueItem?.accountEmail || activeDownloadAccountEmail.value || '')
+
+      const match = data.data
+        .map(normalizeDownloadedIpaFileForQueue)
+        .filter(Boolean)
+        .find((file) => {
+          if (appId && file.appId !== appId) return false
+          if (accountEmail && file.accountEmail && file.accountEmail !== accountEmail) return false
+          if (versionId && file.versionId && file.versionId !== versionId) return false
+          return true
+        })
+
+      if (!match) return null
+      appStore.updateQueueItem(jobId, {
+        recordId: match.recordId,
+        appName: match.appName || queueItem?.appName,
+        version: match.version || queueItem?.version,
+        versionId: match.versionId || queueItem?.versionId,
+        artworkUrl: match.artworkUrl || queueItem?.artworkUrl,
+        artistName: match.artistName || queueItem?.artistName,
+        accountEmail: match.accountEmail || queueItem?.accountEmail,
+        downloadUrl: match.downloadUrl || jobData.downloadUrl,
+        installUrl: match.installUrl || jobData.installUrl,
+        fileSize: match.fileSize || jobData.fileSize || 0,
+        packageKind: match.packageKind || jobData.packageKind,
+        otaInstallable: match.otaInstallable || jobData.otaInstallable,
+        installMethod: match.installMethod || jobData.installMethod,
+        inspection: match.inspection || jobData.inspection,
+        status: 'completed',
+        progress: 100,
+        stage: '下载已完成'
+      })
+      return match
+    } catch (error) {
+      console.warn('Failed to refresh downloaded files after completion:', error)
+      return null
+    }
   }
 
   const handleDownloadFailed = (jobId, queueItem, error) => {

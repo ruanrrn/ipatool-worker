@@ -34,6 +34,7 @@ data/
 
 # Build outputs
 dist/
+server/dist/
 build/
 *.log
 
@@ -69,3 +70,5 @@ COMPONENT_SPEC.md
 MOBILE_FIX_GUIDE.md
 MOBILE_QUICK_REFERENCE.md
 MOBILE_SOLUTIONS_SUMMARY.md
+tmp/
+data.db

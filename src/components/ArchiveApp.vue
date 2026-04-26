@@ -127,66 +127,135 @@
               ⚠️ {{ w.name }}：{{ w.message }}
             </div>
           </div>
-          <div
-            v-if="delistedLoading"
-            class="archive-empty archive-empty--loading"
-          >
-            <EmptyState
-              type="loading"
-              text=""
-            />
-          </div>
-          <div
-            v-else-if="delistedApps.length === 0"
-            class="archive-empty"
-          >
-            <EmptyState
-              type="empty"
-              text="暂无下架应用数据"
-            />
-          </div>
-          <div
-            v-else
-            class="fav-list"
-          >
+
+          <div class="archive-section">
+            <div class="archive-section__header">
+              <div>
+                <div class="archive-section__title">社区归档</div>
+                <div class="archive-section__desc">读取官方下架索引，可直接查看和下载已公开归档版本</div>
+              </div>
+              <div class="archive-section__meta">{{ delistedApps.length }} 项</div>
+            </div>
+
             <div
-              v-for="app in delistedApps"
-              :key="`delisted-${app.archive_key || app.id}`"
-              class="fav-item"
-              @click="prepareApp(app)"
+              v-if="delistedLoading"
+              class="archive-empty archive-empty--loading"
             >
-              <AppArtwork
-                :src="app.icon_url"
-                :alt="app.name"
-                :label="app.name"
-                class="fav-item__icon"
-              />
-              <div class="fav-item__info">
-                <div class="fav-item__name-row">
-                  <span class="fav-item__name">{{ app.name }}</span>
-                  <span
-                    v-if="getSelectedVersion(app)"
-                    class="fav-item__ver"
-                  >v{{ getSelectedVersion(app) }}</span>
+              <EmptyState type="loading" text="" />
+            </div>
+            <div
+              v-else-if="delistedApps.length === 0"
+              class="archive-empty"
+            >
+              <EmptyState type="empty" text="暂无社区下架归档" />
+            </div>
+            <div
+              v-else
+              class="fav-list"
+            >
+              <div
+                v-for="app in delistedApps"
+                :key="`delisted-${app.archive_key || app.id}`"
+                class="fav-item"
+                @click="prepareCommunityApp(app)"
+              >
+                <AppArtwork
+                  :src="app.icon_url"
+                  :alt="app.name"
+                  :label="app.name"
+                  class="fav-item__icon"
+                />
+                <div class="fav-item__info">
+                  <div class="fav-item__name-row">
+                    <span class="fav-item__name">{{ app.name }}</span>
+                    <span
+                      v-if="getSelectedVersion(app)"
+                      class="fav-item__ver"
+                    >v{{ getSelectedVersion(app) }}</span>
+                  </div>
+                  <div class="fav-item__dev-row">
+                    <span v-if="app.artist_name">{{ app.artist_name }}</span>
+                    <span v-if="app.artist_name && app.bundle_id">&nbsp;·&nbsp;</span>
+                    <span v-if="app.bundle_id">{{ app.bundle_id }}</span>
+                  </div>
                 </div>
-                <div class="fav-item__dev-row">
-                  <span v-if="app.artist_name">{{ app.artist_name }}</span>
-                  <span v-if="app.artist_name && app.bundle_id">&nbsp;·&nbsp;</span>
-                  <span v-if="app.bundle_id">{{ app.bundle_id }}</span>
+                <div class="fav-item__actions">
+                  <button
+                    class="fav-btn fav-btn--dl"
+                    :disabled="downloadingAppId === (app.archive_key || app.id)"
+                    title="下载"
+                    @click.stop="downloadArchivedApp(app)"
+                  >
+                    <SvgIcon class="h-[15px] w-[15px]" :icon="downloadIcon" />
+                  </button>
                 </div>
               </div>
-              <div class="fav-item__actions">
-                <button
-                  class="fav-btn fav-btn--dl"
-                  :disabled="downloadingAppId === (app.archive_key || app.id)"
-                  title="下载"
-                  @click.stop="downloadArchivedApp(app)"
-                >
-                  <SvgIcon
-                    class="h-[15px] w-[15px]"
-                    :icon="downloadIcon"
-                  />
-                </button>
+            </div>
+          </div>
+
+          <div class="archive-section archive-section--contribution">
+            <div class="archive-section__header">
+              <div>
+                <div class="archive-section__title">本地待贡献</div>
+                <div class="archive-section__desc">从本地下载记录聚合，自动过滤社区已收录条目；配置 GitHub PAT 后可贡献</div>
+              </div>
+              <div class="archive-section__meta">{{ localCandidates.length }} 项</div>
+            </div>
+
+            <div
+              v-if="localCandidatesLoading"
+              class="archive-empty archive-empty--loading"
+            >
+              <EmptyState type="loading" text="" />
+            </div>
+            <div
+              v-else-if="localCandidates.length === 0"
+              class="archive-empty"
+            >
+              <EmptyState type="empty" text="暂无本地待贡献应用" />
+            </div>
+            <div
+              v-else
+              class="fav-list"
+            >
+              <div
+                v-for="app in localCandidates"
+                :key="`candidate-${app.archive_key || app.id}`"
+                class="fav-item"
+                @click="githubTokenConfigured ? prepareCandidateContribution(app) : null"
+              >
+                <AppArtwork
+                  :src="app.icon_url"
+                  :alt="app.name"
+                  :label="app.name"
+                  class="fav-item__icon"
+                />
+                <div class="fav-item__info">
+                  <div class="fav-item__name-row">
+                    <span class="fav-item__name">{{ app.name }}</span>
+                    <span
+                      v-if="getSelectedVersion(app)"
+                      class="fav-item__ver"
+                    >v{{ getSelectedVersion(app) }}</span>
+                    <span class="fav-item__tag">待贡献</span>
+                  </div>
+                  <div class="fav-item__dev-row">
+                    <span v-if="app.artist_name">{{ app.artist_name }}</span>
+                    <span v-if="app.artist_name && app.bundle_id">&nbsp;·&nbsp;</span>
+                    <span v-if="app.bundle_id">{{ app.bundle_id }}</span>
+                  </div>
+                </div>
+                <div class="fav-item__actions">
+                  <button
+                    v-if="githubTokenConfigured"
+                    class="fav-btn fav-btn--publish"
+                    :disabled="contributingAppId === (app.archive_key || app.id)"
+                    title="贡献到社区"
+                    @click.stop="prepareCandidateContribution(app)"
+                  >
+                    ↑
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -207,33 +276,21 @@
         <div class="text-sm text-txt-secondary dark:text-txt-dark-secondary">
           将 <strong class="text-txt dark:text-txt-dark">{{ publishDialog.appName }}</strong> 发布到 GitHub 仓库
         </div>
-        <MobileInput
-          v-model="publishDialog.owner"
-          label="Owner"
-          placeholder="ruanrrn"
-        />
-        <MobileInput
-          v-model="publishDialog.repo"
-          label="Repo"
-          placeholder="ipa-archive"
-        />
-        <div class="flex items-center gap-2">
-          <input
-            id="pub-pr"
-            v-model="publishDialog.createPr"
-            type="checkbox"
-            class="accent-[var(--color-primary)]"
-          >
-          <label
-            for="pub-pr"
-            class="text-sm text-txt dark:text-txt-dark"
-          >创建 PR（推荐）</label>
+        <div
+          v-if="publishDialog.warnings.length"
+          class="text-sm text-yellow-600 dark:text-yellow-400 space-y-1"
+        >
+          <div v-for="(w, i) in publishDialog.warnings" :key="i">⚠️ {{ w }}</div>
         </div>
-        <MobileInput
-          v-model="publishDialog.commitMessage"
-          label="Commit Message"
-          :placeholder="`Publish ${publishDialog.appName}`"
-        />
+        <div class="flex flex-col gap-1">
+          <label class="text-sm text-txt dark:text-txt-dark">备注（每行一条）</label>
+          <textarea
+            v-model="publishDialog.notes"
+            rows="3"
+            class="w-full rounded border border-border dark:border-border-dark bg-bg dark:bg-bg-dark px-3 py-2 text-sm text-txt dark:text-txt-dark focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="可选备注..."
+          />
+        </div>
         <div
           v-if="publishDialog.result"
           class="text-sm"
@@ -276,7 +333,6 @@ import { useAppStore } from '../stores/app'
 import { STORAGE_KEYS } from '../utils/storage.js'
 import MobileButton from './MobileButton.vue'
 import MobileDialog from './MobileDialog.vue'
-import MobileInput from './MobileInput.vue'
 import { apiFetch } from '../utils/api.js'
 import downloadIcon from '../assets/icons/download.svg?raw'
 import starFilledIcon from '../assets/icons/star-filled.svg?raw'
@@ -292,10 +348,15 @@ const activeTab = computed({
 
 const favorites = ref([])
 const delistedApps = ref([])
+const localCandidatesRaw = ref([])
+const remoteDelistedIds = ref(new Set())
+const inReviewIds = ref(new Set())
 const favoritesLoading = ref(false)
 const delistedLoading = ref(false)
+const localCandidatesLoading = ref(false)
 const refreshing = ref(false)
 const downloadingAppId = ref('')
+const contributingAppId = ref('')
 const selectedVersionByApp = ref({})
 const loadedVersionsByApp = ref({})
 const loadingVersions = ref({})
@@ -305,6 +366,12 @@ const selectedAccountIndex = ref(null)
 const activeAccount = computed(() => {
   if (selectedAccountIndex.value === null || selectedAccountIndex.value === undefined) return null
   return accounts.value[selectedAccountIndex.value] || null
+})
+
+const githubTokenConfigured = computed(() => appStore.githubTokenStatus.configured)
+const localCandidates = computed(() => {
+  const remoteIds = remoteDelistedIds.value
+  return localCandidatesRaw.value.filter((item) => item.id && !remoteIds.has(String(item.id)) && !inReviewIds.value.has(String(item.id)))
 })
 
 const normalizeArchiveList = (payload) => {
@@ -333,11 +400,13 @@ const normalizeVersion = (version) => {
     ?? version?.name
     ?? versionId
   )
-  if (!versionId) return null
+  if (!versionId && !label) return null
   return {
     version_id: versionId,
     version: label,
-    description: version?.description || ''
+    description: version?.description || '',
+    size_bytes: version?.size_bytes ?? null,
+    released_at: version?.released_at ?? null,
   }
 }
 
@@ -353,12 +422,15 @@ const normalizeArchiveApp = (app, delisted = false) => {
     id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
     name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
     icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
+    icon_asset: app?.icon_asset ?? '',
     bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
     artist_name: app?.artist_name ?? app?.artistName ?? '',
     versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
+    latest_version: app?.latest_version ?? '',
     delisted: app?.delisted ?? delisted,
     added_at: app?.added_at ?? app?.updated_at ?? app?.created_at ?? '',
     added_by: app?.added_by ?? '',
+    notes: Array.isArray(app?.notes) ? app.notes : [],
     note: app?.note || ''
   }
   normalized.archive_key = getArchiveKey(normalized)
@@ -370,6 +442,12 @@ const normalizeDelistedPayload = (payload) => {
   if (Array.isArray(payload?.apps)) return payload.apps
   if (Array.isArray(payload?.data)) return payload.data
   return []
+}
+
+const normalizeCandidateApp = (app) => {
+  const normalized = normalizeArchiveApp(app, true)
+  normalized.already_archived_locally = Boolean(app?.already_archived_locally)
+  return normalized
 }
 
 const sortVersionsDesc = (items) => [...items].sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true, sensitivity: 'base' }))
@@ -463,9 +541,9 @@ const ensureAccounts = async () => {
   }
 
   try {
-    const { data } = await apiFetch(`${API_BASE}/accounts`)
-    if (data.ok && Array.isArray(data.data)) {
-      accounts.value = data.data.map((account) => ({
+    const { data: res } = await apiFetch(`${API_BASE}/accounts`)
+    if (res.ok && Array.isArray(res.data)) {
+      accounts.value = res.data.map((account) => ({
         token: account.token,
         email: account.email,
         dsid: account.dsid,
@@ -506,13 +584,13 @@ const applyVersionDefaults = (apps) => {
 const loadFavorites = async () => {
   favoritesLoading.value = true
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/archive`)
+    const { response, data: res } = await apiFetch(`${API_BASE}/archive`)
     if (response.status === 401) {
       favorites.value = []
       return
     }
-    if (!response.ok || !data?.ok) throw new Error(data?.error || '加载收藏失败')
-    favorites.value = normalizeArchiveList(data.data ?? data).map((item) => normalizeArchiveApp(item, false))
+    if (!response.ok || !res.ok) throw new Error(res.error || '加载收藏失败')
+    favorites.value = normalizeArchiveList(res.data ?? res).map((item) => normalizeArchiveApp(item, false))
     applyVersionDefaults(favorites.value)
   } catch (error) {
     favorites.value = []
@@ -525,13 +603,23 @@ const loadFavorites = async () => {
 const loadDelistedApps = async () => {
   delistedLoading.value = true
   try {
-    const { response, data } = await apiFetch(`${API_BASE}/archive/delisted`)
-    if (!response.ok || !data?.ok) {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/delisted-index`)
+    if (!response.ok || !res.ok) {
       delistedApps.value = []
       return
     }
-    delistedApps.value = normalizeDelistedPayload(data.data).map((item) => normalizeArchiveApp(item, true)).filter((item) => item.id)
+    delistedApps.value = normalizeDelistedPayload(res.data).map((item) => normalizeArchiveApp(item, true)).filter((item) => item.id)
+    remoteDelistedIds.value = new Set(delistedApps.value.map((item) => String(item.id)).filter(Boolean))
     applyVersionDefaults(delistedApps.value)
+    // 加载审核中的 app IDs
+    try {
+      const { data: res } = await apiFetch('/api/community/contributing-ids')
+      if (res?.ok && res.data) {
+        inReviewIds.value = new Set(res.data.in_review || [])
+      }
+    } catch (e) {
+      console.warn('Failed to load contributing-ids:', e)
+    }
   } catch {
     delistedApps.value = []
   } finally {
@@ -539,10 +627,31 @@ const loadDelistedApps = async () => {
   }
 }
 
+const loadLocalCandidates = async () => {
+  localCandidatesLoading.value = true
+  try {
+    const { response, data: res } = await apiFetch(`${API_BASE}/local/delisted-candidates`)
+    if (!response.ok || !res.ok) {
+      localCandidatesRaw.value = []
+      return
+    }
+    localCandidatesRaw.value = normalizeArchiveList(res.data).map(normalizeCandidateApp).filter((item) => item.id)
+    applyVersionDefaults(localCandidates.value)
+  } catch {
+    localCandidatesRaw.value = []
+  } finally {
+    localCandidatesLoading.value = false
+  }
+}
+
 const refreshAll = async () => {
   refreshing.value = true
-  await Promise.all([ensureAccounts(), loadFavorites(), loadDelistedApps()])
-  refreshing.value = false
+  try {
+    await Promise.all([ensureAccounts(), loadFavorites(), loadDelistedApps()])
+    await loadLocalCandidates()
+  } finally {
+    refreshing.value = false
+  }
 }
 
 const prepareApp = async (app) => {
@@ -553,9 +662,9 @@ const prepareApp = async (app) => {
   loadingVersions.value = { ...loadingVersions.value, [key]: true }
   try {
     const region = activeAccount.value?.region || 'US'
-    const { data } = await apiFetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`)
-    if (data.ok && Array.isArray(data.data) && data.data.length) {
-      const versions = sortVersionsDesc(data.data.map(normalizeVersion).filter(Boolean))
+    const { data: res } = await apiFetch(`${API_BASE}/versions?appid=${encodeURIComponent(app.id)}&region=${encodeURIComponent(region)}`)
+    if (res.ok && Array.isArray(res.data) && res.data.length) {
+      const versions = sortVersionsDesc(res.data.map(normalizeVersion).filter(Boolean))
       loadedVersionsByApp.value = {
         ...loadedVersionsByApp.value,
         [key]: versions
@@ -590,8 +699,8 @@ const removeFavoriteVersion = async (item) => {
     const url = versionId
       ? `${API_BASE}/archive/${encodeURIComponent(item.appId)}/versions/${encodeURIComponent(versionId)}`
       : `${API_BASE}/archive/${encodeURIComponent(item.appId)}`
-    const { data } = await apiFetch(url, { method: 'DELETE' })
-    if (!data.ok) throw new Error(data.error || '取消收藏失败')
+    const { data: res } = await apiFetch(url, { method: 'DELETE' })
+    if (!res.ok) throw new Error(res.error || '取消收藏失败')
     // 重新加载列表
     await loadFavorites()
     Toast.success('已取消收藏')
@@ -613,7 +722,7 @@ const downloadArchivedApp = async (app) => {
 
     downloadingAppId.value = archiveKey
     const versionInfo = getVersionOptions(app).find((item) => item.version_id === selectedVersion)
-    const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
+    const { data: res } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -629,25 +738,37 @@ const downloadArchivedApp = async (app) => {
         artistName: app.artist_name || undefined
       })
     })
-    if (!data.ok || !data.jobId) {
-      throw new Error(data.error || '创建下载任务失败')
+    if (!res.ok) {
+      if (res.needsPurchase) {
+        throw new Error(res.error || '当前账号未购买/未领取该应用')
+      }
+      throw new Error(res.error || '创建下载任务失败')
     }
+    const payload = res.data || {}
+    const jobId = payload.jobId
+    if (!jobId) throw new Error('创建下载任务失败')
 
     appStore.addToQueue({
-      id: data.jobId,
+      id: jobId,
       appName: app.name,
       artworkUrl: app.icon_url || '',
       artistName: app.artist_name || '',
       version: versionInfo?.version || '',
       account,
       accountEmail: account.email || '',
-      status: 'downloading',
+      status: payload.reused ? 'ready' : 'downloading',
       progress: 0,
       logs: '',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...(payload.reused ? {
+        recordId: payload.recordId,
+        downloadUrl: payload.downloadUrl,
+        installUrl: payload.installUrl,
+        fileSize: payload.fileSize
+      } : {})
     })
-    appStore.activeTab = 'ipa'
-    Toast.success('已加入下载队列')
+    appStore.activeTab = payload.reused ? 'history' : 'ipa'
+    Toast.success(payload.reused ? '文件已就绪' : '已加入下载队列')
   } catch (error) {
     Toast.error(error.message || '下载失败')
   } finally {
@@ -660,7 +781,7 @@ const downloadArchivedVersion = async (item) => {
     const account = await requireActiveAccount()
     if (!item.version_id) throw new Error('请先选择版本')
     downloadingAppId.value = item.archive_key || item.appId
-    const { data } = await apiFetch(`${API_BASE}/start-download-direct`, {
+    const { data: res } = await apiFetch(`${API_BASE}/start-download-direct`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -674,12 +795,98 @@ const downloadArchivedVersion = async (item) => {
         artistName: item.artist_name || undefined
       })
     })
-    if (!data.ok) throw new Error(data.error || '下载失败')
-    Toast.success(`已提交下载任务：${item.name} v${item.version}`)
+    if (!res.ok) {
+      if (res.needsPurchase) {
+        throw new Error(res.error || '当前账号未购买/未领取该应用')
+      }
+      throw new Error(res.error || '下载失败')
+    }
+    const payload = res.data || {}
+    if (!payload.jobId) throw new Error('创建下载任务失败')
+
+    appStore.addToQueue({
+      id: payload.jobId,
+      appName: item.name,
+      artworkUrl: item.icon_url || '',
+      artistName: item.artist_name || '',
+      version: item.version || '',
+      account,
+      accountEmail: account.email || '',
+      status: payload.reused ? 'ready' : 'downloading',
+      progress: 0,
+      logs: '',
+      timestamp: new Date().toISOString(),
+      ...(payload.reused ? {
+        recordId: payload.recordId,
+        downloadUrl: payload.downloadUrl,
+        installUrl: payload.installUrl,
+        fileSize: payload.fileSize
+      } : {})
+    })
+    appStore.activeTab = payload.reused ? 'history' : 'ipa'
+    Toast.success(payload.reused ? '文件已就绪' : `已加入下载队列：${item.name} v${item.version}`)
   } catch (error) {
     Toast.error(error.message || '下载失败')
   } finally {
     downloadingAppId.value = ''
+  }
+}
+
+const prepareCommunityApp = async (app) => {
+  await prepareApp(app)
+  if ((app.versions?.length || 0) > 0) return
+  try {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/delisted/${encodeURIComponent(app.id)}`)
+    if (!response.ok || !res.ok) return
+    const fullApp = normalizeArchiveApp(res.data, true)
+    const key = app.archive_key || app.id
+    delistedApps.value = delistedApps.value.map((item) => (item.id === app.id ? { ...item, ...fullApp, archive_key: key } : item))
+    applyVersionDefaults(delistedApps.value)
+  } catch {}
+}
+
+const openPublishDialog = (prepared) => {
+  publishDialog.visible = true
+  publishDialog.appId = prepared.app_id || prepared.app?.id || ''
+  publishDialog.appName = prepared.app?.name || ''
+  publishDialog.warnings = prepared.warnings || []
+  publishDialog.notes = (prepared.app?.notes || []).join('\n')
+  publishDialog.iconDataUrl = prepared.icon_data_url || ''
+  publishDialog.result = null
+}
+
+const prepareCandidateContribution = async (app) => {
+  if (!githubTokenConfigured.value) {
+    Toast.warning('请先到设置页配置 GitHub PAT')
+    return
+  }
+  if (remoteDelistedIds.value.has(String(app.id))) {
+    Toast.warning('该应用已存在于社区归档，无需重复贡献')
+    return
+  }
+  contributingAppId.value = app.archive_key || app.id
+  try {
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/prepare-contribution`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_id: app.id,
+        notes: [],
+      }),
+    })
+    if (!response.ok || !res.ok) throw new Error(res.error || '生成贡献预览失败')
+    const prepared = res.data
+    if (!prepared.github_token_configured) {
+      Toast.warning('尚未配置 GitHub PAT，发布前请先到设置页保存')
+    }
+    openPublishDialog({
+      ...prepared,
+      icon_data_url: app.icon_url || '',
+    })
+  } catch (error) {
+    Toast.error(error.message || '生成贡献预览失败')
+  } finally {
+    contributingAppId.value = ''
   }
 }
 
@@ -688,40 +895,37 @@ const publishDialog = reactive({
   visible: false,
   appId: '',
   appName: '',
-  owner: 'ruanrrn',
-  repo: 'ipa-archive',
-  createPr: true,
-  commitMessage: '',
+  notes: '',
+  iconDataUrl: '',
+  warnings: [],
   loading: false,
   result: null,
 })
 
 const doPublish = async () => {
-  if (!publishDialog.owner || !publishDialog.repo) {
-    Toast.error('请填写 Owner 和 Repo')
-    return
-  }
   publishDialog.loading = true
   publishDialog.result = null
   try {
-    const res = await fetch(`${API_BASE}/community/publish`, {
+    let iconBase64 = null
+    if (publishDialog.iconDataUrl) {
+      const match = publishDialog.iconDataUrl.match(/^data:[^;]+;base64,(.+)$/)
+      if (match) iconBase64 = match[1]
+    }
+    const notes = publishDialog.notes.split('\n').map(s => s.trim()).filter(Boolean)
+    const { response, data: res } = await apiFetch(`${API_BASE}/community/publish`, {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         app_id: publishDialog.appId,
-        owner: publishDialog.owner,
-        repo: publishDialog.repo,
-        create_pr: publishDialog.createPr,
-        commit_message: publishDialog.commitMessage || undefined,
+        notes,
+        icon_data_base64: iconBase64,
       }),
     })
-    const data = await res.json()
-    if (!data.ok) throw new Error(data.error || '发布失败')
-    const d = data.data
+    if (!response.ok || !res.ok) throw new Error(res.error || '发布失败')
+    const d = res.data
     const msg = d.pr_url
-      ? `✅ PR 已创建: ${d.pr_url}`
-      : `✅ 已推送到 ${d.branch}: ${d.html_url || d.path}`
+      ? `✅ PR 已创建: ${d.pr_url}\n提交文件: ${d.files_committed?.join(', ') || ''}`
+      : `✅ 已提交到分支，请手动创建 PR`
     publishDialog.result = { ok: true, msg }
     Toast.success('发布成功')
   } catch (e) {
@@ -732,9 +936,23 @@ const doPublish = async () => {
   }
 }
 
-onMounted(refreshAll)
+onMounted(async () => {
+  await Promise.all([
+    refreshAll(),
+    appStore.loadGithubTokenStatus().catch((error) => {
+      console.warn('[ArchiveApp] loadGithubTokenStatus failed:', error.message)
+    })
+  ])
+})
 
-onActivated(refreshAll)
+onActivated(async () => {
+  await Promise.all([
+    refreshAll(),
+    appStore.loadGithubTokenStatus().catch((error) => {
+      console.warn('[ArchiveApp] loadGithubTokenStatus failed:', error.message)
+    })
+  ])
+})
 </script>
 
 <style scoped>
@@ -875,6 +1093,60 @@ onActivated(refreshAll)
   padding-top: 8px;
 }
 
+.archive-section {
+  margin-top: 16px;
+}
+
+.archive-section--contribution {
+  margin-top: 22px;
+}
+
+.archive-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.archive-section__header > div:first-child {
+  min-width: 0;
+  flex: 1;
+  max-width: calc(100% - 56px);
+}
+
+.archive-section__meta {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.archive-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #0d0d0d);
+}
+
+.archive-section__desc,
+.archive-section__meta,
+.fav-item__meta {
+  font-size: 12px;
+  color: var(--color-text-muted, #6e6e80);
+}
+
+.archive-section__desc {
+  margin-top: 4px;
+}
+
+.dark .archive-section__title {
+  color: var(--color-text, #f5f5f5);
+}
+
+.dark .archive-section__desc,
+.dark .archive-section__meta,
+.dark .fav-item__meta {
+  color: var(--color-text-muted, #a1a1aa);
+}
+
 /* Icon — override AppArtwork sizing */
 .fav-item__icon {
   width: 44px !important;
@@ -893,7 +1165,9 @@ onActivated(refreshAll)
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .fav-item__name {
@@ -903,6 +1177,8 @@ onActivated(refreshAll)
  white-space: nowrap;
  overflow: hidden;
  text-overflow: ellipsis;
+ min-width: 0;
+ flex: 0 1 auto;
 }
 .dark .fav-item__name {
  color: var(--color-text, #f5f5f5);
@@ -948,6 +1224,16 @@ onActivated(refreshAll)
   max-width: 200px;
   line-height: 1.3;
   font-style: italic;
+}
+
+.fav-item__tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-border);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 .fav-item__note::before {
   content: '"';
@@ -1025,6 +1311,18 @@ onActivated(refreshAll)
   background: rgba(239, 68, 68, 0.15);
   border-color: rgba(239, 68, 68, 0.3);
   color: var(--color-danger-hover);
+}
+
+.fav-btn--publish {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  font-size: 16px;
+  font-weight: 700;
+}
+.dark .fav-btn--publish {
+  background: rgba(16, 163, 127, 0.15);
+  border-color: rgba(16, 163, 127, 0.3);
+  color: var(--color-primary);
 }
 
 /* Action button (shared with IpaManager) */

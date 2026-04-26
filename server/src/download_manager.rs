@@ -176,6 +176,7 @@ impl DownloadManager {
                         let record = DownloadRecord {
                             id: None,
                             job_id: None,
+                            app_version_id: None,
                             app_name: metadata
                                 .as_ref()
                                 .map(|item| item.bundle_display_name.clone())
@@ -211,6 +212,7 @@ impl DownloadManager {
                             ota_installable: None,
                             install_method: None,
                             inspection_json: None,
+                            delisted: None,
                             created_at: None,
                         };
                         let _ = db.lock().unwrap().add_download_record(&record);

@@ -1,7 +1,8 @@
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use std::path::Path;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
@@ -71,6 +72,7 @@ pub struct EncryptionKey {
 pub struct DownloadRecord {
     pub id: Option<i64>,
     pub job_id: Option<String>,
+    pub app_version_id: Option<String>,
     pub app_name: String,
     pub app_id: String,
     pub bundle_id: Option<String>,
@@ -90,6 +92,7 @@ pub struct DownloadRecord {
     pub ota_installable: Option<bool>,
     pub install_method: Option<String>,
     pub inspection_json: Option<String>,
+    pub delisted: Option<bool>,
     pub created_at: Option<String>,
 }
 
@@ -188,6 +191,7 @@ impl Database {
             CREATE TABLE IF NOT EXISTS download_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_id TEXT,
+                app_version_id TEXT,
                 app_name TEXT NOT NULL,
                 app_id TEXT NOT NULL,
                 bundle_id TEXT,
@@ -410,12 +414,21 @@ impl Database {
         let has_job_id = table_info
             .iter()
             .any(|(_, name, _, _, _, _)| name == "job_id");
+        let has_app_version_id = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "app_version_id");
         let has_file_path = table_info
             .iter()
             .any(|(_, name, _, _, _, _)| name == "file_path");
 
         if !has_job_id {
             let _ = conn.execute("ALTER TABLE download_records ADD COLUMN job_id TEXT", []);
+        }
+        if !has_app_version_id {
+            let _ = conn.execute(
+                "ALTER TABLE download_records ADD COLUMN app_version_id TEXT",
+                [],
+            );
         }
         if !has_file_path {
             let _ = conn.execute("ALTER TABLE download_records ADD COLUMN file_path TEXT", []);
@@ -495,8 +508,22 @@ impl Database {
             );
         }
 
+        let has_delisted = table_info
+            .iter()
+            .any(|(_, name, _, _, _, _)| name == "delisted");
+        if !has_delisted {
+            let _ = conn.execute(
+                "ALTER TABLE download_records ADD COLUMN delisted INTEGER DEFAULT 0",
+                [],
+            );
+        }
+
         let _ = conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_download_records_job_id ON download_records(job_id)",
+            [],
+        );
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_download_records_app_version_id ON download_records(app_version_id)",
             [],
         );
         let _ = conn.execute(
@@ -515,10 +542,36 @@ impl Database {
         Ok(())
     }
 
-    fn hash_password(password: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        hex::encode(hasher.finalize())
+    pub fn hash_password(password: &str) -> String {
+        bcrypt::hash(password, bcrypt::DEFAULT_COST).unwrap_or_else(|e| {
+            // debug 模式下输出告警，release 下静默 fallback
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[WARN] bcrypt::hash failed ({}), falling back to SHA-256",
+                e
+            );
+            #[cfg(not(debug_assertions))]
+            let _ = &e;
+            let mut hasher = sha2::Sha256::new();
+            sha2::Digest::update(&mut hasher, password.as_bytes());
+            hex::encode(sha2::Digest::finalize(hasher))
+        })
+    }
+
+    pub fn reset_admin_password(&self, username: &str, new_password: &str) -> Result<bool> {
+        let conn = self.connection.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        let updated = tx.execute(
+            "UPDATE admin_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+            params![Self::hash_password(new_password), username],
+        )?;
+
+        if updated > 0 {
+            tx.execute("DELETE FROM sessions WHERE username = ?", params![username])?;
+        }
+
+        tx.commit()?;
+        Ok(updated > 0)
     }
 
     fn seed_default_admin(conn: &Connection) -> Result<()> {
@@ -530,9 +583,23 @@ impl Database {
             .flatten();
 
         if any_admin.is_none() {
+            let password = std::env::var("IPA_ADMIN_INITIAL_PASSWORD")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| {
+                    let generated = format!("ipatool-{}", Uuid::new_v4());
+                    eprintln!(
+                        "[SECURITY] Generated one-time admin password for first run: {}",
+                        generated
+                    );
+                    eprintln!(
+                        "[SECURITY] Set IPA_ADMIN_INITIAL_PASSWORD to choose a deterministic initial password. Change it immediately after login."
+                    );
+                    generated
+                });
             conn.execute(
                 "INSERT INTO admin_users (username, password_hash, is_default) VALUES (?, ?, ?)",
-                params!["admin", Self::hash_password("admin"), true],
+                params!["admin", Self::hash_password(&password), true],
             )?;
         }
 
@@ -967,14 +1034,16 @@ impl Database {
         if let Some(existing_id) = Self::find_existing_download_record_id(&conn, record)? {
             conn.execute(
                 "UPDATE download_records SET
-                 job_id = ?, app_name = ?, app_id = ?, bundle_id = ?, version = ?,
+                 job_id = ?, app_version_id = ?, app_name = ?, app_id = ?, bundle_id = ?, version = ?,
                  account_email = ?, account_region = ?, status = ?, file_size = ?, file_path = ?,
                  install_url = ?, artwork_url = ?, artist_name = ?, progress = ?, error = ?,
                  package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?,
+                 delisted = ?,
                  download_date = COALESCE(?, download_date)
                  WHERE id = ?",
                 params![
                     record.job_id,
+                    record.app_version_id,
                     record.app_name,
                     record.app_id,
                     record.bundle_id,
@@ -995,6 +1064,7 @@ impl Database {
                         .map(|value| if value { 1i64 } else { 0i64 }),
                     record.install_method,
                     record.inspection_json,
+                    record.delisted.map(|value| if value { 1i64 } else { 0i64 }),
                     record.download_date,
                     existing_id,
                 ],
@@ -1004,10 +1074,11 @@ impl Database {
 
         conn.execute(
             "INSERT INTO download_records 
-             (job_id, app_name, app_id, bundle_id, version, account_email, account_region, status, file_size, file_path, install_url, artwork_url, artist_name, progress, error, package_kind, ota_installable, install_method, inspection_json, download_date) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
+             (job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region, status, file_size, file_path, install_url, artwork_url, artist_name, progress, error, package_kind, ota_installable, install_method, inspection_json, delisted, download_date) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))",
             params![
                 record.job_id,
+                record.app_version_id,
                 record.app_name,
                 record.app_id,
                 record.bundle_id,
@@ -1026,6 +1097,7 @@ impl Database {
                 record.ota_installable.map(|value| if value { 1i64 } else { 0i64 }),
                 record.install_method,
                 record.inspection_json,
+                record.delisted.map(|value| if value { 1i64 } else { 0i64 }),
                 record.download_date,
             ],
         )?;
@@ -1068,10 +1140,10 @@ impl Database {
     pub fn get_all_download_records(&self) -> Result<Vec<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+            "SELECT id, job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              ORDER BY download_date DESC, id DESC",
         )?;
@@ -1080,26 +1152,28 @@ impl Database {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
                     job_id: row.get(1)?,
-                    app_name: row.get(2)?,
-                    app_id: row.get(3)?,
-                    bundle_id: row.get(4)?,
-                    version: row.get(5)?,
-                    account_email: row.get(6)?,
-                    account_region: row.get(7)?,
-                    download_date: row.get(8)?,
-                    status: row.get(9)?,
-                    file_size: row.get(10)?,
-                    file_path: row.get(11)?,
-                    install_url: row.get(12)?,
-                    artwork_url: row.get(13)?,
-                    artist_name: row.get(14)?,
-                    progress: row.get(15)?,
-                    error: row.get(16)?,
-                    package_kind: row.get(17)?,
-                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
-                    install_method: row.get(19)?,
-                    inspection_json: row.get(20)?,
-                    created_at: row.get(21)?,
+                    app_version_id: row.get(2)?,
+                    app_name: row.get(3)?,
+                    app_id: row.get(4)?,
+                    bundle_id: row.get(5)?,
+                    version: row.get(6)?,
+                    account_email: row.get(7)?,
+                    account_region: row.get(8)?,
+                    download_date: row.get(9)?,
+                    status: row.get(10)?,
+                    file_size: row.get(11)?,
+                    file_path: row.get(12)?,
+                    install_url: row.get(13)?,
+                    artwork_url: row.get(14)?,
+                    artist_name: row.get(15)?,
+                    progress: row.get(16)?,
+                    error: row.get(17)?,
+                    package_kind: row.get(18)?,
+                    ota_installable: row.get::<_, Option<i64>>(19)?.map(|value| value != 0),
+                    install_method: row.get(20)?,
+                    inspection_json: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
+                    created_at: row.get(23)?,
                 })
             })?
             .filter_map(|r| r.ok())
@@ -1110,10 +1184,10 @@ impl Database {
     pub fn get_download_record(&self, id: i64) -> Result<Option<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
         conn.query_row(
-            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+            "SELECT id, job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE id = ? LIMIT 1",
             params![id],
@@ -1121,26 +1195,28 @@ impl Database {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
                     job_id: row.get(1)?,
-                    app_name: row.get(2)?,
-                    app_id: row.get(3)?,
-                    bundle_id: row.get(4)?,
-                    version: row.get(5)?,
-                    account_email: row.get(6)?,
-                    account_region: row.get(7)?,
-                    download_date: row.get(8)?,
-                    status: row.get(9)?,
-                    file_size: row.get(10)?,
-                    file_path: row.get(11)?,
-                    install_url: row.get(12)?,
-                    artwork_url: row.get(13)?,
-                    artist_name: row.get(14)?,
-                    progress: row.get(15)?,
-                    error: row.get(16)?,
-                    package_kind: row.get(17)?,
-                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
-                    install_method: row.get(19)?,
-                    inspection_json: row.get(20)?,
-                    created_at: row.get(21)?,
+                    app_version_id: row.get(2)?,
+                    app_name: row.get(3)?,
+                    app_id: row.get(4)?,
+                    bundle_id: row.get(5)?,
+                    version: row.get(6)?,
+                    account_email: row.get(7)?,
+                    account_region: row.get(8)?,
+                    download_date: row.get(9)?,
+                    status: row.get(10)?,
+                    file_size: row.get(11)?,
+                    file_path: row.get(12)?,
+                    install_url: row.get(13)?,
+                    artwork_url: row.get(14)?,
+                    artist_name: row.get(15)?,
+                    progress: row.get(16)?,
+                    error: row.get(17)?,
+                    package_kind: row.get(18)?,
+                    ota_installable: row.get::<_, Option<i64>>(19)?.map(|value| value != 0),
+                    install_method: row.get(20)?,
+                    inspection_json: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
+                    created_at: row.get(23)?,
                 })
             },
         )
@@ -1150,10 +1226,10 @@ impl Database {
     pub fn get_download_record_by_job_id(&self, job_id: &str) -> Result<Option<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
         conn.query_row(
-            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+            "SELECT id, job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE job_id = ?
              ORDER BY id DESC
@@ -1163,26 +1239,28 @@ impl Database {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
                     job_id: row.get(1)?,
-                    app_name: row.get(2)?,
-                    app_id: row.get(3)?,
-                    bundle_id: row.get(4)?,
-                    version: row.get(5)?,
-                    account_email: row.get(6)?,
-                    account_region: row.get(7)?,
-                    download_date: row.get(8)?,
-                    status: row.get(9)?,
-                    file_size: row.get(10)?,
-                    file_path: row.get(11)?,
-                    install_url: row.get(12)?,
-                    artwork_url: row.get(13)?,
-                    artist_name: row.get(14)?,
-                    progress: row.get(15)?,
-                    error: row.get(16)?,
-                    package_kind: row.get(17)?,
-                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
-                    install_method: row.get(19)?,
-                    inspection_json: row.get(20)?,
-                    created_at: row.get(21)?,
+                    app_version_id: row.get(2)?,
+                    app_name: row.get(3)?,
+                    app_id: row.get(4)?,
+                    bundle_id: row.get(5)?,
+                    version: row.get(6)?,
+                    account_email: row.get(7)?,
+                    account_region: row.get(8)?,
+                    download_date: row.get(9)?,
+                    status: row.get(10)?,
+                    file_size: row.get(11)?,
+                    file_path: row.get(12)?,
+                    install_url: row.get(13)?,
+                    artwork_url: row.get(14)?,
+                    artist_name: row.get(15)?,
+                    progress: row.get(16)?,
+                    error: row.get(17)?,
+                    package_kind: row.get(18)?,
+                    ota_installable: row.get::<_, Option<i64>>(19)?.map(|value| value != 0),
+                    install_method: row.get(20)?,
+                    inspection_json: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
+                    created_at: row.get(23)?,
                 })
             },
         )
@@ -1195,10 +1273,10 @@ impl Database {
     ) -> Result<Option<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
         conn.query_row(
-            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+            "SELECT id, job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE file_path = ?
              ORDER BY id DESC LIMIT 1",
@@ -1207,26 +1285,28 @@ impl Database {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
                     job_id: row.get(1)?,
-                    app_name: row.get(2)?,
-                    app_id: row.get(3)?,
-                    bundle_id: row.get(4)?,
-                    version: row.get(5)?,
-                    account_email: row.get(6)?,
-                    account_region: row.get(7)?,
-                    download_date: row.get(8)?,
-                    status: row.get(9)?,
-                    file_size: row.get(10)?,
-                    file_path: row.get(11)?,
-                    install_url: row.get(12)?,
-                    artwork_url: row.get(13)?,
-                    artist_name: row.get(14)?,
-                    progress: row.get(15)?,
-                    error: row.get(16)?,
-                    package_kind: row.get(17)?,
-                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
-                    install_method: row.get(19)?,
-                    inspection_json: row.get(20)?,
-                    created_at: row.get(21)?,
+                    app_version_id: row.get(2)?,
+                    app_name: row.get(3)?,
+                    app_id: row.get(4)?,
+                    bundle_id: row.get(5)?,
+                    version: row.get(6)?,
+                    account_email: row.get(7)?,
+                    account_region: row.get(8)?,
+                    download_date: row.get(9)?,
+                    status: row.get(10)?,
+                    file_size: row.get(11)?,
+                    file_path: row.get(12)?,
+                    install_url: row.get(13)?,
+                    artwork_url: row.get(14)?,
+                    artist_name: row.get(15)?,
+                    progress: row.get(16)?,
+                    error: row.get(17)?,
+                    package_kind: row.get(18)?,
+                    ota_installable: row.get::<_, Option<i64>>(19)?.map(|value| value != 0),
+                    install_method: row.get(20)?,
+                    inspection_json: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
+                    created_at: row.get(23)?,
                 })
             },
         )
@@ -1241,10 +1321,10 @@ impl Database {
     ) -> Result<Option<DownloadRecord>> {
         let conn = self.connection.lock().unwrap();
         conn.query_row(
-            "SELECT id, job_id, app_name, app_id, bundle_id, version, account_email, account_region,
+            "SELECT id, job_id, app_version_id, app_name, app_id, bundle_id, version, account_email, account_region,
                     download_date, status, file_size, file_path, install_url, artwork_url,
                     artist_name, progress, error, package_kind, ota_installable,
-                    install_method, inspection_json, created_at
+                    install_method, inspection_json, delisted, created_at
              FROM download_records
              WHERE app_id = ?
                AND version = ?
@@ -1258,26 +1338,28 @@ impl Database {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
                     job_id: row.get(1)?,
-                    app_name: row.get(2)?,
-                    app_id: row.get(3)?,
-                    bundle_id: row.get(4)?,
-                    version: row.get(5)?,
-                    account_email: row.get(6)?,
-                    account_region: row.get(7)?,
-                    download_date: row.get(8)?,
-                    status: row.get(9)?,
-                    file_size: row.get(10)?,
-                    file_path: row.get(11)?,
-                    install_url: row.get(12)?,
-                    artwork_url: row.get(13)?,
-                    artist_name: row.get(14)?,
-                    progress: row.get(15)?,
-                    error: row.get(16)?,
-                    package_kind: row.get(17)?,
-                    ota_installable: row.get::<_, Option<i64>>(18)?.map(|value| value != 0),
-                    install_method: row.get(19)?,
-                    inspection_json: row.get(20)?,
-                    created_at: row.get(21)?,
+                    app_version_id: row.get(2)?,
+                    app_name: row.get(3)?,
+                    app_id: row.get(4)?,
+                    bundle_id: row.get(5)?,
+                    version: row.get(6)?,
+                    account_email: row.get(7)?,
+                    account_region: row.get(8)?,
+                    download_date: row.get(9)?,
+                    status: row.get(10)?,
+                    file_size: row.get(11)?,
+                    file_path: row.get(12)?,
+                    install_url: row.get(13)?,
+                    artwork_url: row.get(14)?,
+                    artist_name: row.get(15)?,
+                    progress: row.get(16)?,
+                    error: row.get(17)?,
+                    package_kind: row.get(18)?,
+                    ota_installable: row.get::<_, Option<i64>>(19)?.map(|value| value != 0),
+                    install_method: row.get(20)?,
+                    inspection_json: row.get(21)?,
+                    delisted: row.get::<_, Option<i64>>(22)?.map(|value| value != 0),
+                    created_at: row.get(23)?,
                 })
             },
         )
@@ -1298,7 +1380,8 @@ impl Database {
              account_email = ?, account_region = ?, status = ?, 
              file_size = ?, file_path = ?, install_url = ?, artwork_url = ?, 
              artist_name = ?, progress = ?, error = ?,
-             package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?
+             package_kind = ?, ota_installable = ?, install_method = ?, inspection_json = ?,
+             delisted = ?
              WHERE id = ?",
             params![
                 updates.app_name,
@@ -1321,6 +1404,9 @@ impl Database {
                     .map(|value| if value { 1i64 } else { 0i64 }),
                 updates.install_method,
                 updates.inspection_json,
+                updates
+                    .delisted
+                    .map(|value| if value { 1i64 } else { 0i64 }),
                 id,
             ],
         )?;
@@ -1690,6 +1776,7 @@ mod tests {
         DownloadRecord {
             id: None,
             job_id: Some("job-1".to_string()),
+            app_version_id: Some("ver-1".to_string()),
             app_name: "WeChat".to_string(),
             app_id: app_id.to_string(),
             bundle_id: Some("com.tencent.xin".to_string()),
@@ -1709,8 +1796,45 @@ mod tests {
             ota_installable: Some(true),
             install_method: Some("ota".to_string()),
             inspection_json: None,
+            delisted: None,
             created_at: None,
         }
+    }
+
+    #[test]
+    fn reset_admin_password_updates_hash_and_revokes_sessions_without_changing_default_flag() {
+        let db_path = temp_db_path("admin-password-reset");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        db.create_session("session-token", "admin", "2999-01-01 00:00:00")
+            .unwrap();
+        assert!(db.get_session("session-token").unwrap().is_some());
+
+        let before = db.get_admin_user("admin").unwrap().unwrap();
+        assert!(before.is_default);
+        assert!(db
+            .reset_admin_password("admin", "new-secure-password")
+            .unwrap());
+
+        let after = db.get_admin_user("admin").unwrap().unwrap();
+        assert!(after.is_default);
+        assert_ne!(before.password_hash, after.password_hash);
+        assert!(bcrypt::verify("new-secure-password", &after.password_hash).unwrap());
+        assert!(db.get_session("session-token").unwrap().is_none());
+
+        let _ = fs::remove_file(db_path);
+    }
+
+    #[test]
+    fn reset_admin_password_returns_false_for_missing_user() {
+        let db_path = temp_db_path("admin-password-reset-missing");
+        let db = Database::new(db_path.to_str().unwrap()).unwrap();
+
+        assert!(!db
+            .reset_admin_password("missing-admin", "new-secure-password")
+            .unwrap());
+
+        let _ = fs::remove_file(db_path);
     }
 
     #[test]

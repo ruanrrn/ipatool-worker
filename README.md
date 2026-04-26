@@ -70,7 +70,72 @@ docker-compose up -d   # → localhost:8080
 docker run -d -p 8080:8080 --name ipatool heard/ipatool
 ```
 
-> 默认账号 `admin` / `admin`，首次登录后请立即修改密码。
+### 管理员账号与密码 · Admin Password
+
+默认管理员账号是 `admin`。首次初始化时不会再使用固定默认密码：
+
+- 推荐：启动前设置 `IPA_ADMIN_INITIAL_PASSWORD`，首次初始化会使用该值作为初始密码。
+- 未设置时：系统会生成一次性随机密码，并输出到后端日志 / stderr。
+
+**Docker 获取初始密码**
+
+推荐显式指定初始密码：
+
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -e IPA_ADMIN_INITIAL_PASSWORD='change-me-now' \
+  --name ipatool \
+  heard/ipatool
+```
+
+如果未指定，查看首次启动日志：
+
+```bash
+docker logs ipatool 2>&1 | grep 'Generated one-time admin password'
+```
+
+**源码运行获取初始密码**
+
+推荐显式指定初始密码：
+
+```bash
+cd server
+IPA_ADMIN_INITIAL_PASSWORD='change-me-now' cargo run --bin server
+```
+
+如果未指定，查看运行终端输出或日志文件中的：
+
+```text
+[SECURITY] Generated one-time admin password for first run: ...
+```
+
+> 初始密码只在数据库首次创建且 `admin_users` 为空时生成 / 输出。若日志丢失，无法从数据库 hash 反推密码，请使用下面的手动重置方案。
+
+**手动重置管理员密码**
+
+该命令为离线管理命令，不需要登录；默认只重置 `admin` 的密码，不改用户名。重置后该账号现有登录会话会失效。
+
+Docker：
+
+```bash
+docker exec -i ipatool ./server reset-admin-password --username admin --password-stdin <<'EOF'
+new-secure-password
+EOF
+```
+
+源码运行：
+
+```bash
+cd server
+printf '%s' 'new-secure-password' | cargo run --bin server -- reset-admin-password --username admin --password-stdin
+```
+
+如果数据库不在默认位置，可显式指定：
+
+```bash
+DATABASE_PATH=/path/to/ipa-webtool.db cargo run --bin server -- reset-admin-password --username admin --password-stdin
+```
 
 ## ⚠️ 注意事项 · Notes
 

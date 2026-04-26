@@ -1,6 +1,6 @@
 [package]
 name = "ipa-webtool-services"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2021"
 
 [[bin]]
@@ -31,10 +31,10 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 async-trait = "0.1"
 zip = "2.0"
 hex = "0.4"
+bcrypt = "0.17"
 sha2 = "0.10"
 base64 = "0.21"
 chrono = { version = "0.4.38", features = ["serde"] }
-lazy_static = "1.4"
 urlencoding = "2.1"
 
 # 锁定 time crate 版本，避免 edition2024 问题
