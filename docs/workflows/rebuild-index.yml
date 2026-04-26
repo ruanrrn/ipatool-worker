@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/delisted/**'
+  workflow_dispatch:
 
 concurrency:
   group: rebuild-index
