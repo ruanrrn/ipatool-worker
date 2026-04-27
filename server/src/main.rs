@@ -5333,16 +5333,26 @@ async fn build_local_delisted_candidates(
         })
         .collect::<HashSet<_>>();
 
-    // 第一阶段：按 app_id 分组聚合下载记录
+    // 第一阶段：按 app_id 分组聚合下载记录 + 收集每 app 的原始记录（用于后续文件存在性检查）
     let mut grouped: HashMap<String, LocalDelistedCandidate> = HashMap::new();
+    let mut all_records_for_app: HashMap<String, Vec<&DownloadRecord>> = HashMap::new();
 
-    for record in records {
+    for record in &records {
         if record.app_id.trim().is_empty() {
             continue;
         }
         if !record.status.eq_ignore_ascii_case("completed") {
             continue;
         }
+        // 只看下载时已标记为下架的记录
+        if record.delisted != Some(true) {
+            continue;
+        }
+
+        all_records_for_app
+            .entry(record.app_id.clone())
+            .or_default()
+            .push(record);
 
         let entry =
             grouped
@@ -5428,7 +5438,7 @@ async fn build_local_delisted_candidates(
         }
     }
 
-    // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的
+    // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的 + 本地文件不存在的
     let mut items = Vec::new();
     for (app_id, mut candidate) in grouped.into_iter() {
         if candidate.already_archived_locally {
@@ -5436,6 +5446,21 @@ async fn build_local_delisted_candidates(
         }
         // 检查是否仍在商店
         if check_app_still_on_store(&app_id).await {
+            continue;
+        }
+        // 检查本地 IPA 文件是否仍存在（任一版本有真实文件即可）
+        let has_local_file = all_records_for_app
+            .get(&app_id)
+            .map(|recs| {
+                recs.iter().any(|r| {
+                    r.file_path
+                        .as_ref()
+                        .filter(|p| !p.trim().is_empty())
+                        .is_some_and(|p| std::path::Path::new(p).exists())
+                })
+            })
+            .unwrap_or(false);
+        if !has_local_file {
             continue;
         }
         if candidate.countries.is_empty() {
