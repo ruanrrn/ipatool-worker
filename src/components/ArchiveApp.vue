@@ -722,6 +722,10 @@ const downloadArchivedApp = async (app) => {
       await prepareApp(app)
       selectedVersion = selectedVersionByApp.value[archiveKey]
     }
+    if (!selectedVersion) {
+      await prepareCommunityApp(app)
+      selectedVersion = selectedVersionByApp.value[archiveKey]
+    }
     if (!selectedVersion) throw new Error('请先选择版本')
 
     downloadingAppId.value = archiveKey

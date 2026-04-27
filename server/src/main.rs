@@ -4926,6 +4926,8 @@ struct ArchiveApp {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     icon_content_type: Option<String>,
     bundle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    artist_name: Option<String>,
     versions: Vec<ArchiveVersion>,
     #[serde(default)]
     delisted: bool,
@@ -4953,6 +4955,8 @@ struct AddArchiveRequest {
     app_name: String,
     icon_url: Option<String>,
     bundle_id: Option<String>,
+    #[serde(default)]
+    artist_name: Option<String>,
     versions: Vec<ArchiveVersion>,
 }
 
@@ -5381,9 +5385,15 @@ async fn build_local_delisted_candidates(
         }
 
         let version_id = record
-            .job_id
+            .app_version_id
             .clone()
             .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                record
+                    .job_id
+                    .clone()
+                    .filter(|value| !value.trim().is_empty())
+            })
             .unwrap_or_else(|| record.version.clone().unwrap_or_default());
         let version_label = record
             .version
@@ -5447,6 +5457,7 @@ fn to_archive_app_from_candidate(candidate: &LocalDelistedCandidate) -> ArchiveA
         icon_base64: None,
         icon_content_type: None,
         bundle_id: candidate.bundle_id.clone(),
+        artist_name: candidate.artist_name.clone(),
         versions: candidate.versions.clone(),
         delisted: true,
         added_at: candidate
@@ -5692,7 +5703,7 @@ async fn publish_community_archive(
 
     let detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or(None),
+        app.artist_name.clone(),
         icon_asset,
         notes,
         countries,
@@ -5961,6 +5972,7 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             icon_base64: existing.icon_base64,
             icon_content_type: existing.icon_content_type,
             bundle_id: body.bundle_id.clone().or(existing.bundle_id.clone()),
+            artist_name: body.artist_name.clone().or(existing.artist_name.clone()),
             versions: existing.versions,
             delisted: existing.delisted,
             added_at: existing.added_at,
@@ -5974,6 +5986,7 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             icon_base64: None,
             icon_content_type: None,
             bundle_id: body.bundle_id.clone(),
+            artist_name: body.artist_name.clone(),
             versions: Vec::new(),
             delisted: false,
             added_at: Utc::now().to_rfc3339(),
@@ -6160,7 +6173,7 @@ async fn prepare_community_contribution(
 
     let mut detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or(None),
+        app.artist_name.clone(),
         icon_path.clone(),
         notes,
         countries,
