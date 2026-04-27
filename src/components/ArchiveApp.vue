@@ -417,12 +417,16 @@ const getArchiveKey = (app) => {
   return `${kind}:${id}:${bundleId}`
 }
 
+const COMMUNITY_ARCHIVE_RAW = 'https://raw.githubusercontent.com/ruanrrn/ipa-archive/main'
+
 const normalizeArchiveApp = (app, delisted = false) => {
+  const iconAsset = app?.icon_asset ?? ''
+  const resolvedIconUrl = (app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '') || (iconAsset ? `${COMMUNITY_ARCHIVE_RAW}/${iconAsset}` : '')
   const normalized = {
     id: String(app?.id ?? app?.app_id ?? app?.trackId ?? ''),
     name: app?.name ?? app?.app_name ?? app?.trackName ?? '未知应用',
-    icon_url: app?.icon_url ?? app?.artworkUrl ?? app?.artworkUrl100 ?? app?.artworkUrl60 ?? '',
-    icon_asset: app?.icon_asset ?? '',
+    icon_url: resolvedIconUrl,
+    icon_asset: iconAsset,
     bundle_id: app?.bundle_id ?? app?.bundleId ?? '',
     artist_name: app?.artist_name ?? app?.artistName ?? '',
     versions: Array.isArray(app?.versions) ? app.versions.map(normalizeVersion).filter(Boolean) : [],
