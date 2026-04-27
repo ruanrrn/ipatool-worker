@@ -4926,6 +4926,8 @@ struct ArchiveApp {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     icon_content_type: Option<String>,
     bundle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    artist_name: Option<String>,
     versions: Vec<ArchiveVersion>,
     #[serde(default)]
     delisted: bool,
@@ -4953,6 +4955,8 @@ struct AddArchiveRequest {
     app_name: String,
     icon_url: Option<String>,
     bundle_id: Option<String>,
+    #[serde(default)]
+    artist_name: Option<String>,
     versions: Vec<ArchiveVersion>,
 }
 
@@ -5140,6 +5144,9 @@ struct PrepareContributionResponse {
     github_token_configured: bool,
     app: CommunityDelistedAppDetail,
     icon_path: Option<String>,
+    /// Base64 data URL of the app icon (data:image/png;base64,...)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_data_url: Option<String>,
     warnings: Vec<String>,
 }
 
@@ -5326,16 +5333,26 @@ async fn build_local_delisted_candidates(
         })
         .collect::<HashSet<_>>();
 
-    // 第一阶段：按 app_id 分组聚合下载记录
+    // 第一阶段：按 app_id 分组聚合下载记录 + 收集每 app 的原始记录（用于后续文件存在性检查）
     let mut grouped: HashMap<String, LocalDelistedCandidate> = HashMap::new();
+    let mut all_records_for_app: HashMap<String, Vec<&DownloadRecord>> = HashMap::new();
 
-    for record in records {
+    for record in &records {
         if record.app_id.trim().is_empty() {
             continue;
         }
         if !record.status.eq_ignore_ascii_case("completed") {
             continue;
         }
+        // 只看下载时已标记为下架的记录
+        if record.delisted != Some(true) {
+            continue;
+        }
+
+        all_records_for_app
+            .entry(record.app_id.clone())
+            .or_default()
+            .push(record);
 
         let entry =
             grouped
@@ -5378,9 +5395,15 @@ async fn build_local_delisted_candidates(
         }
 
         let version_id = record
-            .job_id
+            .app_version_id
             .clone()
             .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                record
+                    .job_id
+                    .clone()
+                    .filter(|value| !value.trim().is_empty())
+            })
             .unwrap_or_else(|| record.version.clone().unwrap_or_default());
         let version_label = record
             .version
@@ -5415,7 +5438,7 @@ async fn build_local_delisted_candidates(
         }
     }
 
-    // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的
+    // 第三阶段：过滤掉仍在商店的应用 + 已本地归档的 + 本地文件不存在的
     let mut items = Vec::new();
     for (app_id, mut candidate) in grouped.into_iter() {
         if candidate.already_archived_locally {
@@ -5423,6 +5446,21 @@ async fn build_local_delisted_candidates(
         }
         // 检查是否仍在商店
         if check_app_still_on_store(&app_id).await {
+            continue;
+        }
+        // 检查本地 IPA 文件是否仍存在（任一版本有真实文件即可）
+        let has_local_file = all_records_for_app
+            .get(&app_id)
+            .map(|recs| {
+                recs.iter().any(|r| {
+                    r.file_path
+                        .as_ref()
+                        .filter(|p| !p.trim().is_empty())
+                        .is_some_and(|p| std::path::Path::new(p).exists())
+                })
+            })
+            .unwrap_or(false);
+        if !has_local_file {
             continue;
         }
         if candidate.countries.is_empty() {
@@ -5444,6 +5482,7 @@ fn to_archive_app_from_candidate(candidate: &LocalDelistedCandidate) -> ArchiveA
         icon_base64: None,
         icon_content_type: None,
         bundle_id: candidate.bundle_id.clone(),
+        artist_name: candidate.artist_name.clone(),
         versions: candidate.versions.clone(),
         delisted: true,
         added_at: candidate
@@ -5689,7 +5728,7 @@ async fn publish_community_archive(
 
     let detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or(None),
+        app.artist_name.clone(),
         icon_asset,
         notes,
         countries,
@@ -5958,6 +5997,7 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             icon_base64: existing.icon_base64,
             icon_content_type: existing.icon_content_type,
             bundle_id: body.bundle_id.clone().or(existing.bundle_id.clone()),
+            artist_name: body.artist_name.clone().or(existing.artist_name.clone()),
             versions: existing.versions,
             delisted: existing.delisted,
             added_at: existing.added_at,
@@ -5971,6 +6011,7 @@ async fn add_archive_app(body: web::Json<AddArchiveRequest>) -> impl Responder {
             icon_base64: None,
             icon_content_type: None,
             bundle_id: body.bundle_id.clone(),
+            artist_name: body.artist_name.clone(),
             versions: Vec::new(),
             delisted: false,
             added_at: Utc::now().to_rfc3339(),
@@ -6157,7 +6198,7 @@ async fn prepare_community_contribution(
 
     let mut detail = CommunityDelistedAppDetail::from_local_archive(
         &app,
-        app.bundle_id.clone().or(None),
+        app.artist_name.clone(),
         icon_path.clone(),
         notes,
         countries,
@@ -6284,12 +6325,53 @@ async fn prepare_community_contribution(
         warnings.push("无法构建 icon 路径".to_string());
     }
 
+    // 下载图标并转为 base64 data URL
+    let icon_data_url = if let Some(ref url) = app.icon_url {
+        if url.starts_with("http") {
+            match reqwest::Client::new()
+                .get(url)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => match resp.bytes().await {
+                    Ok(bytes) => {
+                        use base64::Engine;
+                        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                        Some(format!("data:image/png;base64,{}", b64))
+                    }
+                    Err(_) => {
+                        warnings.push("图标下载失败".to_string());
+                        None
+                    }
+                },
+                Ok(resp) => {
+                    warnings.push(format!("图标下载返回 {}", resp.status()));
+                    None
+                }
+                Err(e) => {
+                    warnings.push(format!("图标下载失败: {}", e));
+                    None
+                }
+            }
+        } else if url.starts_with("data:") {
+            // 已经是 data URL
+            Some(url.clone())
+        } else {
+            None
+        }
+    } else {
+        warnings.push("缺少图标 URL".to_string());
+        None
+    };
+
     HttpResponse::Ok().json(ApiResponse::success(PrepareContributionResponse {
         app_id: detail.id.clone(),
         source,
         github_token_configured,
         app: detail,
         icon_path,
+        icon_data_url,
         warnings,
     }))
 }

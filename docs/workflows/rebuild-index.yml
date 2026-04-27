@@ -66,6 +66,7 @@ jobs:
             apps: .
           }' "$TEMP_FILE")
 
+          mkdir -p indexes
           echo "$FINAL" | jq '.' > "$INDEX_FILE"
           echo "Rebuilt index with $COUNT apps"
 
@@ -74,10 +75,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet indexes/delisted-lite.json; then
+          git add indexes/delisted-lite.json
+          if git diff --cached --quiet indexes/delisted-lite.json; then
             echo "No changes to index, skipping commit."
           else
-            git add indexes/delisted-lite.json
             git commit -m "chore: rebuild delisted-lite index [skip ci]"
             git push
           fi
