@@ -1,7 +1,9 @@
+[![en](https://img.shields.io/badge/lang-English-blue)](README.md)
+[![zh](https://img.shields.io/badge/lang-中文-red)](docs/README.zh-CN.md)
+
 <h1 align="center">ipaTool</h1>
 
 <p align="center">
-  移动端优先的 IPA 下载、归档与安装管理工具<br>
   Mobile-first IPA download, archive & installation manager
 </p>
 
@@ -14,69 +16,136 @@
 
 ---
 
-## 特点 · Features
+## Features
 
-- 支持下载已下架应用
-- 支持免费应用的购买
-- 完整版本历史
-- 版本收藏与备注
-- 支持 OTA 安装或导出 IPA
-- 多 Apple ID 管理
+- Download delisted apps
+- Purchase free apps
+- Complete version history
+- Version favorites & notes
+- OTA install or IPA export
+- Multi Apple ID management
 
-## 📸 预览 · Preview
+## Preview
 
-| 首页 Home | 队列 Queue | 收藏 Favorites |
-|:---------:|:----------:|:--------------:|
+| Home | Queue | Favorites |
+|:----:|:-----:|:---------:|
 | <img src="docs/screenshots/home-search.jpg" width="220"> | <img src="docs/screenshots/queue-active.jpg" width="220"> | <img src="docs/screenshots/archive-favorites.jpg" width="220"> |
 
-| 设置 Settings | 添加账户 Add Account | 版本选择 Version Select |
-|:------------:|:------------------:|:---------------------:|
+| Settings | Add Account | Version Select |
+|:--------:|:-----------:|:--------------:|
 | <img src="docs/screenshots/settings-appearance.jpg" width="220"> | <img src="docs/screenshots/add-apple-id.jpg" width="220"> | <img src="docs/screenshots/app-detail.jpg" width="220"> |
 
-## 🚀 快速开始 · Quick Start
+## Quick Start
 
-### 推荐方式：一键安装 · Recommended: One-Click Install
+### Method 1: One-Click Install (Recommended)
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash -s -- install
-```
-
-该脚本会自动完成以下操作：
-- 识别 Linux 系统架构（amd64 / arm64）
-- 从 GitHub Releases 下载最新版本
-- 安装到 `/opt/ipatool`
-- 创建并启动 systemd 服务
-- 首次运行时自动生成管理员密码（可通过 `journalctl -u ipatool -f` 查看）
-
-**升级到最新版本：**
+Run the command below — it launches an interactive management panel:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash -s -- upgrade
+curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh | bash
 ```
 
-**重置管理员密码：**
+> If jsDelivr is slow in your region, use the GitHub raw link instead:
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash
+> ```
+
+The management panel provides:
+
+- **Install / Update** — download the latest release and set up the service
+- **Start / Stop / Restart** — control the systemd service
+- **Reset Admin Password** — generate a new random password
+- **View Initial Password** — recall the password saved during installation
+- **Change Port** — switch the listening port
+- **View Logs** — tail recent service logs
+
+On first install you'll see:
+
+```
+╔══════════════════════════════════════════════════════════╗
+║              Installation Complete!                     ║
+╠══════════════════════════════════════════════════════════╣
+║  URL:      http://192.168.1.100:8080
+║  Username: admin
+║  Password: XXXXXXXXXXXXXXXX
+╠══════════════════════════════════════════════════════════╣
+║  Save this password! It will not be shown again.
+║  Manage: sudo bash /opt/ipatool/manager.sh
+╚══════════════════════════════════════════════════════════╝
+```
+
+After installation, reopen the panel anytime:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash -s -- reset-password
+sudo bash /opt/ipatool/manager.sh
 ```
 
-> 安装脚本也可手动下载后运行：`bash scripts/install.sh install`。脚本源码位于 [scripts/install.sh](scripts/install.sh)。
+**View / Reset Admin Password:**
+
+- To view the initial password: run the management panel and select `[6] View Initial Password`.
+- To reset: select `[5] Reset Admin Password` in the panel, or run:
+
+```bash
+sudo /opt/ipatool/server reset-admin-password --username admin --password-stdin <<< 'new-password'
+```
 
 ---
 
-### 环境要求 · Prerequisites
+### Method 2: Docker
 
-Node.js 18+ · pnpm · Rust 1.85+
+**Using docker-compose:**
 
-### 本地开发 · Development
+```bash
+docker-compose up -d   # → http://localhost:8080
+```
+
+**Using docker run:**
+
+```bash
+# Latest version
+docker run -d -p 8080:8080 --name ipatool heard/ipatool:latest
+
+# Specific version
+docker run -d -p 8080:8080 --name ipatool heard/ipatool:2.2.1
+```
+
+**View / Reset Admin Password:**
+
+Set an initial password at startup (recommended):
+
+```bash
+docker run -d -p 8080:8080 \
+  -e IPA_ADMIN_INITIAL_PASSWORD='your-secure-password' \
+  --name ipatool heard/ipatool:2.2.1
+```
+
+If not set, retrieve the auto-generated password from logs:
+
+```bash
+docker logs ipatool 2>&1 | grep 'Generated one-time admin password'
+```
+
+To reset the password:
+
+```bash
+docker exec -i ipatool ./server reset-admin-password --username admin --password-stdin <<< 'new-password'
+```
+
+---
+
+### Method 3: Run from Source
+
+**Prerequisites:** Node.js 18+ · pnpm · Rust 1.85+
+
+**Development:**
 
 ```bash
 pnpm install
-pnpm run dev                        # 前端 → localhost:5173
-cd server && cargo run --bin server # 后端 → localhost:8080
+pnpm run dev                        # Frontend → localhost:5173
+cd server && cargo run --bin server # Backend → localhost:8080
 ```
 
-### 生产构建 · Production
+**Production build:**
 
 ```bash
 pnpm run build
@@ -84,109 +153,46 @@ rm -rf server/dist && cp -a dist/. server/dist/
 cd server && cargo run --bin server
 ```
 
-### Docker 部署 · Docker
+**View / Reset Admin Password:**
 
-**方式一：使用 docker-compose**
-
-参考项目中的 [docker-compose.yml](docker-compose.yml) 启动：
-
-```bash
-docker-compose up -d   # → localhost:8080
-```
-
-**方式二：直接使用镜像**
-
-```bash
-# 使用最新版本
-docker run -d -p 8080:8080 --name ipatool heard/ipatool:latest
-
-# 使用指定版本
-docker run -d -p 8080:8080 --name ipatool heard/ipatool:2.2.1
-```
-
-### 管理员账户与密码 · Admin Password
-
-默认管理员账户是 `admin`。首次初始化时不再使用固定默认密码：
-
-- 推荐：启动前设置 `IPA_ADMIN_INITIAL_PASSWORD`，首次初始化将使用该值作为初始密码。
-- 未设置时：系统会生成一次性随机密码，并输出到后端日志 / stderr。
-
-**Docker 获取初始密码**
-
-推荐显式指定初始密码：
-
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -e IPA_ADMIN_INITIAL_PASSWORD='***' \
-  --name ipatool \
-  heard/ipatool:2.2.1
-```
-
-如果未指定，查看首次启动日志：
-
-```bash
-docker logs ipatool 2>&1 | grep 'Generated one-time admin password'
-```
-
-**源码运行获取初始密码**
-
-推荐显式指定初始密码：
+Set an initial password via environment variable (recommended):
 
 ```bash
 cd server
-IPA_ADMIN_INITIAL_PASSWORD='***' cargo run --bin server
+IPA_ADMIN_INITIAL_PASSWORD='your-secure-password' cargo run --bin server
 ```
 
-如果未指定，查看运行终端输出或日志文件中的：
+If not set, check the terminal output for:
 
 ```text
 [SECURITY] Generated one-time admin password for first run: ...
 ```
 
-> 初始密码仅在数据库首次创建且 `admin_users` 为空时生成 / 输出。若日志丢失，无法从数据库 hash 反推密码，请使用下面的手动重置方案。
-
-**手动重置管理员密码**
-
-该命令为离线管理命令，不需要登录；默认只重置 `admin` 的密码，不改用户名。重置后该账户现有登录会话将失效。
-
-使用一键安装脚本（推荐）：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash -s -- reset-password
-```
-
-Docker：
-
-```bash
-docker exec -i ipatool ./server reset-admin-password --username admin --password-stdin <<'EOF'
-new-secure-password
-EOF
-```
-
-源码运行：
+To reset the password:
 
 ```bash
 cd server
-printf '%s' 'new-secure-password' | cargo run --bin server -- reset-admin-password --username admin --password-stdin
+printf '%s' 'new-password' | cargo run --bin server -- reset-admin-password --username admin --password-stdin
 ```
 
-如果数据库不在默认位置，可显式指定：
+If the database is in a custom location:
 
 ```bash
 DATABASE_PATH=/path/to/ipa-webtool.db cargo run --bin server -- reset-admin-password --username admin --password-stdin
 ```
 
-## ⚠️ 注意事项 · Notes
+---
 
-OTA 安装需要 HTTPS，以下为几种常见方案：
+## HTTPS Setup (Required for OTA)
 
-| 方案 | 说明 |
-|------|------|
-| **Nginx + Let's Encrypt** | 用 Certbot 自动申请免费证书，Nginx 反向代理转发到后端 8080 端口，最常用的轻量方案 |
-| **Cloudflare Tunnel** | 无需开放公网端口，通过 Cloudflare 隧道暴露服务，自带 HTTPS |
+OTA installation requires HTTPS. Common approaches:
 
-示例 - Nginx 反向代理配置：
+| Solution | Description |
+|----------|-------------|
+| **Nginx + Let's Encrypt** | Use Certbot for free certificates, Nginx reverse proxy to port 8080 |
+| **Cloudflare Tunnel** | Expose via Cloudflare tunnel, no public port required |
+
+Example Nginx reverse proxy config:
 
 ```nginx
 server {
@@ -203,52 +209,53 @@ server {
 }
 ```
 
-## 🛠 技术栈 · Tech Stack
+## Tech Stack
 
-| 前端 Frontend | 后端 Backend |
-|--------------|-------------|
+| Frontend | Backend |
+|----------|---------|
 | Vue 3 + Vite 6 | Rust |
 | Pinia | Actix Web |
-| Tailwind CSS（纯 Tailwind，已移除 Element Plus） | rusqlite |
-| | reqwest · tokio · OpenSSL（vendored） |
+| Tailwind CSS | rusqlite |
+| | reqwest · tokio · OpenSSL (vendored) |
 
-## 📁 项目结构 · Project Structure
+## Project Structure
 
 ```
-├── frontend/            # Vue 3 前端（源码 + 构建配置）
-│   ├── index.html       # Vite 入口 HTML
-│   ├── vite.config.js   # Vite 构建配置
+├── frontend/            # Vue 3 frontend
+│   ├── index.html       # Vite entry
+│   ├── vite.config.js
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   ├── eslint.config.js
 │   ├── .prettierrc
-│   ├── main.js          # 应用入口
-│   ├── App.vue          # 根组件
-│   ├── components/      # 组件
-│   ├── composables/     # 组合式函数
-│   ├── stores/          # Pinia 状态管理
-│   └── utils/           # 工具函数
-├── server/              # Rust 后端 (Actix Web)
-│   ├── src/             # 后端源码
+│   ├── main.js          # App entry
+│   ├── App.vue          # Root component
+│   ├── components/      # Components
+│   ├── composables/     # Composables
+│   ├── stores/          # Pinia stores
+│   └── utils/           # Utilities
+├── server/              # Rust backend (Actix Web)
+│   ├── src/
 │   ├── Cargo.toml
 │   └── rustfmt.toml
-├── scripts/             # 构建和运维脚本
-│   ├── install.sh       # 一键安装/升级/重置密码
+├── scripts/             # Build & ops scripts
+│   ├── install.sh       # One-click management script
 │   ├── verify-build.sh
 │   ├── sync-version.sh
 │   └── check-no-hardcoded-colors.sh
-├── docs/                # 文档和截图
+├── docs/                # Documentation & screenshots
 │   ├── screenshots/
-│   └── learnings/
+│   ├── learnings/
+│   └── README.zh-CN.md  # Chinese documentation
 ├── .github/workflows/   # CI/CD (ci, docker, release)
 ├── Dockerfile
 ├── docker-compose.yml
-├── .npmrc               # pnpm 配置
-├── package.json         # 项目脚本 (dev/build/lint/format)
+├── .npmrc
+├── package.json
 ├── pnpm-lock.yaml
 └── README.md
 ```
 
-## 📄 License
+## License
 
 [MIT](LICENSE)
