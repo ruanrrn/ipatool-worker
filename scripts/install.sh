@@ -1,313 +1,497 @@
 #!/usr/bin/env bash
+# ============================================================
+# ipaTool Management Script
+#
+# One-click install & management panel:
+#   curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh | bash
+#
+# After installation:
+#   sudo bash /opt/ipatool/manager.sh
+# ============================================================
 set -euo pipefail
-
-# ipaTool one-click install/upgrade/reset-password script
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash -s -- install [VERSION]
-#   ./scripts/install.sh install [VERSION]
-#   ./scripts/install.sh upgrade [VERSION]
-#   ./scripts/install.sh reset-password
 
 REPO="ruanrrn/ipaTool"
 APP_NAME="ipatool"
-SYSTEMD_SERVICE="ipatool"
-DEFAULT_INSTALL_DIR="/opt/${APP_NAME}"
-GITHUB_API="https://api.github.com"
-RELEASES_URL="${GITHUB_API}/repos/${REPO}/releases"
+INSTALL_DIR="/opt/${APP_NAME}"
+SERVICE_NAME="ipatool"
+GITHUB_API="https://api.github.com/repos/${REPO}"
+CDN_BASE="https://cdn.jsdelivr.net/gh/${REPO}@main/scripts/install.sh"
+
+# ─── Colors ──────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
-log_info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
-log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+# ─── Logging ─────────────────────────────────────────────────
+log_info()  { echo -e "${GREEN}[✓]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+log_error() { echo -e "${RED}[✗]${NC} $*"; }
+log_step()  { echo -e "${CYAN}[→]${NC} $*"; }
 
-# Detect OS and architecture
-detect_arch() {
-    local os arch
-    os=$(uname -s)
-    arch=$(uname -m)
-
-    if [ "$os" != "Linux" ]; then
-        log_error "Unsupported OS: $os. Currently only Linux is supported."
-        exit 1
+# ─── Utilities ───────────────────────────────────────────────
+require_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        log_error "This action requires root privileges. Run with sudo."
+        return 1
     fi
+}
 
-    case "$arch" in
-        x86_64|amd64)
-            echo "amd64"
-            ;;
-        aarch64|arm64)
-            echo "arm64"
-            ;;
-        *)
-            log_error "Unsupported architecture: $arch"
-            exit 1
-            ;;
+press_enter() {
+    echo ""
+    echo -n "Press Enter to continue..."
+    read -r
+}
+
+detect_arch() {
+    case "$(uname -m)" in
+        x86_64|amd64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) echo "unsupported" ;;
     esac
 }
 
-# Get latest version from GitHub API if version not specified
 get_latest_version() {
-    local latest tag
-    latest=$(curl -fsSL "${RELEASES_URL}/latest" 2>/dev/null || true)
-    if [ -z "$latest" ]; then
-        log_error "Failed to fetch latest release from GitHub."
-        exit 1
-    fi
-    tag=$(echo "$latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-    if [ -z "$tag" ]; then
-        log_error "Failed to parse latest release tag."
-        exit 1
-    fi
-    echo "${tag#v}"
+    curl -fsSL "${GITHUB_API}/releases/latest" 2>/dev/null \
+        | grep -o '"tag_name": *"[^"]*"' | head -1 \
+        | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' \
+        | sed 's/^v//'
 }
 
-# Download and verify release
-download_release() {
-    local version arch pkg_name dl_url
-    version="$1"
-    arch="$(detect_arch)"
-    pkg_name="ipatool-${version}-linux-${arch}.tar.gz"
-    dl_url="https://github.com/${REPO}/releases/download/v${version}/${pkg_name}"
+# ─── Status Functions ────────────────────────────────────────
 
-    log_info "Downloading ipaTool v${version} (${arch})..."
-    log_info "URL: ${dl_url}"
+is_installed() { [ -f "${INSTALL_DIR}/server" ]; }
 
-    curl -fsSL -o "/tmp/${pkg_name}" "${dl_url}" || {
-        log_error "Download failed. Version v${version} may not exist for ${arch}."
-        exit 1
-    }
+is_running() { systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; }
 
-    echo "/tmp/${pkg_name}"
+get_installed_version() {
+    [ -f "${INSTALL_DIR}/.version" ] && cat "${INSTALL_DIR}/.version" || echo "unknown"
 }
 
-# Install from downloaded package
-install_package() {
-    local pkg_file install_dir version
-    pkg_file="$1"
-    install_dir="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
-    version="$2"
-
-    log_info "Installing to ${install_dir}..."
-
-    # Stop existing service if running
-    if systemctl is-active --quiet "${SYSTEMD_SERVICE}" 2>/dev/null; then
-        log_info "Stopping existing ${SYSTEMD_SERVICE} service..."
-        systemctl stop "${SYSTEMD_SERVICE}" || true
-    fi
-
-    # Create install directory
-    mkdir -p "${install_dir}"
-
-    # Extract package
-    tar xzf "${pkg_file}" -C /tmp/
-    local extracted_dir="/tmp/ipatool-${version}-linux-$(detect_arch)"
-
-    if [ ! -d "$extracted_dir" ]; then
-        # try without arch suffix
-        extracted_dir=$(find /tmp -maxdepth 1 -type d -name "ipatool-${version}-*" | head -1)
-    fi
-
-    if [ ! -d "$extracted_dir" ]; then
-        log_error "Failed to extract package. Expected directory not found."
-        exit 1
-    fi
-
-    log_info "Copying files to ${install_dir}..."
-    # Copy server binary
-    cp -f "${extracted_dir}/server" "${install_dir}/server"
-    chmod +x "${install_dir}/server"
-
-    # Copy dist (frontend)
-    if [ -d "${install_dir}/dist" ]; then
-        rm -rf "${install_dir}/dist"
-    fi
-    cp -r "${extracted_dir}/dist" "${install_dir}/dist"
-
-    # Copy start.sh
-    cp -f "${extracted_dir}/start.sh" "${install_dir}/start.sh"
-    chmod +x "${install_dir}/start.sh"
-
-    # Cleanup
-    rm -rf "$extracted_dir"
-    rm -f "$pkg_file"
-
-    log_info "Installation files placed in ${install_dir}"
-
-    # Save version info
-    echo "${version}" > "${install_dir}/.version"
-
-    # Setup systemd service
-    setup_systemd "${install_dir}"
-
-    log_info "Installation complete!"
-    log_info "To view admin password on first run: journalctl -u ${SYSTEMD_SERVICE} -f"
+get_pid() {
+    systemctl show "${SERVICE_NAME}" -p MainPID --value 2>/dev/null || echo "0"
 }
 
-# Setup systemd service
-setup_systemd() {
-    local install_dir="$1"
-    local service_file="/etc/systemd/system/${SYSTEMD_SERVICE}.service"
+get_memory() {
+    local pid
+    pid=$(get_pid)
+    if [ "$pid" -gt 0 ] 2>/dev/null; then
+        local mem_kb
+        mem_kb=$(ps -o rss= -p "$pid" 2>/dev/null | tr -d ' ' || echo "0")
+        if [ "${mem_kb:-0}" -gt 0 ] 2>/dev/null; then
+            echo "$((mem_kb / 1024)) MB"
+            return
+        fi
+    fi
+    echo "N/A"
+}
 
-    if [ "$(id -u)" -ne 0 ]; then
-        log_warn "Not running as root. Skipping systemd service setup."
-        log_info "You can manually run: ${install_dir}/start.sh"
+get_uptime() {
+    if is_running; then
+        local ts now_epoch ts_epoch diff
+        ts=$(systemctl show "${SERVICE_NAME}" -p ActiveEnterTimestamp --value 2>/dev/null || echo "")
+        if [ -n "$ts" ]; then
+            now_epoch=$(date +%s)
+            ts_epoch=$(date -d "$ts" +%s 2>/dev/null || echo "0")
+            diff=$((now_epoch - ts_epoch))
+            if [ "$diff" -gt 0 ]; then
+                local d=$((diff / 86400))
+                local h=$(((diff % 86400) / 3600))
+                local m=$(((diff % 3600) / 60))
+                [ "$d" -gt 0 ] && echo "${d}d ${h}h ${m}m" && return
+                [ "$h" -gt 0 ] && echo "${h}h ${m}m" && return
+                echo "${m}m"
+                return
+            fi
+        fi
+    fi
+    echo "N/A"
+}
+
+get_port() {
+    systemctl show "${SERVICE_NAME}" -p Environment 2>/dev/null \
+        | grep -o 'PORT=[0-9]*' | cut -d= -f2 || echo "8080"
+}
+
+get_ip() {
+    hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1"
+}
+
+get_url() { echo "http://$(get_ip):$(get_port)"; }
+
+get_latest_cached() {
+    local cache_file="${INSTALL_DIR}/.latest_check"
+    if [ -f "$cache_file" ]; then
+        local cache_time now
+        cache_time=$(stat -c %Y "$cache_file" 2>/dev/null || echo "0")
+        now=$(date +%s)
+        if [ $((now - cache_time)) -lt 3600 ]; then
+            cat "$cache_file"
+            return
+        fi
+    fi
+    local latest
+    latest=$(get_latest_version 2>/dev/null || echo "unknown")
+    [ -d "$INSTALL_DIR" ] && echo "$latest" > "$cache_file" 2>/dev/null || true
+    echo "$latest"
+}
+
+# ─── Actions ─────────────────────────────────────────────────
+
+do_install() {
+    require_root || { press_enter; return; }
+
+    local version="${1:-$(get_latest_version)}"
+    local arch pkg_name dl_url
+    arch=$(detect_arch)
+
+    if [ "$arch" = "unsupported" ]; then
+        log_error "Unsupported architecture: $(uname -m)"
+        press_enter
         return
     fi
 
-    log_info "Setting up systemd service..."
+    pkg_name="ipatool-${version}-linux-${arch}.tar.gz"
+    dl_url="https://github.com/${REPO}/releases/download/v${version}/${pkg_name}"
 
-    cat > "$service_file" << SERVICE_EOF
+    echo ""
+    log_step "Installing ipaTool v${version} (${arch})..."
+    log_info "Downloading from GitHub Releases..."
+
+    if ! curl -fsSL# -o "/tmp/${pkg_name}" "${dl_url}"; then
+        log_error "Download failed. Does release v${version} exist for ${arch}?"
+        press_enter
+        return
+    fi
+
+    # Stop existing service
+    if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
+        log_step "Stopping existing service..."
+        systemctl stop "${SERVICE_NAME}" || true
+    fi
+
+    # Extract
+    mkdir -p "${INSTALL_DIR}"
+    tar xzf "/tmp/${pkg_name}" -C /tmp/
+    local extracted_dir
+    extracted_dir="/tmp/ipatool-${version}-linux-${arch}"
+
+    if [ ! -d "$extracted_dir" ]; then
+        extracted_dir=$(find /tmp -maxdepth 1 -type d -name "ipatool-${version}-*" 2>/dev/null | head -1)
+    fi
+
+    if [ ! -d "$extracted_dir" ]; then
+        log_error "Extraction failed."
+        rm -f "/tmp/${pkg_name}"
+        press_enter
+        return
+    fi
+
+    # Copy files
+    cp -f "${extracted_dir}/server" "${INSTALL_DIR}/server"
+    chmod +x "${INSTALL_DIR}/server"
+    [ -d "${INSTALL_DIR}/dist" ] && rm -rf "${INSTALL_DIR}/dist"
+    cp -r "${extracted_dir}/dist" "${INSTALL_DIR}/dist"
+
+    # Cleanup
+    rm -rf "$extracted_dir" "/tmp/${pkg_name}"
+
+    # Save version
+    echo "${version}" > "${INSTALL_DIR}/.version"
+
+    # Generate admin password
+    local admin_password
+    admin_password=$(tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 16)
+    echo "${admin_password}" > "${INSTALL_DIR}/.initial_password"
+    chmod 600 "${INSTALL_DIR}/.initial_password"
+
+    # Setup systemd service
+    cat > "/etc/systemd/system/${SERVICE_NAME}.service" << SERVICEEOF
 [Unit]
-Description=ipaTool - IPA download and archive manager
+Description=ipaTool - IPA Download & Archive Manager
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${install_dir}/start.sh
-WorkingDirectory=${install_dir}
+ExecStart=${INSTALL_DIR}/server
+WorkingDirectory=${INSTALL_DIR}
 Restart=on-failure
 RestartSec=5
-# Set admin initial password (optional)
-# Environment=IPA_ADMIN_INITIAL_PASSWORD=your-secure-password
-# Database path (optional, default is /app/data/ipa-webtool.db inside Docker;
-# for bare-metal, uncomment and adjust)
-# Environment=DATABASE_PATH=${install_dir}/data/ipa-webtool.db
-# Environment=RUST_LOG=info
+Environment=IPA_ADMIN_INITIAL_PASSWORD=${admin_password}
 
 [Install]
 WantedBy=multi-user.target
-SERVICE_EOF
+SERVICEEOF
 
     systemctl daemon-reload
-    systemctl enable "${SYSTEMD_SERVICE}" 2>/dev/null || true
-    systemctl start "${SYSTEMD_SERVICE}" 2>/dev/null || true
+    systemctl enable "${SERVICE_NAME}" 2>/dev/null || true
+    systemctl start "${SERVICE_NAME}" 2>/dev/null || true
+    sleep 2
 
-    log_info "Systemd service ${SYSTEMD_SERVICE} installed and started."
-    log_info "Check status: systemctl status ${SYSTEMD_SERVICE}"
-    log_info "View logs: journalctl -u ${SYSTEMD_SERVICE} -f"
+    # Save self for reuse
+    local self_dest="${INSTALL_DIR}/manager.sh"
+    if ! curl -fsSL "${CDN_BASE}" -o "$self_dest" 2>/dev/null; then
+        log_warn "Could not save management script locally."
+    else
+        chmod +x "$self_dest"
+    fi
+
+    echo ""
+    echo -e "${BOLD}${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${GREEN}║              Installation Complete!                     ║${NC}"
+    echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════╣${NC}"
+    printf "${BOLD}${GREEN}║${NC}  URL:      %-46s ${BOLD}${GREEN}║${NC}\n" "$(get_url)"
+    echo -e "${BOLD}${GREEN}║${NC}  Username: admin                                        ${BOLD}${GREEN}║${NC}"
+    printf "${BOLD}${GREEN}║${NC}  Password: %-46s ${BOLD}${GREEN}║${NC}\n" "${admin_password}"
+    echo -e "${BOLD}${GREEN}╠══════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${BOLD}${GREEN}║${NC}${YELLOW}  Save this password! It will not be shown again.${NC}       ${BOLD}${GREEN}║${NC}"
+    printf "${BOLD}${GREEN}║${NC}  Manage: sudo bash %-36s ${BOLD}${GREEN}║${NC}\n" "${INSTALL_DIR}/manager.sh"
+    echo -e "${BOLD}${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    press_enter
 }
 
-# Upgrade to new version
-do_upgrade() {
-    local version pkg_file install_dir
-    version="$1"
-    install_dir="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
+do_start() {
+    require_root || { press_enter; return; }
+    if is_running; then
+        log_warn "Service is already running."
+    else
+        log_step "Starting service..."
+        systemctl start "${SERVICE_NAME}"
+        sleep 1
+        is_running && log_info "Service started." \
+            || log_error "Failed to start. Check: journalctl -u ${SERVICE_NAME} -n 20"
+    fi
+    press_enter
+}
 
-    if [ ! -f "${install_dir}/.version" ] && [ ! -f "${install_dir}/server" ]; then
-        log_warn "No existing installation found at ${install_dir}. Performing fresh install..."
-        do_install "$version"
+do_stop() {
+    require_root || { press_enter; return; }
+    if ! is_running; then
+        log_warn "Service is already stopped."
+    else
+        log_step "Stopping service..."
+        systemctl stop "${SERVICE_NAME}"
+        log_info "Service stopped."
+    fi
+    press_enter
+}
+
+do_restart() {
+    require_root || { press_enter; return; }
+    log_step "Restarting service..."
+    systemctl restart "${SERVICE_NAME}"
+    sleep 1
+    is_running && log_info "Service restarted." \
+        || log_error "Failed to restart. Check: journalctl -u ${SERVICE_NAME} -n 20"
+    press_enter
+}
+
+do_reset_password() {
+    require_root || { press_enter; return; }
+
+    local server_bin="${INSTALL_DIR}/server"
+    if [ ! -f "$server_bin" ]; then
+        log_error "Server not installed. Install ipaTool first."
+        press_enter
         return
     fi
 
-    local current_version="unknown"
-    if [ -f "${install_dir}/.version" ]; then
-        current_version=$(cat "${install_dir}/.version")
-    fi
+    echo ""
+    log_warn "This invalidates all existing admin login sessions."
+    echo ""
 
-    log_info "Current version: ${current_version}"
-    log_info "Upgrading to version v${version}..."
-
-    pkg_file=$(download_release "$version")
-    install_package "$pkg_file" "$version"
-
-    log_info "Upgrade complete! v${current_version} -> v${version}"
-
-    # Restart service (install_package already stops it, setup_systemd starts it)
-    if systemctl is-active --quiet "${SYSTEMD_SERVICE}" 2>/dev/null; then
-        log_info "Service ${SYSTEMD_SERVICE} is running."
-    else
-        log_warn "Service did not start. Check logs: journalctl -u ${SYSTEMD_SERVICE} -f"
-    fi
-}
-
-# Fresh install
-do_install() {
-    local version pkg_file
-    version="$1"
-    pkg_file=$(download_release "$version")
-    install_package "$pkg_file" "$version"
-}
-
-# Reset admin password
-do_reset_password() {
-    local install_dir server_bin
-    install_dir="${INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
-    server_bin="${install_dir}/server"
-
-    if [ ! -f "$server_bin" ]; then
-        log_error "Server binary not found at ${server_bin}. Install first."
-        exit 1
-    fi
-
-    log_info "Resetting admin password..."
-    log_info "Note: This will invalidate all existing admin login sessions."
-
-    # Generate a secure random password
     local new_password
-    new_password=$(tr -dc 'A-Za-z0-9!@#$%^&*()_+-=' < /dev/urandom | head -c 16)
+    new_password=$(tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 16)
 
-    # Use the server binary's reset-admin-password command
-    printf '%s' "$new_password" | "$server_bin" reset-admin-password --username admin --password-stdin 2>/dev/null || {
-        log_warn "Direct binary call failed, trying with environment..."
-        DATABASE_PATH="${install_dir}/data/ipa-webtool.db" printf '%s' "$new_password" | "$server_bin" reset-admin-password --username admin --password-stdin || {
-            log_error "Password reset failed. Check that the server binary is functional."
-            exit 1
-        }
-    }
-
-    log_info "Admin password reset successfully!"
-    echo ""
-    echo "  New admin password: ${new_password}"
-    echo ""
-    log_warn "Please save this password securely. It will NOT be displayed again."
+    log_step "Resetting admin password..."
+    if printf '%s' "$new_password" | "$server_bin" reset-admin-password --username admin --password-stdin 2>/dev/null; then
+        echo "${new_password}" > "${INSTALL_DIR}/.initial_password"
+        chmod 600 "${INSTALL_DIR}/.initial_password"
+        echo ""
+        echo -e "${BOLD}${GREEN}  New admin password: ${new_password}${NC}"
+        echo ""
+        log_warn "Save this password. It will not be shown again."
+        log_info "You can also view it later with option [6] in the management panel."
+    else
+        log_error "Password reset failed. Is the server binary functional?"
+    fi
+    press_enter
 }
 
-# Main
-print_usage() {
-    echo "Usage:"
-    echo "  $0 install [VERSION]          Install ipaTool (latest if version omitted)"
-    echo "  $0 upgrade [VERSION]          Upgrade existing installation (latest if omitted)"
-    echo "  $0 reset-password             Reset admin password"
-    echo ""
-    echo "One-liner (recommended):"
-    echo "  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh | bash -s -- install"
+do_view_initial_password() {
+    if [ -f "${INSTALL_DIR}/.initial_password" ]; then
+        echo ""
+        echo -e "${BOLD}  Initial admin password: ${GREEN}$(cat ${INSTALL_DIR}/.initial_password)${NC}"
+        echo ""
+    else
+        log_warn "No initial password record found."
+        log_info "It may have been changed or the record was deleted."
+        log_info "Use option [5] to reset the password."
+    fi
+    press_enter
 }
+
+do_change_port() {
+    require_root || { press_enter; return; }
+
+    local current_port new_port
+    current_port=$(get_port)
+
+    echo ""
+    echo -n "Enter new port (current: ${current_port}): "
+    read -r new_port
+
+    if ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1 ] || [ "$new_port" -gt 65535 ]; then
+        log_error "Invalid port: ${new_port}"
+        press_enter
+        return
+    fi
+
+    log_step "Changing port from ${current_port} to ${new_port}..."
+
+    local service_file="/etc/systemd/system/${SERVICE_NAME}.service"
+    if grep -q "Environment=PORT=" "$service_file" 2>/dev/null; then
+        sed -i "s/Environment=PORT=[0-9]*/Environment=PORT=${new_port}/" "$service_file"
+    else
+        sed -i "/^\[Service\]/a Environment=PORT=${new_port}" "$service_file"
+    fi
+
+    systemctl daemon-reload
+    systemctl restart "${SERVICE_NAME}"
+    sleep 1
+
+    if is_running; then
+        log_info "Port changed. New URL: http://$(get_ip):${new_port}"
+    else
+        log_error "Service failed to start. Reverting port..."
+        sed -i "s/Environment=PORT=[0-9]*/Environment=PORT=${current_port}/" "$service_file"
+        systemctl daemon-reload
+        systemctl restart "${SERVICE_NAME}"
+    fi
+    press_enter
+}
+
+do_view_logs() {
+    echo ""
+    echo -e "${BOLD}Recent logs (press q to exit):${NC}"
+    echo ""
+    if command -v journalctl &>/dev/null; then
+        journalctl -u "${SERVICE_NAME}" -n 50 --no-pager 2>/dev/null || echo "No logs available."
+    else
+        log_warn "journalctl not available."
+    fi
+    echo ""
+    press_enter
+}
+
+# ─── Panel ───────────────────────────────────────────────────
+
+show_panel() {
+    clear
+
+    if is_installed; then
+        local version status pid mem uptime port url
+        version=$(get_installed_version)
+        port=$(get_port)
+        url=$(get_url)
+
+        if is_running; then
+            status="${GREEN}● Running${NC}"
+            pid="(PID $(get_pid))"
+            mem=$(get_memory)
+            uptime=$(get_uptime)
+        else
+            status="${RED}● Stopped${NC}"
+            pid=""
+            mem="N/A"
+            uptime="N/A"
+        fi
+
+        # Check for update
+        local latest update_hint=""
+        latest=$(get_latest_cached 2>/dev/null || echo "")
+        if [ -n "$latest" ] && [ "$latest" != "unknown" ] && [ "$version" != "unknown" ] && [ "$latest" != "$version" ]; then
+            update_hint="  ${YELLOW}(v${latest} available!)${NC}"
+        fi
+
+        echo ""
+        echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}              ${BOLD}ipaTool Management Panel${NC}                    ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Version:${NC}   v%-42s ${BOLD}${BLUE}║${NC}\n" "${version}${update_hint}"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Status:${NC}    %b%-42s ${BOLD}${BLUE}║${NC}\n" "$status" "  ${pid}"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Memory:${NC}    %-44s ${BOLD}${BLUE}║${NC}\n" "$mem"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Uptime:${NC}    %-44s ${BOLD}${BLUE}║${NC}\n" "$uptime"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}Port:${NC}      %-44s ${BOLD}${BLUE}║${NC}\n" "$port"
+        printf "${BOLD}${BLUE}║${NC}  ${BOLD}URL:${NC}       %-44s ${BOLD}${BLUE}║${NC}\n" "$url"
+        echo -e "${BOLD}${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[1]${NC} Install / Update                                  ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[2]${NC} Start                                             ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[3]${NC} Stop                                              ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[4]${NC} Restart                                           ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[5]${NC} Reset Admin Password                              ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[6]${NC} View Initial Password                             ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[7]${NC} Change Port                                       ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[8]${NC} View Logs                                         ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[q]${NC} Quit                                              ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+    else
+        echo ""
+        echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}              ${BOLD}ipaTool Management Panel${NC}                    ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}Status:${NC}    ${RED}● Not Installed${NC}                               ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[1]${NC} Install ipaTool                                   ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}  ${BOLD}[q]${NC} Quit                                              ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+    fi
+
+    echo -n "Select option: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            if is_installed; then
+                local latest_ver
+                latest_ver=$(get_latest_version 2>/dev/null || echo "")
+                [ -n "$latest_ver" ] && [ "$latest_ver" != "unknown" ] \
+                    && do_install "$latest_ver" \
+                    || { log_error "Cannot fetch latest version. Check network."; press_enter; }
+            else
+                do_install
+            fi
+            ;;
+        2) is_installed && do_start || { log_error "Install ipaTool first."; press_enter; } ;;
+        3) is_installed && do_stop || { log_error "Install ipaTool first."; press_enter; } ;;
+        4) is_installed && do_restart || { log_error "Install ipaTool first."; press_enter; } ;;
+        5) is_installed && do_reset_password || { log_error "Install ipaTool first."; press_enter; } ;;
+        6) is_installed && do_view_initial_password || { log_error "Install ipaTool first."; press_enter; } ;;
+        7) is_installed && do_change_port || { log_error "Install ipaTool first."; press_enter; } ;;
+        8) is_installed && do_view_logs || { log_error "Install ipaTool first."; press_enter; } ;;
+        q|Q) echo ""; echo "Goodbye!"; exit 0 ;;
+        *) echo "Invalid option."; press_enter ;;
+    esac
+}
+
+# ─── Main ────────────────────────────────────────────────────
 
 main() {
-    if [ $# -lt 1 ]; then
-        print_usage
+    if [ "$(uname -s)" != "Linux" ]; then
+        log_error "This script only supports Linux."
         exit 1
     fi
 
-    local cmd="${1:-}"
-    local version="${2:-}"
-
-    case "$cmd" in
-        install)
-            version="${version:-$(get_latest_version)}"
-            log_info "Installing ipaTool v${version}..."
-            do_install "$version"
-            ;;
-        upgrade)
-            version="${version:-$(get_latest_version)}"
-            log_info "Upgrading ipaTool to v${version}..."
-            do_upgrade "$version"
-            ;;
-        reset-password)
-            do_reset_password
-            ;;
-        --help|-h|help)
-            print_usage
-            ;;
-        *)
-            log_error "Unknown command: $cmd"
-            print_usage
-            exit 1
-            ;;
-    esac
+    while true; do
+        show_panel
+    done
 }
 
 main "$@"
