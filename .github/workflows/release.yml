@@ -89,7 +89,17 @@ jobs:
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config
+
+      - name: Configure cross-compilation target (ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        working-directory: server
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml << 'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
 
       - name: Build Rust binary
         working-directory: server
