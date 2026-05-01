@@ -1,5 +1,4 @@
-[![en](https://img.shields.io/badge/lang-English-blue)](../README.md)
-[![zh](https://img.shields.io/badge/lang-中文-red)](README.zh-CN.md)
+中文 | [English](../README.md)
 
 <h1 align="center">ipaTool</h1>
 
@@ -50,43 +49,10 @@ curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh |
 > curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash
 > ```
 
-管理面板提供以下功能：
-
-- **安装 / 更新** — 下载最新发版包并部署服务
-- **启动 / 停止 / 重启** — 控制系统服务
-- **重置管理员密码** — 生成新的随机密码
-- **查看初始密码** — 回顾安装时保存的密码
-- **修改端口** — 切换监听端口
-- **查看日志** — 查看最近的服务日志
-
-首次安装完成后会显示：
-
-```
-╔══════════════════════════════════════════════════════════╗
-║              安装完成！                                  ║
-╠══════════════════════════════════════════════════════════╣
-║  地址:     http://192.168.1.100:8080
-║  用户名:   admin
-║  密码:     XXXXXXXXXXXXXXXX
-╠══════════════════════════════════════════════════════════╣
-║  请妥善保存密码！密码不会再次显示。
-║  管理: sudo bash /opt/ipatool/manager.sh
-╚══════════════════════════════════════════════════════════╝
-```
-
 之后可随时重新打开管理面板：
 
 ```bash
 sudo bash /opt/ipatool/manager.sh
-```
-
-**查看 / 重置管理员密码：**
-
-- 查看初始密码：运行管理面板，选择 `[6] 查看初始密码`
-- 重置密码：在管理面板中选择 `[5] 重置管理员密码`，或运行：
-
-```bash
-sudo /opt/ipatool/server reset-admin-password --username admin --password-stdin <<< '新密码'
 ```
 
 ---
@@ -95,6 +61,29 @@ sudo /opt/ipatool/server reset-admin-password --username admin --password-stdin 
 
 **使用 docker-compose：**
 
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+
+services:
+  ipatool:
+    image: heard/ipatool
+    container_name: ipatool
+    ports:
+      - "8080:8080"
+    volumes:
+      - ipa-data:/app/data
+      - ipa-downloads:/app/downloads
+    restart: unless-stopped
+
+volumes:
+  ipa-data:
+  ipa-downloads:
+```
+
+然后启动：
+
 ```bash
 docker-compose up -d   # → http://localhost:8080
 ```
@@ -102,11 +91,7 @@ docker-compose up -d   # → http://localhost:8080
 **使用 docker run：**
 
 ```bash
-# 最新版本
 docker run -d -p 8080:8080 --name ipatool heard/ipatool:latest
-
-# 指定版本
-docker run -d -p 8080:8080 --name ipatool heard/ipatool:2.2.1
 ```
 
 **查看 / 重置管理员密码：**
@@ -115,8 +100,8 @@ docker run -d -p 8080:8080 --name ipatool heard/ipatool:2.2.1
 
 ```bash
 docker run -d -p 8080:8080 \
-  -e IPA_ADMIN_INITIAL_PASSWORD='你的安全密码' \
-  --name ipatool heard/ipatool:2.2.1
+  -e IPA_ADMIN_INITIAL_PASSWORD='你的强密码' \
+  --name ipatool heard/ipatool:latest
 ```
 
 如未指定，可从日志中获取自动生成的密码：
