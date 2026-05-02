@@ -1,5 +1,4 @@
-[![en](https://img.shields.io/badge/lang-English-blue)](README.md)
-[![zh](https://img.shields.io/badge/lang-中文-red)](docs/README.zh-CN.md)
+[中文文档](docs/README.zh-CN.md) | English
 
 <h1 align="center">ipaTool</h1>
 
@@ -50,43 +49,10 @@ curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh |
 > curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash
 > ```
 
-The management panel provides:
-
-- **Install / Update** — download the latest release and set up the service
-- **Start / Stop / Restart** — control the systemd service
-- **Reset Admin Password** — generate a new random password
-- **View Initial Password** — recall the password saved during installation
-- **Change Port** — switch the listening port
-- **View Logs** — tail recent service logs
-
-On first install you'll see:
-
-```
-╔══════════════════════════════════════════════════════════╗
-║              Installation Complete!                     ║
-╠══════════════════════════════════════════════════════════╣
-║  URL:      http://192.168.1.100:8080
-║  Username: admin
-║  Password: XXXXXXXXXXXXXXXX
-╠══════════════════════════════════════════════════════════╣
-║  Save this password! It will not be shown again.
-║  Manage: sudo bash /opt/ipatool/manager.sh
-╚══════════════════════════════════════════════════════════╝
-```
-
 After installation, reopen the panel anytime:
 
 ```bash
 sudo bash /opt/ipatool/manager.sh
-```
-
-**View / Reset Admin Password:**
-
-- To view the initial password: run the management panel and select `[6] View Initial Password`.
-- To reset: select `[5] Reset Admin Password` in the panel, or run:
-
-```bash
-sudo /opt/ipatool/server reset-admin-password --username admin --password-stdin <<< 'new-password'
 ```
 
 ---
@@ -95,6 +61,29 @@ sudo /opt/ipatool/server reset-admin-password --username admin --password-stdin 
 
 **Using docker-compose:**
 
+Create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  ipatool:
+    image: heard/ipatool
+    container_name: ipatool
+    ports:
+      - "8080:8080"
+    volumes:
+      - ipa-data:/app/data
+      - ipa-downloads:/app/downloads
+    restart: unless-stopped
+
+volumes:
+  ipa-data:
+  ipa-downloads:
+```
+
+Then start:
+
 ```bash
 docker-compose up -d   # → http://localhost:8080
 ```
@@ -102,11 +91,7 @@ docker-compose up -d   # → http://localhost:8080
 **Using docker run:**
 
 ```bash
-# Latest version
 docker run -d -p 8080:8080 --name ipatool heard/ipatool:latest
-
-# Specific version
-docker run -d -p 8080:8080 --name ipatool heard/ipatool:2.2.1
 ```
 
 **View / Reset Admin Password:**
@@ -115,8 +100,8 @@ Set an initial password at startup (recommended):
 
 ```bash
 docker run -d -p 8080:8080 \
-  -e IPA_ADMIN_INITIAL_PASSWORD='your-secure-password' \
-  --name ipatool heard/ipatool:2.2.1
+  -e IPA_ADMIN_INITIAL_PASSWORD='your-strong-password' \
+  --name ipatool heard/ipatool:latest
 ```
 
 If not set, retrieve the auto-generated password from logs:
