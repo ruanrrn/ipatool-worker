@@ -41,12 +41,12 @@
 Run the command below — it launches an interactive management panel:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh | bash
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh)
 ```
 
 > If jsDelivr is slow in your region, use the GitHub raw link instead:
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash
+> bash <(curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh)
 > ```
 
 After installation, reopen the panel anytime:

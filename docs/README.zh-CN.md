@@ -41,12 +41,12 @@
 运行以下命令，将启动交互式管理面板：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh | bash
+bash <(curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh)
 ```
 
 > 如果 jsDelivr 访问较慢，可使用 GitHub 直链：
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh | bash
+> bash <(curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh)
 > ```
 
 之后可随时重新打开管理面板：
