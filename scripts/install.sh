@@ -3,7 +3,7 @@
 # ipaTool Management Script
 #
 # One-click install & management panel:
-#   curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh | bash
+#   bash <(curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh)
 #
 # After installation:
 #   sudo bash /opt/ipatool/manager.sh
