@@ -231,12 +231,27 @@ SERVICEEOF
     systemctl start "${SERVICE_NAME}" 2>/dev/null || true
     sleep 2
 
-    # Save self for reuse
+    # Save self for reuse — prefer copying from running instance to avoid CDN cache delay
     local self_dest="${INSTALL_DIR}/manager.sh"
-    if ! curl -fsSL "${CDN_BASE}" -o "$self_dest" 2>/dev/null; then
-        log_warn "Could not save management script locally."
-    else
-        chmod +x "$self_dest"
+    local saved=false
+
+    # If running from a regular file, copy it directly (ensures identical version)
+    if [ -f "$0" ] && [ "$0" != "$self_dest" ]; then
+        if cp "$0" "$self_dest" 2>/dev/null; then
+            chmod +x "$self_dest"
+            saved=true
+        fi
+    fi
+
+    # Otherwise download from GitHub raw (immediate updates), fall back to CDN
+    if ! $saved; then
+        if curl -fsSL "https://raw.githubusercontent.com/${REPO}/main/scripts/install.sh" -o "$self_dest" 2>/dev/null; then
+            chmod +x "$self_dest"
+        elif curl -fsSL "${CDN_BASE}" -o "$self_dest" 2>/dev/null; then
+            chmod +x "$self_dest"
+        else
+            log_warn "Could not save management script locally."
+        fi
     fi
 
     echo ""
