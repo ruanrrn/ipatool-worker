@@ -456,6 +456,8 @@ show_panel() {
 
     echo -n "Select option: "
     read -r choice
+    # Strip carriage return from terminals that send CR+LF (e.g., PuTTY, serial consoles)
+    choice="${choice%$'\r'}"
 
     case "$choice" in
         1)
