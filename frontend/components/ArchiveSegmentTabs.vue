@@ -41,7 +41,7 @@ const emit = defineEmits(['update:modelValue'])
  display: flex;
  gap: 0;
  background: var(--color-surface-muted, #f7f7f8);
- border-radius: 12px;
+ border-radius: var(--radius-xl);
  padding: 3px;
  margin-bottom: 0;
 }
@@ -53,9 +53,9 @@ const emit = defineEmits(['update:modelValue'])
  flex: 1;
  padding: 9px;
  text-align: center;
- font-size: 13px;
+ font-size: var(--font-size-label);
  font-weight: 500;
- border-radius: 10px;
+ border-radius: var(--radius-lg);
  color: var(--color-text-muted, #6e6e80);
  border: none;
  background: transparent;

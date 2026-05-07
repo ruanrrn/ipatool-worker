@@ -711,7 +711,8 @@ onBeforeUnmount(() => {
 
 .home-page__fixed {
   flex-shrink: 0;
-  padding-top: 20px;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
 }
 
 .home-page__results {
@@ -778,6 +779,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
   padding-bottom: 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
 }
 
 /* Search result item card */

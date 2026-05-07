@@ -227,6 +227,8 @@ const getVersionSizeLabel = (version) => {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding-right: 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
 }
 
 .version-radio-item {

@@ -90,10 +90,10 @@ const formatFileSize = (bytes) => {
  display: flex;
  align-items: center;
  gap: 12px;
- padding: 14px;
+ padding: 12px;
  background: var(--color-surface, #fff);
  border: 1px solid var(--color-border, #ebebeb);
- border-radius: 14px;
+ border-radius: var(--radius-xl);
  transition: opacity 0.2s ease;
 }
 .queue-item:active {
@@ -108,7 +108,7 @@ const formatFileSize = (bytes) => {
 .queue-item__icon {
   width: 44px !important;
   height: 44px !important;
-  border-radius: 11px !important;
+  border-radius: var(--radius-lg) !important;
   flex-shrink: 0;
 }
 
@@ -119,7 +119,7 @@ const formatFileSize = (bytes) => {
 }
 
 .queue-item__name {
- font-size: 14px;
+ font-size: var(--font-size-body);
  font-weight: 600;
  color: var(--color-text, #0d0d0d);
  white-space: nowrap;
@@ -133,7 +133,7 @@ const formatFileSize = (bytes) => {
 .queue-item__meta {
  display: flex;
  gap: 10px;
- font-size: 11px;
+ font-size: var(--font-size-micro);
  color: var(--color-text-muted, #6e6e80);
  margin-top: 2px;
 }
@@ -152,11 +152,11 @@ const formatFileSize = (bytes) => {
 .q-btn {
  width: 32px;
  height: 32px;
- border-radius: 8px;
+ border-radius: var(--radius-base);
  border: 1px solid var(--color-border, #ebebeb);
  background: var(--color-surface, #fff);
  color: var(--color-text-muted, #6e6e80);
- font-size: 14px;
+ font-size: var(--font-size-body);
  display: flex;
  align-items: center;
  justify-content: center;

@@ -214,11 +214,11 @@ async function handleDeleteAccount(account) {
 <style>
 /* Page title */
 .page-title {
-  font-size: 26px;
+  font-size: var(--font-size-title);
   font-weight: 700;
   line-height: 1.3;
-  margin-bottom: 16px;
-  color: var(--color-text, #0d0d0d);
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
 }
 .dark .page-title {
   color: var(--color-text, #f5f5f5);
@@ -235,7 +235,8 @@ async function handleDeleteAccount(account) {
 
 .settings-page__fixed {
   flex-shrink: 0;
-  padding-top: 20px;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
 }
 
 .settings-page__scroll {
@@ -250,9 +251,9 @@ async function handleDeleteAccount(account) {
 
 /* Section label */
 .section-label {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
-  color: var(--color-text-muted, #6e6e80);
+  color: var(--color-text-muted);
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -265,7 +266,7 @@ async function handleDeleteAccount(account) {
 .settings-card {
   background: var(--color-surface-muted, #f7f7f8);
   border: 1px solid var(--color-border, #ebebeb);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   margin-bottom: 20px;
 }
@@ -282,8 +283,9 @@ async function handleDeleteAccount(account) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 0.5px solid var(--color-border, #ebebeb);
+  padding: 12px 16px;
+  min-height: var(--size-control-lg);
+  border-bottom: 1px solid var(--color-border, #ebebeb);
 }
 .settings-row:last-child {
   border-bottom: none;
@@ -292,13 +294,21 @@ async function handleDeleteAccount(account) {
   width: 100%;
   background: none;
   border: none;
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  padding: 14px 16px;
+  padding: 12px 16px;
+  min-height: var(--size-control-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   transition: background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+}
+.settings-row--interactive:last-child {
+  border-bottom: none;
+}
+.settings-row--interactive:active {
+  transform: scale(0.99);
 }
 .settings-row--interactive:active {
   background: var(--color-surface-hover, #ececec);
@@ -329,12 +339,12 @@ async function handleDeleteAccount(account) {
   padding: 4px 9px;
 }
 .github-token__status--ok {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  background: var(--color-success-soft);
+  color: var(--color-success);
 }
 .github-token__status--empty {
-  background: rgba(245, 158, 11, 0.12);
-  color: #b45309;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-dark);
 }
 .github-token__desc,
 .github-token__meta {
@@ -344,36 +354,46 @@ async function handleDeleteAccount(account) {
 }
 .github-token__input {
   width: 100%;
-  border: 1px solid var(--color-border, #ebebeb);
-  border-radius: 10px;
-  background: var(--color-surface, #fff);
-  color: var(--color-text, #0d0d0d);
-  font-size: 14px;
-  padding: 10px 12px;
+  min-height: var(--size-control-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+  /* 16px to prevent iOS Safari focus auto-zoom */
+  font-size: 16px;
+  padding: 12px;
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .github-token__input:focus {
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 .github-token__btn {
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: 600;
-  padding: 9px 13px;
+  padding: 10px 14px;
+  min-height: var(--size-control-md);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.github-token__btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 .github-token__btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 .github-token__btn--primary {
-  background: var(--color-primary, #2563eb);
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 .github-token__btn--danger {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 .dark .github-token__input {
   background: var(--color-surface-muted, #27272a);
@@ -396,9 +416,9 @@ async function handleDeleteAccount(account) {
 
 /* Icon */
 .sr-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,8 +457,8 @@ async function handleDeleteAccount(account) {
 
 /* Label */
 .sr-label {
-  font-size: 15px;
-  color: var(--color-text, #0d0d0d);
+  font-size: var(--font-size-section);
+  color: var(--color-text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -456,35 +476,23 @@ async function handleDeleteAccount(account) {
 
 /* Account freshness indicator */
 .sr-freshness {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: 500;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 .sr-freshness--fresh {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.1);
+  color: var(--color-success);
+  background: var(--color-success-soft);
 }
 .sr-freshness--warning {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.1);
+  color: var(--color-warning-dark);
+  background: var(--color-warning-soft);
 }
 .sr-freshness--stale {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
-}
-.dark .sr-freshness--fresh {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.12);
-}
-.dark .sr-freshness--warning {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.12);
-}
-.dark .sr-freshness--stale {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.12);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
 }
 
 /* Row right */
@@ -492,8 +500,8 @@ async function handleDeleteAccount(account) {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-text-muted, #6e6e80);
-  font-size: 14px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
 }
 .dark .sr-right {
   color: var(--color-text-muted, #a1a1aa);

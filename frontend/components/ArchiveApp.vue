@@ -360,7 +360,8 @@ onActivated(refreshArchiveView)
 
 .archive-page__fixed {
   flex-shrink: 0;
-  padding-top: 20px;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
 }
 
 .archive-page__scroll {
@@ -381,7 +382,7 @@ onActivated(refreshArchiveView)
 
 /* Page title */
 .page-title {
-  font-size: 26px;
+  font-size: var(--font-size-title);
   font-weight: 700;
   line-height: 1.3;
   margin-bottom: 16px;
@@ -405,6 +406,8 @@ onActivated(refreshArchiveView)
 /* Archive section layout */
 .fav-list {
   padding-top: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 }
 
 .archive-section {
@@ -435,14 +438,14 @@ onActivated(refreshArchiveView)
 }
 
 .archive-section__title {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: var(--color-text, #0d0d0d);
 }
 
 .archive-section__desc,
 .archive-section__meta {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-muted, #6e6e80);
 }
 

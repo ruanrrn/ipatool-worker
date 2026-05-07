@@ -42,6 +42,8 @@ const emit = defineEmits(['download', 'install', 'remove-artifact'])
   flex-direction: column;
   gap: 8px;
   padding-top: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 }
 
 .queue-list--completed {

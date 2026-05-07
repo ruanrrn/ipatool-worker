@@ -357,7 +357,8 @@ onActivated(() => {
 
 .queue-page__fixed {
   flex-shrink: 0;
-  padding-top: 20px;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
 }
 
 .queue-page__scroll {
@@ -385,7 +386,7 @@ onActivated(() => {
   min-width: 0;
 }
 .queue-header__storage {
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   color: var(--color-text-muted, #6e6e80);
   white-space: nowrap;
 }
@@ -397,7 +398,7 @@ onActivated(() => {
 }
 
 .page-title {
-  font-size: 26px;
+  font-size: var(--font-size-title);
   font-weight: 700;
   line-height: 1.3;
   margin-bottom: 0;
@@ -408,7 +409,7 @@ onActivated(() => {
  display: flex;
  gap: 0;
  background: var(--color-surface-muted, #f7f7f8);
- border-radius: 12px;
+ border-radius: var(--radius-xl);
  padding: 3px;
  margin-bottom: 0;
 }
@@ -420,9 +421,9 @@ onActivated(() => {
  flex: 1;
  padding: 9px;
  text-align: center;
- font-size: 13px;
+ font-size: var(--font-size-label);
  font-weight: 500;
- border-radius: 10px;
+ border-radius: var(--radius-lg);
  color: var(--color-text-muted, #6e6e80);
  border: none;
  background: transparent;
@@ -456,11 +457,11 @@ onActivated(() => {
 .q-btn {
  width: 32px;
  height: 32px;
- border-radius: 8px;
+ border-radius: var(--radius-base);
  border: 1px solid var(--color-border, #ebebeb);
  background: var(--color-surface, #fff);
  color: var(--color-text-muted, #6e6e80);
- font-size: 14px;
+ font-size: var(--font-size-body);
  display: flex;
  align-items: center;
  justify-content: center;
@@ -483,11 +484,11 @@ onActivated(() => {
   width: auto;
   height: auto;
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-base);
   border: 1px solid var(--color-danger-border);
   background: transparent;
   color: var(--color-danger);
-  font-size: 12px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   display: flex;
   align-items: center;
