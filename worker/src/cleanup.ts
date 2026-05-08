@@ -44,13 +44,33 @@ async function listAllAssets(env: Env): Promise<AssetEntry[]> {
   return out
 }
 
-async function deleteAsset(env: Env, entry: AssetEntry): Promise<void> {
-  try {
-    await env.R2.delete(entry.meta.r2Key)
-  } catch (err) {
-    console.warn('R2 delete failed:', err)
+// Cloudflare R2 binding `delete()` accepts an array of keys (S3
+// DeleteObjects under the hood, max 1000 per call). Deleting in bulk
+// keeps Class A operations down — important inside the Worker free-tier
+// caps and for keeping cleanup latency bounded when the bucket has
+// many objects.
+const R2_BULK_DELETE_LIMIT = 1000
+
+async function deleteAssetsBulk(env: Env, entries: AssetEntry[]): Promise<void> {
+  if (entries.length === 0) return
+  // R2 batch delete (chunked).
+  const r2Keys = entries.map((e) => e.meta.r2Key)
+  for (let i = 0; i < r2Keys.length; i += R2_BULK_DELETE_LIMIT) {
+    const slice = r2Keys.slice(i, i + R2_BULK_DELETE_LIMIT)
+    try {
+      await env.R2.delete(slice)
+    } catch (err) {
+      console.warn('R2 bulk delete failed:', err)
+    }
   }
-  await env.METADATA.delete(`asset:${entry.assetId}`)
+  // KV has no bulk delete — issue all deletes in parallel.
+  await Promise.all(
+    entries.map((e) =>
+      env.METADATA.delete(`asset:${e.assetId}`).catch((err) => {
+        console.warn(`KV delete asset:${e.assetId} failed:`, err)
+      })
+    )
+  )
 }
 
 /**
@@ -82,18 +102,13 @@ export function beijing0300CutoffUtcMs(now: Date = new Date()): number {
 export async function runScheduledCleanup(env: Env, now: Date = new Date()): Promise<number> {
   const cutoff = beijing0300CutoffUtcMs(now)
   const all = await listAllAssets(env)
-  let deleted = 0
-  for (const entry of all) {
-    if (entry.meta.uploadedAt < cutoff) {
-      await deleteAsset(env, entry)
-      deleted++
-    }
-  }
+  const victims = all.filter((e) => e.meta.uploadedAt < cutoff)
+  await deleteAssetsBulk(env, victims)
   console.log(
     `scheduled cleanup: cutoff=${new Date(cutoff).toISOString()} ` +
-      `scanned=${all.length} deleted=${deleted}`
+      `scanned=${all.length} deleted=${victims.length}`
   )
-  return deleted
+  return victims.length
 }
 
 /**
@@ -108,18 +123,19 @@ export async function ensureCapacity(env: Env): Promise<{ used: number; deleted:
   const target = QUOTA_BYTES * CAPACITY_TARGET_FRACTION
   if (used <= threshold) return { used, deleted: 0 }
 
-  // Sort oldest first.
+  // Pick the oldest-first slice that brings usage at or below target, then
+  // delete them in a single R2 batch call.
   all.sort((a, b) => a.meta.uploadedAt - b.meta.uploadedAt)
-  let deleted = 0
+  const victims: AssetEntry[] = []
   for (const entry of all) {
     if (used <= target) break
-    await deleteAsset(env, entry)
+    victims.push(entry)
     used -= entry.meta.size || 0
-    deleted++
   }
+  await deleteAssetsBulk(env, victims)
   console.log(
-    `capacity cleanup: deleted=${deleted} used_after=${used} ` +
+    `capacity cleanup: deleted=${victims.length} used_after=${used} ` +
       `threshold=${threshold.toFixed(0)} target=${target.toFixed(0)}`
   )
-  return { used, deleted }
+  return { used, deleted: victims.length }
 }

@@ -21,7 +21,13 @@ class FakeKV {
 
 class FakeR2 {
   store = new Map<string, boolean>()
-  delete = async (key: string) => { this.store.delete(key) }
+  /** Records every `delete()` invocation: arg is the raw value (string|string[]). */
+  deleteCalls: Array<string | string[]> = []
+  delete = async (key: string | string[]) => {
+    this.deleteCalls.push(key)
+    const keys = Array.isArray(key) ? key : [key]
+    for (const k of keys) this.store.delete(k)
+  }
 }
 
 function makeMeta(
@@ -101,6 +107,35 @@ describe('runScheduledCleanup', () => {
     expect(r2.store.has('k/old2')).toBe(false)
     expect(r2.store.has('k/fresh1')).toBe(true)
   })
+
+  it('uses a single batched R2 delete call for multiple victims', async () => {
+    const now = new Date(Date.UTC(2026, 4, 7, 20, 0, 0))
+    const cutoff = beijing0300CutoffUtcMs(now)
+    const items: Array<[string, AssetMetadata]> = []
+    for (let i = 0; i < 25; i++) {
+      items.push([
+        `asset:old${i}`,
+        makeMeta(`com.A.${i}`, '1.0', cutoff - i * 1000 - 1, `k/old${i}`),
+      ])
+    }
+    const { env, r2 } = fakeEnv(items)
+    await runScheduledCleanup(env, now)
+    // Exactly ONE R2.delete invocation, with an array of 25 keys.
+    expect(r2.deleteCalls.length).toBe(1)
+    expect(Array.isArray(r2.deleteCalls[0])).toBe(true)
+    expect((r2.deleteCalls[0] as string[]).length).toBe(25)
+  })
+
+  it('does not call R2 at all when there are no victims', async () => {
+    const now = new Date(Date.UTC(2026, 4, 7, 20, 0, 0))
+    const cutoff = beijing0300CutoffUtcMs(now)
+    const items: Array<[string, AssetMetadata]> = [
+      ['asset:fresh', makeMeta('com.A', '1.0', cutoff + 1000, 'k/fresh')],
+    ]
+    const { env, r2 } = fakeEnv(items)
+    await runScheduledCleanup(env, now)
+    expect(r2.deleteCalls.length).toBe(0)
+  })
 })
 
 describe('ensureCapacity', () => {
@@ -135,7 +170,7 @@ describe('ensureCapacity', () => {
     expect(r2.store.has('k/oldest')).toBe(false)
   })
 
-  it('keeps deleting in order until under target', async () => {
+  it('keeps deleting in order until under target, single batched R2 call', async () => {
     // 9.5 GB used: 5 small (0.5 GB each) + 1 big (7 GB), oldest first.
     // Threshold 7 GB. Need to drop until used <= 7 GB.
     // After o1: 9 GB. After o2: 8.5. After o3: 8. After o4: 7.5. After o5: 7. (stop)
@@ -148,9 +183,23 @@ describe('ensureCapacity', () => {
       ['asset:o5', makeMeta('com.A', '5.0', 500, 'k/o5', HALF)],
       ['asset:big', makeMeta('com.B', '1.0', 600, 'k/big', 7 * ONE_GB)],
     ]
-    const { env, kv } = fakeEnv(items)
+    const { env, kv, r2 } = fakeEnv(items)
     const result = await ensureCapacity(env)
     expect(result.deleted).toBe(5)
     expect([...kv.store.keys()]).toEqual(['asset:big'])
+    // Exactly one batched R2 delete with 5 keys.
+    expect(r2.deleteCalls.length).toBe(1)
+    expect((r2.deleteCalls[0] as string[]).sort()).toEqual([
+      'k/o1', 'k/o2', 'k/o3', 'k/o4', 'k/o5',
+    ])
+  })
+
+  it('does not call R2 when usage is already within target', async () => {
+    const items: Array<[string, AssetMetadata]> = [
+      ['asset:a', makeMeta('com.A', '1.0', 100, 'k/a', 2 * ONE_GB)],
+    ]
+    const { env, r2 } = fakeEnv(items)
+    await ensureCapacity(env)
+    expect(r2.deleteCalls.length).toBe(0)
   })
 })
