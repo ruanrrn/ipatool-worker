@@ -1,9 +1,6 @@
 <template>
   <div class="login-shell flex items-center justify-center bg-surface-page dark:bg-surface-dark-page px-5 py-10">
-    <div
-      v-if="viewMode === 'login'"
-      class="w-full max-w-[420px]"
-    >
+    <div class="w-full max-w-[420px]">
       <!-- Brand Area -->
       <div class="mb-8 flex flex-col items-center text-center">
         <div class="brand-icon">
@@ -13,11 +10,10 @@
           ipaTool
         </h1>
         <p class="text-[14px] text-txt-secondary dark:text-txt-dark-secondary">
-          IPA 下载 · 签名 · 管理
+          私有部署 · 单用户独享
         </p>
       </div>
 
-      <!-- Login Form -->
       <form
         class="login-form space-y-3"
         @submit.prevent="handleLogin"
@@ -59,25 +55,15 @@
         </button>
       </form>
 
-      <!-- Footer -->
       <div class="mt-6 text-center">
         <p class="mb-2 text-[12px] text-txt-tertiary dark:text-txt-dark-tertiary">
-          首次登录需要修改初始密码
+          密码由部署者用 wrangler secret put PASSWORD_BCRYPT 注入
         </p>
         <p class="text-[12px] text-txt-tertiary dark:text-txt-dark-tertiary">
           v{{ appVersion }}
         </p>
       </div>
     </div>
-
-    <!-- Change Password Page (viewMode === 'changepassword') -->
-    <ChangePassword
-      v-else-if="viewMode === 'changepassword'"
-      :current-password="loginForm.password"
-      :force-change="forcePasswordChange"
-      @back="handleChangePasswordBack"
-      @success="handleChangePasswordSuccess"
-    />
   </div>
 </template>
 
@@ -86,22 +72,11 @@
 import { reactive, ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import MobileInput from './MobileInput.vue'
-import ChangePassword from './ChangePassword.vue'
 import { Toast } from './MobileToast.vue'
-
-const props = defineProps({
-  forcePasswordChange: {
-    type: Boolean,
-    default: false
-  }
-})
 
 const emit = defineEmits(['login-success'])
 const appStore = useAppStore()
-const appVersion = __APP_VERSION__
-
-// View mode: 'login' | 'changepassword'
-const viewMode = ref(props.forcePasswordChange ? 'changepassword' : 'login')
+const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
 
 const loginLoading = ref(false)
 
@@ -120,7 +95,7 @@ function clearLoginErrors() {
   loginErrors.password = ''
 }
 
-async function validateLoginForm() {
+function validateLoginForm() {
   clearLoginErrors()
   if (!loginForm.username) {
     loginErrors.username = '请输入用户名'
@@ -134,36 +109,20 @@ async function validateLoginForm() {
 
 const handleLogin = async () => {
   try {
-    await validateLoginForm()
-
+    validateLoginForm()
     loginLoading.value = true
-    const user = await appStore.loginAdmin(loginForm.username, loginForm.password)
-
-    if (user?.is_default) {
-      viewMode.value = 'changepassword'
-    } else {
-      Toast.success('登录成功')
-      emit('login-success')
-    }
+    await appStore.loginAdmin(loginForm.username, loginForm.password)
+    Toast.success('登录成功')
+    emit('login-success')
   } catch (e) {
-    Toast.error(e?.message || '登录失败')
+    if (e?.status === 429) {
+      Toast.error(`登录尝试过多，请 ${e.retryAfter || 60} 秒后重试`)
+    } else {
+      Toast.error(e?.message || '登录失败')
+    }
   } finally {
     loginLoading.value = false
   }
-}
-
-const handleChangePasswordBack = () => {
-  if (!props.forcePasswordChange) {
-    viewMode.value = 'login'
-  }
-}
-
-const handleChangePasswordSuccess = async (user) => {
-  if (user) {
-    appStore.setAuthUser(user)
-  }
-  Toast.success('账号密码修改成功')
-  emit('login-success')
 }
 </script>
 
@@ -171,11 +130,9 @@ const handleChangePasswordSuccess = async (user) => {
 .login-shell {
   min-height: 100svh;
   min-height: 100dvh;
-  /* Avoid soft-keyboard overlap on iOS Safari (set by useKeyboardAware) */
   padding-bottom: max(40px, var(--kb-inset-bottom, 0px));
 }
 
-/* Brand icon — match home card-icon radius */
 .brand-icon {
   width: 64px;
   height: 64px;
@@ -190,7 +147,6 @@ const handleChangePasswordSuccess = async (user) => {
   margin-bottom: var(--space-3);
 }
 
-/* Login button (matches MobileButton primary) */
 .login-btn {
   width: 100%;
   min-height: var(--size-control-lg);

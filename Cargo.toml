@@ -1,0 +1,3 @@
+[workspace]
+members = ["ipa-wasm"]
+resolver = "2"

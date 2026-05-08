@@ -1,29 +1,27 @@
 {
   "name": "ipa-tool",
   "version": "2.4.2",
-  "description": "A modern IPA download and signing tool with app search capabilities",
+  "description": "Private single-user IPA download / signing tool — Cloudflare Worker + R2 + WASM",
   "type": "module",
   "scripts": {
     "dev": "vite --config frontend/vite.config.js",
-    "dev:rust": "./dev-rust.sh",
     "build": "vite build --config frontend/vite.config.js",
-    "build:rust": "./build-rust.sh",
+    "build:wasm": "wasm-pack build ipa-wasm --target web --release --out-dir ../frontend/public/wasm --out-name ipa_wasm",
+    "build:all": "npm run build:wasm && npm run build",
     "preview": "vite preview --config frontend/vite.config.js",
-    "version:sync": "scripts/sync-version.sh",
-    "version:patch": "npm version patch && scripts/sync-version.sh",
-    "version:minor": "npm version minor && scripts/sync-version.sh",
-    "version:major": "npm version major && scripts/sync-version.sh",
+    "worker:dev": "cd worker && npm run dev",
+    "worker:deploy": "cd worker && npm run deploy",
+    "worker:test": "cd worker && npm test",
+    "worker:typecheck": "cd worker && npm run typecheck",
+    "test:wasm": "cargo test --manifest-path ipa-wasm/Cargo.toml",
     "lint": "eslint frontend/ --config frontend/eslint.config.js",
     "lint:fix": "eslint frontend/ --fix",
-    "format": "prettier --config frontend/.prettierrc --write \"frontend/**/*.{vue,js,json,css}\"",
-    "lint:tokens": "bash scripts/check-no-hardcoded-colors.sh"
+    "format": "prettier --config frontend/.prettierrc --write \"frontend/**/*.{vue,js,json,css}\""
   },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0",
     "@vueuse/core": "^14.2.0",
-    "jszip": "^3.10.1",
     "pinia": "^2.3.0",
-    "puppeteer-core": "^24.42.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {

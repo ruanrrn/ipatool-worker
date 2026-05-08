@@ -1,246 +1,123 @@
-[中文文档](docs/README.zh-CN.md) | English
+# ipaTool — Private Single-User IPA Sign + OTA Install
 
-<h1 align="center">ipaTool</h1>
+完全私有化部署、单用户独享。零 GitHub 依赖（无 Actions / Releases / PAT）。
+重活全在手机端 WASM，Worker 只做鉴权 / Apple TLS 中继 / R2 分发。
 
-<p align="center">
-  Mobile-first IPA download, archive & installation manager
-</p>
+## 架构
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js" alt="Vue 3">
-  <img src="https://img.shields.io/badge/Rust-000000?logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT">
-  <a href="https://github.com/ruanrrn/ipaTool/releases"><img src="https://img.shields.io/github/v/release/ruanrrn/ipaTool?label=release" alt="GitHub release"></a>
-</p>
+```
+iPhone Safari (PWA)                    Cloudflare Worker (单文件)
+  ┌──────────────────────┐               ┌──────────────────────────┐
+  │ Login → cookie sid   ├──/auth/login─►│ bcrypt + KV session      │
+  │ Apple ID 加密在本地   │               │ 5/15min IP rate limit    │
+  │  IndexedDB+AES-GCM   │               │                          │
+  │  PBKDF2(主 PIN, 600k)│               │                          │
+  │                      ├──/apple/proxy►│ Apple host allowlist     │
+  │ WASM patch (in-page) │   或 /wisp    │ TLS to Apple             │
+  │  inject sinf+plist   │               │                          │
+  │                      ├──/r2/upload-*►│ R2 multipart upload      │
+  │                      │               │                          │
+  │ tap install → installd                                          │
+  │   GET /m/<id>.plist  ◄──manifest──── │ build OTA plist          │
+  │   GET /d/<id>.ipa    ◄──cache─────── │ stream R2 + cf.cacheTtl  │
+  └──────────────────────┘               └──────────────────────────┘
+                                                    │ R2 (private bucket)
+                                                    ▼
+                                           ┌──────────────────────┐
+                                           │ daily cleanup cron   │
+                                           │ keep 3 / bundle_id   │
+                                           └──────────────────────┘
+```
 
----
+## 目录
 
-## Features
+| 路径 | 用途 |
+|---|---|
+| `ipa-wasm/` | Rust crate (cdylib) → WASM。负责 inspect / sinf 注入 / iTunesMetadata / OTA manifest 生成 |
+| `worker/` | Cloudflare Worker — 单一部署单元，含 R2 / KV bindings 和 Wrangler Assets 静态托管 |
+| `worker/src/index.ts` | 路由分发 |
+| `worker/src/auth.ts` | 登录 / session / rate limit |
+| `worker/src/wisp.ts` + `wisp-allowlist.ts` | Wisp v1 TCP 中继（实验性） |
+| `worker/src/apple.ts` | Apple HTTPS 代理（默认主路径） |
+| `worker/src/r2.ts` | R2 multipart upload / list / delete |
+| `worker/src/install.ts` | `/m/`、`/d/`、`/i/` OTA 路由 |
+| `worker/src/cleanup.ts` | 定时清理 cron handler |
+| `frontend/` | Vue 3 SPA |
+| `frontend/utils/auth.js` | 登录态包装 |
+| `frontend/utils/appleApi.js` | TS 重写自 `apple_auth.rs` |
+| `frontend/utils/credentials.js` | IndexedDB + Web Crypto + 主 PIN |
+| `frontend/utils/wisp.js` | Wisp v1 客户端 |
+| `frontend/utils/plist.js` | XML plist 编解码 |
+| `frontend/utils/r2Upload.js` | 浏览器侧 multipart 上传 |
+| `frontend/utils/ipaPipeline.js` | 端到端流程编排 |
+| `frontend/utils/wakeLock.js` | iOS 屏幕锁 |
+| `frontend/public/wasm/` | wasm-pack 输出（构建产物） |
 
-- Download delisted apps
-- Purchase free apps
-- Complete version history
-- Version favorites & notes
-- OTA install or IPA export
-- Multi Apple ID management
-
-## Preview
-
-| Home | Queue | Favorites |
-|:----:|:-----:|:---------:|
-| <img src="docs/screenshots/home-search.jpg" width="220"> | <img src="docs/screenshots/queue-active.jpg" width="220"> | <img src="docs/screenshots/archive-favorites.jpg" width="220"> |
-
-| Settings | Add Account | Version Select |
-|:--------:|:-----------:|:--------------:|
-| <img src="docs/screenshots/settings-appearance.jpg" width="220"> | <img src="docs/screenshots/add-apple-id.jpg" width="220"> | <img src="docs/screenshots/app-detail.jpg" width="220"> |
-
-## Quick Start
-
-### Method 1: One-Click Install (Recommended)
-
-Run the command below — it launches an interactive management panel:
+## 部署（5 分钟）
 
 ```bash
-bash <(curl -fsSL https://cdn.jsdelivr.net/gh/ruanrrn/ipaTool@main/scripts/install.sh)
+# 1. 克隆 + 安装
+git clone <repo> && cd ipaTool
+npm install
+cd worker && npm install && cd ..
+
+# 2. 构建 WASM + 前端
+cargo install wasm-pack         # 第一次需要
+npm run build:all               # → dist/ + frontend/public/wasm/
+
+# 3. Cloudflare 资源
+wrangler r2 bucket create ipatool
+wrangler kv:namespace create SESSIONS
+wrangler kv:namespace create METADATA
+wrangler kv:namespace create RATELIMIT
+# 把返回的 id 填到 worker/wrangler.toml 的对应 [[kv_namespaces]] 段
+
+# 4. 设密码（cost=12 bcrypt）
+node -e "console.log(require('bcryptjs').hashSync('YOUR_PASSWORD_HERE', 12))" \
+  | wrangler -c worker/wrangler.toml secret put PASSWORD_BCRYPT
+
+# 5. 改 USERNAME
+$EDITOR worker/wrangler.toml
+
+# 6. 部署
+cd worker && npx wrangler deploy
+# → https://ipatool.<account>.workers.dev
 ```
 
-> If jsDelivr is slow in your region, use the GitHub raw link instead:
-> ```bash
-> bash <(curl -fsSL https://raw.githubusercontent.com/ruanrrn/ipaTool/main/scripts/install.sh)
-> ```
-
-After installation, reopen the panel anytime:
+## 开发
 
 ```bash
-sudo bash /opt/ipatool/manager.sh
+# Worker 本地起 (port 8787)
+cd worker && npm run dev
+
+# 前端 dev server (port 3000，自动代理到 8787)
+cd .. && npm run dev
 ```
 
----
-
-### Method 2: Docker
-
-**Using docker-compose:**
-
-Create a `docker-compose.yml`:
-
-```yaml
-version: '3.8'
-
-services:
-  ipatool:
-    image: heard/ipatool
-    container_name: ipatool
-    ports:
-      - "8080:8080"
-    volumes:
-      - ipa-data:/app/data
-      - ipa-downloads:/app/downloads
-    restart: unless-stopped
-
-volumes:
-  ipa-data:
-  ipa-downloads:
-```
-
-Then start:
+## 测试
 
 ```bash
-docker-compose up -d   # → http://localhost:8080
+# Rust WASM crate (11 测试)
+npm run test:wasm
+
+# Worker (10 测试)
+npm run worker:test
 ```
 
-**Using docker run:**
+## 验证
 
-```bash
-docker run -d -p 8080:8080 --name ipatool heard/ipatool:latest
-```
+1. **登录**：浏览器 `http://localhost:8787` → 登录 → cookie 设置成功 → `/auth/whoami` 返回 200。
+2. **Apple 登录 + 下载 + Patch + 上传**：在"下载"页输入 Apple ID + 密码 → 选择 App → 点开始 → 全流程跑通 → 跳转到装机页。
+3. **OTA 安装**：iPhone Safari 开 `<worker>/i/<assetId>` → tap 按钮 → 系统弹"是否安装" → 装机成功。
+4. **未登录拒绝**：清 cookie 直接 `POST /r2/upload-init` → 401；`GET /wisp/` → 401。
+5. **暴力破解**：连续 5 次错误密码 → 第 6 次 429 + Retry-After。
+6. **清理 cron**：`wrangler dev --test-scheduled` → 旧版本 R2 + KV 同步删除。
 
-**View / Reset Admin Password:**
+## 隐私 / 安全
 
-Set an initial password at startup (recommended):
-
-```bash
-docker run -d -p 8080:8080 \
-  -e IPA_ADMIN_INITIAL_PASSWORD='your-strong-password' \
-  --name ipatool heard/ipatool:latest
-```
-
-If not set, retrieve the auto-generated password from logs:
-
-```bash
-docker logs ipatool 2>&1 | grep 'Generated one-time admin password'
-```
-
-To reset the password:
-
-```bash
-docker exec -i ipatool ./server reset-admin-password --username admin --password-stdin <<< 'new-password'
-```
-
----
-
-### Method 3: Run from Source
-
-**Prerequisites:** Node.js 18+ · pnpm · Rust 1.85+
-
-**Development:**
-
-```bash
-pnpm install
-pnpm run dev                        # Frontend → localhost:5173
-cd server && cargo run --bin server # Backend → localhost:8080
-```
-
-**Production build:**
-
-```bash
-pnpm run build
-rm -rf server/dist && cp -a dist/. server/dist/
-cd server && cargo run --bin server
-```
-
-**View / Reset Admin Password:**
-
-Set an initial password via environment variable (recommended):
-
-```bash
-cd server
-IPA_ADMIN_INITIAL_PASSWORD='your-secure-password' cargo run --bin server
-```
-
-If not set, check the terminal output for:
-
-```text
-[SECURITY] Generated one-time admin password for first run: ...
-```
-
-To reset the password:
-
-```bash
-cd server
-printf '%s' 'new-password' | cargo run --bin server -- reset-admin-password --username admin --password-stdin
-```
-
-If the database is in a custom location:
-
-```bash
-DATABASE_PATH=/path/to/ipa-webtool.db cargo run --bin server -- reset-admin-password --username admin --password-stdin
-```
-
----
-
-## HTTPS Setup (Required for OTA)
-
-OTA installation requires HTTPS. Common approaches:
-
-| Solution | Description |
-|----------|-------------|
-| **Nginx + Let's Encrypt** | Use Certbot for free certificates, Nginx reverse proxy to port 8080 |
-| **Cloudflare Tunnel** | Expose via Cloudflare tunnel, no public port required |
-
-Example Nginx reverse proxy config:
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.com;
-    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-## Tech Stack
-
-| Frontend | Backend |
-|----------|---------|
-| Vue 3 + Vite 6 | Rust |
-| Pinia | Actix Web |
-| Tailwind CSS | rusqlite |
-| | reqwest · tokio · OpenSSL (vendored) |
-
-## Project Structure
-
-```
-├── frontend/            # Vue 3 frontend
-│   ├── index.html       # Vite entry
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   ├── eslint.config.js
-│   ├── .prettierrc
-│   ├── main.js          # App entry
-│   ├── App.vue          # Root component
-│   ├── components/      # Components
-│   ├── composables/     # Composables
-│   ├── stores/          # Pinia stores
-│   └── utils/           # Utilities
-├── server/              # Rust backend (Actix Web)
-│   ├── src/
-│   ├── Cargo.toml
-│   └── rustfmt.toml
-├── scripts/             # Build & ops scripts
-│   ├── install.sh       # One-click management script
-│   ├── verify-build.sh
-│   ├── sync-version.sh
-│   └── check-no-hardcoded-colors.sh
-├── docs/                # Documentation & screenshots
-│   ├── screenshots/
-│   ├── learnings/
-│   └── README.zh-CN.md  # Chinese documentation
-├── .github/workflows/   # CI/CD (ci, docker, release)
-├── Dockerfile
-├── docker-compose.yml
-├── .npmrc
-├── package.json
-├── pnpm-lock.yaml
-└── README.md
-```
-
-## License
-
-[MIT](LICENSE)
+- Apple 凭据加密存在浏览器 IndexedDB（AES-GCM + PBKDF2(主 PIN, 600k iter)）。主 PIN 不入库。
+- 默认 `/apple/proxy` 路径让 Worker 终结到 Apple 的 TLS（用户信任自己的 Worker）。
+- 实验性 `/wisp/` 路径为完全零信任设计，需要前端集成 libcurl.js + mbedTLS（未默认开启）。
+- R2 桶私有；OTA URL 用不可枚举的 UUIDv4 capability。
+- 严格 CSP；同源约束；登录限速 5/15min/IP。
+- Worker 不持久化用户输入（除 KV session 和 R2 metadata）。

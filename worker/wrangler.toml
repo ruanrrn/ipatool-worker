@@ -1,0 +1,41 @@
+name = "ipatool"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Wrangler Assets - 与 Worker 同部署的前端 SPA + WASM 构建产物
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# R2: IPA 存储桶（私有；仅 Worker 通过签 URL 访问）
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "ipatool"
+
+# KV: 会话表 / IPA 元数据表 / 登录限速计数器
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_REAL_SESSIONS_KV_ID"
+
+[[kv_namespaces]]
+binding = "METADATA"
+id = "REPLACE_WITH_REAL_METADATA_KV_ID"
+
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "REPLACE_WITH_REAL_RATELIMIT_KV_ID"
+
+# 定时清理任务
+[triggers]
+crons = ["0 3 * * *"]
+
+[vars]
+USERNAME = "owner"
+APPLE_HOST_ALLOWLIST = "*.itunes.apple.com,*.apple.com,*.apple-cloudkit.com,*.phobos.apple.com,init-p01st.push.apple.com"
+SESSION_TTL_SECONDS = "2592000"
+KEEP_VERSIONS_PER_BUNDLE = "3"
+# R2 endpoint - 默认走 binding，所以下方两项只在签 URL 直传时才有用。
+# 用户需通过 wrangler secret put 注入：
+#   PASSWORD_BCRYPT, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, INSTALL_TOKEN_SECRET
