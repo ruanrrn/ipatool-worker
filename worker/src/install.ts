@@ -8,6 +8,7 @@
 // this if INSTALL_TOKEN_SECRET is set.
 
 import type { Env, AssetMetadata } from './types'
+import { ensureCapacity } from './cleanup'
 
 async function loadAsset(env: Env, assetId: string): Promise<AssetMetadata | null> {
   const raw = await env.METADATA.get(`asset:${assetId}`)
@@ -108,11 +109,19 @@ export async function handleManifest(
 export async function handleDownload(
   req: Request,
   env: Env,
+  ctx: ExecutionContext,
   _url: URL,
   assetId: string
 ): Promise<Response> {
   const meta = await loadAsset(env, assetId)
   if (!meta) return new Response('not found', { status: 404 })
+
+  // Treat the start of an OTA download as "the user is installing this app
+  // now". Schedule a background capacity check so storage stays below the
+  // 70% threshold without blocking the install.
+  ctx.waitUntil(
+    ensureCapacity(env).catch((err) => console.warn('ensureCapacity (post-download) failed:', err))
+  )
 
   const range = req.headers.get('range')
   const r2Opts: R2GetOptions = {}

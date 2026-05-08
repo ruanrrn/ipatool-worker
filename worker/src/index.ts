@@ -10,7 +10,7 @@ import {
   handleDeleteAsset,
 } from './r2'
 import { handleManifest, handleDownload, handleInstallPage } from './install'
-import { runCleanup } from './cleanup'
+import { runScheduledCleanup } from './cleanup'
 import type { Env } from './types'
 
 const SECURITY_HEADERS = {
@@ -88,14 +88,14 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
-    await runCleanup(env)
+    await runScheduledCleanup(env)
   },
 }
 
 async function route(
   request: Request,
   env: Env,
-  _ctx: ExecutionContext,
+  ctx: ExecutionContext,
   url: URL,
   path: string
 ): Promise<Response> {
@@ -136,7 +136,7 @@ async function route(
   if (path === '/r2/upload-complete' && request.method === 'POST') {
     const session = await requireSession(env, request)
     if (session instanceof Response) return session
-    return handleUploadComplete(request, env)
+    return handleUploadComplete(request, env, ctx)
   }
   if (path === '/r2/upload-abort' && request.method === 'POST') {
     const session = await requireSession(env, request)
@@ -162,7 +162,7 @@ async function route(
   }
   const downloadMatch = path.match(/^\/d\/([^/]+)(?:\.ipa)?$/)
   if (downloadMatch && (request.method === 'GET' || request.method === 'HEAD')) {
-    return handleDownload(request, env, url, downloadMatch[1]!)
+    return handleDownload(request, env, ctx, url, downloadMatch[1]!)
   }
   const installMatch = path.match(/^\/i\/([^/]+)$/)
   if (installMatch && request.method === 'GET') {

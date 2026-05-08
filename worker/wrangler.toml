@@ -28,14 +28,14 @@ binding = "RATELIMIT"
 id = "REPLACE_WITH_REAL_RATELIMIT_KV_ID"
 
 # 定时清理任务
+# 04:00 北京时间 = 20:00 UTC，每日清除 03:00 北京之前上传的所有 IPA。
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 20 * * *"]
 
 [vars]
 USERNAME = "owner"
 APPLE_HOST_ALLOWLIST = "*.itunes.apple.com,*.apple.com,*.apple-cloudkit.com,*.phobos.apple.com,init-p01st.push.apple.com"
 SESSION_TTL_SECONDS = "2592000"
-KEEP_VERSIONS_PER_BUNDLE = "3"
 # R2 endpoint - 默认走 binding，所以下方两项只在签 URL 直传时才有用。
 # 用户需通过 wrangler secret put 注入：
 #   PASSWORD_BCRYPT, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, INSTALL_TOKEN_SECRET

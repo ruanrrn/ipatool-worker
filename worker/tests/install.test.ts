@@ -24,7 +24,6 @@ function fakeEnv(metadata: Record<string, AssetMetadata>): Env {
     USERNAME: 'owner',
     APPLE_HOST_ALLOWLIST: '',
     SESSION_TTL_SECONDS: '60',
-    KEEP_VERSIONS_PER_BUNDLE: '3',
     PASSWORD_BCRYPT: '',
     METADATA: kv,
     R2,
@@ -33,6 +32,11 @@ function fakeEnv(metadata: Record<string, AssetMetadata>): Env {
     RATELIMIT: {} as any,
   } as Env
 }
+
+const fakeCtx = {
+  waitUntil: () => {},
+  passThroughOnException: () => {},
+} as unknown as ExecutionContext
 
 describe('install routes', () => {
   it('generates manifest plist with all required fields', async () => {

@@ -10,7 +10,6 @@ export interface Env {
   USERNAME: string
   APPLE_HOST_ALLOWLIST: string
   SESSION_TTL_SECONDS: string
-  KEEP_VERSIONS_PER_BUNDLE: string
 
   // Secrets (wrangler secret put)
   PASSWORD_BCRYPT: string

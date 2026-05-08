@@ -11,6 +11,7 @@
 // chosen for reliability.
 
 import type { Env, AssetMetadata } from './types'
+import { ensureCapacity } from './cleanup'
 
 interface UploadInitBody {
   bundleId: string
@@ -140,7 +141,11 @@ export async function handleUploadPart(
   }
 }
 
-export async function handleUploadComplete(req: Request, env: Env): Promise<Response> {
+export async function handleUploadComplete(
+  req: Request,
+  env: Env,
+  ctx: ExecutionContext
+): Promise<Response> {
   let body: UploadCompleteBody
   try {
     body = (await req.json()) as UploadCompleteBody
@@ -181,6 +186,10 @@ export async function handleUploadComplete(req: Request, env: Env): Promise<Resp
     email: body.email,
   }
   await env.METADATA.put(`asset:${assetId}`, JSON.stringify(metadata))
+
+  // Capacity-driven cleanup: a fresh upload may push storage past the 70%
+  // threshold; run cleanup in the background so the client doesn't wait.
+  ctx.waitUntil(ensureCapacity(env).catch((err) => console.warn('ensureCapacity failed:', err)))
 
   return jsonResponse({ assetId })
 }
