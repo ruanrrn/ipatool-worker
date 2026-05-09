@@ -17,11 +17,12 @@ target/
 .wrangler/
 .dev.vars
 
-# WASM build outputs (regenerable; built by `npm run build:wasm`)
-frontend/public/wasm/*.wasm
-frontend/public/wasm/*.js
-frontend/public/wasm/*.d.ts
-frontend/public/wasm/*.json
+# WASM build outputs (committed to enable one-click Cloudflare deploy
+# without a Rust toolchain in the build runner). Regenerate locally with
+# `npm run build:wasm`. Only the auto-generated metadata files are
+# ignored.
+frontend/public/wasm/.gitignore
+frontend/public/wasm/package.json
 
 # Rust
 **/*.rs.bk

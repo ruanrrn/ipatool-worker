@@ -1,0 +1,60 @@
+#:schema node_modules/wrangler/config-schema.json
+# Cloudflare Workers config — used by both `wrangler deploy` (CLI) and the
+# "Deploy to Cloudflare" one-click button at the repo root.
+#
+# The button auto-provisions:
+#   - the named R2 bucket (if missing)
+#   - each KV namespace (id="" → newly created at deploy time)
+#   - prompts for any required `wrangler secret put` values
+# It then runs the [build] command and `wrangler deploy`.
+name = "ipatool"
+main = "worker/src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Build pipeline runs in Cloudflare Workers Builds (or locally via
+# `npm run deploy`). Pre-built WASM is committed under
+# `frontend/public/wasm/` so this build step does NOT need a Rust toolchain.
+[build]
+command = "npm install && cd worker && npm install && cd .. && npm run build"
+
+# Wrangler Assets serves the SPA + WASM bundle alongside the Worker.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Private R2 bucket where patched IPAs live. Capacity-driven cleanup runs
+# after each upload + each /d/ download; daily cron at 04:00 Beijing wipes
+# anything older than the same Beijing-day's 03:00.
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "ipatool"
+
+# KV namespaces. Leaving id="" tells the Deploy button / wrangler to create
+# new namespaces on first deploy. After first run, `wrangler deploy` will
+# rewrite these with concrete IDs.
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = ""
+
+[[kv_namespaces]]
+binding = "METADATA"
+id = ""
+
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = ""
+
+# 04:00 Beijing = 20:00 UTC.
+[triggers]
+crons = ["0 20 * * *"]
+
+[vars]
+USERNAME = "owner"
+APPLE_HOST_ALLOWLIST = "*.itunes.apple.com,*.apple.com,*.apple-cloudkit.com,*.phobos.apple.com,init-p01st.push.apple.com"
+SESSION_TTL_SECONDS = "2592000"
+
+# Secrets (set via `wrangler secret put` or the Deploy button prompt):
+#   PASSWORD_BCRYPT  — bcrypt hash of your login password (cost ≥ 12)
+#   INSTALL_TOKEN_SECRET (optional) — HMAC key for /m/ /d/ capability tokens

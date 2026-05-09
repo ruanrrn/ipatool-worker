@@ -9,14 +9,15 @@
     "build:wasm": "wasm-pack build ipa-wasm --target web --release --out-dir ../frontend/public/wasm --out-name ipa_wasm",
     "build:all": "npm run build:wasm && npm run build",
     "preview": "vite preview --config frontend/vite.config.js",
-    "worker:dev": "cd worker && npm run dev",
-    "worker:deploy": "cd worker && npm run deploy",
+    "deploy": "wrangler deploy",
+    "worker:dev": "wrangler dev",
     "worker:test": "cd worker && npm test",
     "worker:typecheck": "cd worker && npm run typecheck",
     "test:wasm": "cargo test --manifest-path ipa-wasm/Cargo.toml",
     "lint": "eslint frontend/ --config frontend/eslint.config.js",
     "lint:fix": "eslint frontend/ --fix",
-    "format": "prettier --config frontend/.prettierrc --write \"frontend/**/*.{vue,js,json,css}\""
+    "format": "prettier --config frontend/.prettierrc --write \"frontend/**/*.{vue,js,json,css}\"",
+    "postinstall": "cd worker && npm install --ignore-scripts"
   },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0",
@@ -35,6 +36,7 @@
     "postcss": "^8.4.49",
     "prettier": "^3.8.1",
     "tailwindcss": "^3.4.17",
-    "vite": "^6.0.11"
+    "vite": "^6.0.11",
+    "wrangler": "^3.78.0"
   }
 }
