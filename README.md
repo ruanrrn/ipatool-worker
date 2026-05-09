@@ -17,7 +17,7 @@
 git clone https://github.com/ruanrrn/ipatool-worker.git && cd ipatool-worker
 pnpm install
 npx wrangler login
-npx wrangler deploy
+pnpm run deploy    # 自动创建 KV namespace + 部署
 ```
 
 **首次登录**：

@@ -9,7 +9,7 @@
     "build:wasm": "wasm-pack build ipa-wasm --target web --release --out-dir ../frontend/public/wasm --out-name ipa_wasm",
     "build:all": "npm run build:wasm && npm run build",
     "preview": "vite preview --config frontend/vite.config.js",
-    "deploy": "wrangler deploy",
+    "deploy": "bash scripts/deploy.sh",
     "worker:dev": "wrangler dev",
     "worker:test": "cd worker && npm test",
     "worker:typecheck": "cd worker && npm run typecheck",
