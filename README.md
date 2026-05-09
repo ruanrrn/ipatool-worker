@@ -4,7 +4,7 @@
 > Heavy lifting (sinf 注入、ZIP 重打包、plist 改写) all in the iPhone browser via WebAssembly.
 > Zero GitHub dependency at runtime — no Actions, no Releases, no PAT.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ruanrrn/ipatool)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ruanrrn/ipatool-worker)
 
 > 一键部署：点上面按钮 → 授权 GitHub fork 仓库 → Cloudflare 自动创建 R2 桶 + 3 个 KV namespace + 装机域名 → 提示填登录密码 (`PASSWORD_BCRYPT`) → 等 1–2 分钟构建完毕。
 
