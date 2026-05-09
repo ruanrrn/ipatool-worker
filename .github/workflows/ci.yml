@@ -21,6 +21,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
 
       # Frontend lint
       - run: pnpm run lint
@@ -43,6 +45,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
       - run: pnpm run worker:test
 
   build:
@@ -59,4 +63,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        env:
+          PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
       - run: pnpm run build
