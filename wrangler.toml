@@ -35,15 +35,7 @@ bucket_name = "ipatool"
 # new namespaces on first deploy. After first run, `wrangler deploy` will
 # rewrite these with concrete IDs.
 [[kv_namespaces]]
-binding = "SESSIONS"
-id = ""
-
-[[kv_namespaces]]
-binding = "METADATA"
-id = ""
-
-[[kv_namespaces]]
-binding = "RATELIMIT"
+binding = "KV"
 id = ""
 
 # 04:00 Beijing = 20:00 UTC.

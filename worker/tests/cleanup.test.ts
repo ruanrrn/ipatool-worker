@@ -56,7 +56,7 @@ function fakeEnv(items: Array<[string, AssetMetadata]>): { env: Env; kv: FakeKV;
     r2.store.set(v.r2Key, true)
   }
   const env = {
-    METADATA: kv as unknown as KVNamespace,
+    KV: kv as unknown as KVNamespace,
     R2: r2 as unknown as R2Bucket,
   } as unknown as Env
   return { env, kv, r2 }

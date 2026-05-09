@@ -25,11 +25,9 @@ function fakeEnv(metadata: Record<string, AssetMetadata>): Env {
     APPLE_HOST_ALLOWLIST: '',
     SESSION_TTL_SECONDS: '60',
     PASSWORD_BCRYPT: '',
-    METADATA: kv,
+    KV: kv,
     R2,
     ASSETS: {} as any,
-    SESSIONS: {} as any,
-    RATELIMIT: {} as any,
   } as Env
 }
 

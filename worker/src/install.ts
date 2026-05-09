@@ -11,7 +11,7 @@ import type { Env, AssetMetadata } from './types'
 import { ensureCapacity } from './cleanup'
 
 async function loadAsset(env: Env, assetId: string): Promise<AssetMetadata | null> {
-  const raw = await env.METADATA.get(`asset:${assetId}`)
+  const raw = await env.KV.get(`asset:${assetId}`)
   if (!raw) return null
   try {
     return JSON.parse(raw) as AssetMetadata

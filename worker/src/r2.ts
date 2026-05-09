@@ -185,7 +185,7 @@ export async function handleUploadComplete(
     r2Key: key,
     email: body.email,
   }
-  await env.METADATA.put(`asset:${assetId}`, JSON.stringify(metadata))
+  await env.KV.put(`asset:${assetId}`, JSON.stringify(metadata))
 
   // Capacity-driven cleanup: a fresh upload may push storage past the 70%
   // threshold; run cleanup in the background so the client doesn't wait.
@@ -217,13 +217,13 @@ export async function handleListAssets(_req: Request, env: Env): Promise<Respons
   const assets: Array<AssetMetadata & { assetId: string }> = []
   let cursor: string | undefined = undefined
   do {
-    const list: KVNamespaceListResult<unknown, string> = await env.METADATA.list({
+    const list: KVNamespaceListResult<unknown, string> = await env.KV.list({
       prefix: 'asset:',
       cursor,
     })
     for (const k of list.keys) {
       const id = k.name.slice('asset:'.length)
-      const raw = await env.METADATA.get(k.name)
+      const raw = await env.KV.get(k.name)
       if (!raw) continue
       try {
         const m = JSON.parse(raw) as AssetMetadata
@@ -239,7 +239,7 @@ export async function handleListAssets(_req: Request, env: Env): Promise<Respons
 
 export async function handleDeleteAsset(_req: Request, env: Env, assetId: string): Promise<Response> {
   if (!assetId) return jsonResponse({ error: 'missing assetId' }, { status: 400 })
-  const raw = await env.METADATA.get(`asset:${assetId}`)
+  const raw = await env.KV.get(`asset:${assetId}`)
   if (!raw) return jsonResponse({ error: 'not found' }, { status: 404 })
   let metadata: AssetMetadata
   try {
@@ -252,6 +252,6 @@ export async function handleDeleteAsset(_req: Request, env: Env, assetId: string
   } catch (err) {
     console.warn('R2 delete failed:', err)
   }
-  await env.METADATA.delete(`asset:${assetId}`)
+  await env.KV.delete(`asset:${assetId}`)
   return jsonResponse({ ok: true })
 }

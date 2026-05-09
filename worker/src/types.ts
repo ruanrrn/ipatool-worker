@@ -2,9 +2,7 @@ export interface Env {
   // Bindings
   ASSETS: Fetcher
   R2: R2Bucket
-  SESSIONS: KVNamespace
-  METADATA: KVNamespace
-  RATELIMIT: KVNamespace
+  KV: KVNamespace
 
   // Vars
   USERNAME: string

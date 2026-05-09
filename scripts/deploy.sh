@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/deploy.sh — Auto-create KV namespaces and deploy to Cloudflare Worker
+# scripts/deploy.sh — Auto-create KV namespace and deploy to Cloudflare Worker
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
@@ -14,7 +14,7 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
 create_kv_if_missing() {
   local binding="$1"
-  local title="ipatool-${binding,,}"  # lowercase
+  local title="ipatool"
 
   # Check if id is already filled
   local existing_id
@@ -59,8 +59,6 @@ create_kv_if_missing() {
   fi
 
   echo "   Created: ${ns_id}"
-  # Fill the first empty id= after the matching binding
-  # Use awk for cross-platform in-place edit
   awk -v binding="$binding" -v ns_id="$ns_id" '
     $0 ~ "binding = \"" binding "\"" { found=NR }
     found && NR==found+1 && /id = ""/ { sub(/id = ""/, "id = \"" ns_id "\""); found=0 }
@@ -68,10 +66,8 @@ create_kv_if_missing() {
   ' "$WRANGLER_TOML" > "${WRANGLER_TOML}.tmp" && mv "${WRANGLER_TOML}.tmp" "$WRANGLER_TOML"
 }
 
-echo "📦 Ensuring KV namespaces exist..."
-create_kv_if_missing "SESSIONS"
-create_kv_if_missing "METADATA"
-create_kv_if_missing "RATELIMIT"
+echo "📦 Ensuring KV namespace exists..."
+create_kv_if_missing "KV"
 
 echo ""
 echo "🚀 Deploying..."

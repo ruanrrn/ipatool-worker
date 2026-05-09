@@ -26,13 +26,13 @@ async function listAllAssets(env: Env): Promise<AssetEntry[]> {
   const out: AssetEntry[] = []
   let cursor: string | undefined = undefined
   do {
-    const list: KVNamespaceListResult<unknown, string> = await env.METADATA.list({
+    const list: KVNamespaceListResult<unknown, string> = await env.KV.list({
       prefix: 'asset:',
       cursor,
     })
     for (const k of list.keys) {
       const id = k.name.slice('asset:'.length)
-      const raw = await env.METADATA.get(k.name)
+      const raw = await env.KV.get(k.name)
       if (!raw) continue
       try {
         const meta = JSON.parse(raw) as AssetMetadata
@@ -66,7 +66,7 @@ async function deleteAssetsBulk(env: Env, entries: AssetEntry[]): Promise<void> 
   // KV has no bulk delete — issue all deletes in parallel.
   await Promise.all(
     entries.map((e) =>
-      env.METADATA.delete(`asset:${e.assetId}`).catch((err) => {
+      env.KV.delete(`asset:${e.assetId}`).catch((err) => {
         console.warn(`KV delete asset:${e.assetId} failed:`, err)
       })
     )

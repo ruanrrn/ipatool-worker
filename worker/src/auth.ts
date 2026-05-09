@@ -45,7 +45,7 @@ export function getSessionId(req: Request): string | null {
 export async function getSession(env: Env, req: Request): Promise<SessionData | null> {
   const sid = getSessionId(req)
   if (!sid) return null
-  const raw = await env.SESSIONS.get(sid)
+  const raw = await env.KV.get(`sess:${sid}`)
   if (!raw) return null
   try {
     const data = JSON.parse(raw) as SessionData
@@ -53,7 +53,7 @@ export async function getSession(env: Env, req: Request): Promise<SessionData | 
     const now = Date.now()
     if (now - data.lastSeenAt > 5 * 60 * 1000) {
       data.lastSeenAt = now
-      await env.SESSIONS.put(sid, JSON.stringify(data), {
+      await env.KV.put(`sess:${sid}`, JSON.stringify(data), {
         expirationTtl: sessionTtl(env),
       })
     }
@@ -98,7 +98,7 @@ function clientIp(req: Request): string {
 async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean; retryAfter: number }> {
   const key = `login:${ip}`
   const now = Math.floor(Date.now() / 1000)
-  const raw = await env.RATELIMIT.get(key)
+  const raw = await env.KV.get(`rl:${key}`)
   let entries: number[] = []
   if (raw) {
     try {
@@ -115,7 +115,7 @@ async function checkRateLimit(env: Env, ip: string): Promise<{ allowed: boolean;
     return { allowed: false, retryAfter }
   }
   entries.push(now)
-  await env.RATELIMIT.put(key, JSON.stringify(entries), {
+  await env.KV.put(`rl:${key}`, JSON.stringify(entries), {
     expirationTtl: RATELIMIT_WINDOW_SECONDS,
   })
   return { allowed: true, retryAfter: 0 }
@@ -170,7 +170,7 @@ export async function handleLogin(req: Request, env: Env): Promise<Response> {
     createdAt: Date.now(),
     lastSeenAt: Date.now(),
   }
-  await env.SESSIONS.put(sid, JSON.stringify(session), {
+  await env.KV.put(`sess:${sid}`, JSON.stringify(session), {
     expirationTtl: sessionTtl(env),
   })
 
@@ -199,7 +199,7 @@ export async function handleLogout(req: Request, env: Env): Promise<Response> {
   }
   const sid = getSessionId(req)
   if (sid) {
-    await env.SESSIONS.delete(sid)
+    await env.KV.delete(`sess:${sid}`)
   }
   const cookie = [
     `${SESSION_COOKIE}=`,
