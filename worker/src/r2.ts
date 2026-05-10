@@ -234,7 +234,116 @@ export async function handleListAssets(_req: Request, env: Env): Promise<Respons
   } while (cursor)
 
   assets.sort((a, b) => b.uploadedAt - a.uploadedAt)
-  return jsonResponse({ assets })
+
+  const storage = await getStorageUsage(env, assets.length)
+  return jsonResponse({ assets, storage })
+}
+
+const TOTAL_BYTES = 10 * 1024 * 1024 * 1024 // 10 GB free tier
+const STORAGE_CACHE_KEY = 'storage:usage'
+const STORAGE_CACHE_TTL = 300 // 5 minutes
+
+interface StorageUsage {
+  usedBytes: number
+  totalBytes: number
+  assetCount: number
+}
+
+async function getStorageUsage(env: Env, assetCount: number): Promise<StorageUsage> {
+  // Try KV cache first
+  const cached = await env.KV.get(STORAGE_CACHE_KEY)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as StorageUsage
+      // Update assetCount from fresh list data
+      parsed.assetCount = assetCount
+      return parsed
+    } catch {
+      // Corrupt cache, recompute
+    }
+  }
+
+  // Iterate all R2 objects and sum sizes
+  let usedBytes = 0
+  let r2ObjectCount = 0
+  let cursor: string | undefined = undefined
+  do {
+    const listed = await env.R2.list({ cursor })
+    for (const obj of listed.objects) {
+      usedBytes += obj.size
+      r2ObjectCount++
+    }
+    cursor = listed.truncated ? listed.cursor : undefined
+  } while (cursor)
+
+  const usage: StorageUsage = {
+    usedBytes,
+    totalBytes: TOTAL_BYTES,
+    assetCount,
+  }
+
+  // Cache in KV with 5-minute TTL
+  await env.KV.put(STORAGE_CACHE_KEY, JSON.stringify(usage), { expirationTtl: STORAGE_CACHE_TTL })
+
+  return usage
+}
+
+interface BatchDeleteBody {
+  assetIds: string[]
+}
+
+export async function handleBatchDelete(req: Request, env: Env): Promise<Response> {
+  let body: BatchDeleteBody
+  try {
+    body = (await req.json()) as BatchDeleteBody
+  } catch {
+    return jsonResponse({ error: 'invalid json' }, { status: 400 })
+  }
+
+  const { assetIds } = body
+  if (!Array.isArray(assetIds) || assetIds.length === 0) {
+    return jsonResponse({ error: 'assetIds must be a non-empty array' }, { status: 400 })
+  }
+  if (assetIds.length > 50) {
+    return jsonResponse({ error: 'assetIds must contain at most 50 items' }, { status: 400 })
+  }
+
+  const errors: Array<{ assetId: string; error: string }> = []
+  let deleted = 0
+
+  for (const assetId of assetIds) {
+    try {
+      const raw = await env.KV.get(`asset:${assetId}`)
+      if (!raw) {
+        errors.push({ assetId, error: 'not found' })
+        continue
+      }
+      let metadata: AssetMetadata
+      try {
+        metadata = JSON.parse(raw) as AssetMetadata
+      } catch {
+        errors.push({ assetId, error: 'corrupt metadata' })
+        continue
+      }
+      try {
+        await env.R2.delete(metadata.r2Key)
+      } catch (err) {
+        console.warn('R2 delete failed for', assetId, err)
+        errors.push({ assetId, error: 'R2 delete failed' })
+        continue
+      }
+      await env.KV.delete(`asset:${assetId}`)
+      deleted++
+    } catch (err) {
+      errors.push({ assetId, error: (err as Error).message })
+    }
+  }
+
+  return jsonResponse({
+    ok: errors.length === 0,
+    deleted,
+    errors,
+  })
 }
 
 export async function handleDeleteAsset(_req: Request, env: Env, assetId: string): Promise<Response> {

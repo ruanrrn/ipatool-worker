@@ -8,6 +8,7 @@ import {
   handleUploadAbort,
   handleListAssets,
   handleDeleteAsset,
+  handleBatchDelete,
 } from './r2'
 import { handleManifest, handleDownload, handleInstallPage } from './install'
 import { runScheduledCleanup } from './cleanup'
@@ -153,6 +154,11 @@ async function route(
     const session = await requireSession(env, request)
     if (session instanceof Response) return session
     return handleDeleteAsset(request, env, deleteMatch[1]!)
+  }
+  if (path === '/r2/batch' && request.method === 'DELETE') {
+    const session = await requireSession(env, request)
+    if (session instanceof Response) return session
+    return handleBatchDelete(request, env)
   }
 
   // OTA install - public (installd doesn't carry cookies). Capability via opaque asset_id (UUID).

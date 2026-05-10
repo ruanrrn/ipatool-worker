@@ -66,11 +66,7 @@
 
       <div v-else-if="job.result" class="result">
         <h3>{{ job.result.title }} · v{{ job.result.version }}</h3>
-        <p class="bid">{{ job.result.bundleId }}</p>
-        <p class="hint">在 iPhone Safari 中打开下方按钮 → 系统弹"是否安装"</p>
-        <a class="btn-primary" :href="job.result.installUrl" target="_blank">打开装机页</a>
-        <p class="hint" style="margin-top:12px">或直接 itms-services 链接：</p>
-        <code class="link-box">{{ job.result.itmsServicesUrl }}</code>
+        <a class="btn-primary" :href="job.result.installUrl" target="_blank">下载安装</a>
         <button class="btn-secondary" @click="reset" style="margin-top:16px">再下一个</button>
       </div>
 
@@ -283,18 +279,7 @@ h3 { margin: 4px 0 8px; font-size: 15px; color: var(--color-text); }
 .bar { width: 100%; height: 8px; background: var(--color-bg, #eee); border-radius: 4px; overflow: hidden; }
 .bar-fill { height: 100%; background: var(--color-primary, #0a84ff); transition: width .3s ease; }
 .stage { margin-top: 12px; font-size: 14px; color: var(--color-text-secondary); }
-.result h3 { font-size: 17px; margin-bottom: 4px; }
-.bid { font-family: ui-monospace, monospace; color: var(--color-text-secondary); margin: 0 0 12px; font-size: 13px; }
-.hint { font-size: 13px; color: var(--color-text-secondary); margin: 4px 0; }
-.link-box {
-  display: block;
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-  background: var(--color-bg, #f5f5f7);
-  padding: 8px 10px;
-  border-radius: 6px;
-  word-break: break-all;
-}
+.result h3 { font-size: 17px; margin-bottom: 12px; }
 .error {
   margin-top: 12px;
   padding: 10px 14px;
