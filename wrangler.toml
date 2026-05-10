@@ -16,7 +16,7 @@ compatibility_flags = ["nodejs_compat"]
 # `npm run deploy`). Pre-built WASM is committed under
 # `frontend/public/wasm/` so this build step does NOT need a Rust toolchain.
 [build]
-command = "npm install && cd worker && npm install && cd .. && npm run build"
+command = "pnpm install --frozen-lockfile && cd worker && npm install --ignore-scripts && cd .. && pnpm run build"
 
 # Wrangler Assets serves the SPA + WASM bundle alongside the Worker.
 [assets]
