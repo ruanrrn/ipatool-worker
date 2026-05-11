@@ -53,6 +53,8 @@ export async function runPipeline({
   appIdentifier,
   appVerId, // optional - download specific historical version
   onStage,
+  savedAuth,      // optional { dsPersonId, passwordToken } — reuse saved tokens to skip re-auth
+  onAuthUpdated,  // optional callback({ dsPersonId, passwordToken, region }) after fresh auth
 }) {
   const stage = (s, p, m) => onStage && onStage({ stage: s, progress: p, message: m })
 
@@ -61,24 +63,54 @@ export async function runPipeline({
   await wakeLock.acquire()
   try {
 
-  stage('apple-auth', 0, 'Apple ID 登录中…')
   const store = new Store()
-  const auth = await store.authenticate(email, applePassword, mfa)
-  if (auth._state !== 'success') {
-    const err = new Error(auth.customerMessage || `Apple 登录失败: ${auth.failureType || ''}`)
-    err.appleResult = auth
-    throw err
-  }
-  const authInfo = {
-    dsPersonId: auth.dsPersonId,
-    passwordToken: auth.passwordToken,
+  let authInfo = null
+  let licenseDone = false
+
+  // Phase 1: Try reusing saved tokens via a quick ensureLicense probe.
+  // This avoids unnecessary re-authentication and 2FA prompts.
+  if (savedAuth?.dsPersonId && savedAuth?.passwordToken) {
+    stage('apple-auth', 0.02, '尝试验证已保存的登录状态…')
+    authInfo = { dsPersonId: savedAuth.dsPersonId, passwordToken: savedAuth.passwordToken }
+    const probe = await store.ensureLicense(appIdentifier, appVerId, authInfo)
+    if (probe._state === 'success' || probe.failureType === '2034') {
+      licenseDone = true
+      stage('apple-auth', 0.05, '登录状态有效 ✓')
+    } else {
+      authInfo = null  // tokens expired, fall through to fresh auth
+    }
   }
 
-  stage('apple-license', 0.05, '确认 license（buyProduct）…')
-  const license = await store.ensureLicense(appIdentifier, appVerId, authInfo)
-  if (license._state !== 'success' && license.failureType !== '2034') {
-    // 2034 = already purchased; ignore.
-    throw new Error(license.customerMessage || `buyProduct 失败: ${license.failureType || ''}`)
+  // Phase 2: Fresh authentication if saved tokens are unavailable or expired
+  if (!authInfo) {
+    stage('apple-auth', 0, 'Apple ID 登录中…')
+    const auth = await store.authenticate(email, applePassword, mfa)
+    if (auth._state !== 'success') {
+      const err = new Error(auth.customerMessage || `Apple 登录失败: ${auth.failureType || ''}`)
+      err.appleResult = auth
+      throw err
+    }
+    authInfo = {
+      dsPersonId: auth.dsPersonId,
+      passwordToken: auth.passwordToken,
+    }
+    if (onAuthUpdated) {
+      onAuthUpdated({
+        dsPersonId: auth.dsPersonId,
+        passwordToken: auth.passwordToken,
+        region: auth.region,
+      })
+    }
+  }
+
+  // Phase 3: ensureLicense (buyProduct) — skip if probe already confirmed license
+  if (!licenseDone) {
+    stage('apple-license', 0.05, '确认 license（buyProduct）…')
+    const license = await store.ensureLicense(appIdentifier, appVerId, authInfo)
+    if (license._state !== 'success' && license.failureType !== '2034') {
+      // 2034 = already purchased; ignore.
+      throw new Error(license.customerMessage || `buyProduct 失败: ${license.failureType || ''}`)
+    }
   }
 
   stage('apple-download', 0.1, '获取下载 URL（downloadProduct）…')

@@ -20,6 +20,20 @@
       @version-change="onVersionChange"
     />
 
+    <!-- ─── MFA Input ─────────────────────────────────────── -->
+    <div v-if="selectedAccount" class="card mfa-card">
+      <label class="mfa-label">二次验证码（如已开启双重认证）</label>
+      <input
+        v-model="mfaCode"
+        type="text"
+        placeholder="如未开启可不填；需要时填写 6 位数字"
+        class="mfa-input"
+      />
+      <p class="hint mfa-hint">
+        Apple 会自动将验证码推送至您的受信任设备
+      </p>
+    </div>
+
     <!-- ─── Download Button ─────────────────────────────────── -->
     <div v-if="selectedApp" class="card download-card">
       <button class="btn-download" :disabled="!canDownload || downloading" @click="startDownload">
@@ -78,6 +92,7 @@ const currentRegion = ref('US')
 const selectedApp = ref(null)
 const selectedVersionId = ref('')
 const downloading = ref(false)
+const mfaCode = ref('')
 const showProgress = ref(false)
 const progressPercent = ref(0)
 const progressStage = ref('')
@@ -134,12 +149,29 @@ async function startDownload() {
     const appId = String(selectedApp.value.trackId)
     const appVerId = selectedVersionId.value || undefined
 
+    const currentMfa = mfaCode.value.trim()
+
     const result = await runPipeline({
       email: creds.email,
       applePassword: creds.password,
-      mfa: '',
+      mfa: currentMfa,
       appIdentifier: appId,
       appVerId,
+      savedAuth: creds.dsPersonId && creds.passwordToken ? {
+        dsPersonId: creds.dsPersonId,
+        passwordToken: creds.passwordToken,
+      } : null,
+      onAuthUpdated: async (newAuth) => {
+        try {
+          await accountManager.updateAccountCredentials(email, {
+            dsPersonId: newAuth.dsPersonId,
+            passwordToken: newAuth.passwordToken,
+            region: newAuth.region || creds.region,
+          })
+        } catch (e) {
+          console.warn('更新凭据失败:', e)
+        }
+      },
       onStage: ({ stage, progress, message }) => {
         progressPercent.value = progress * 100
         progressStage.value = message
@@ -207,4 +239,15 @@ async function startDownload() {
 .error-card { display: flex; flex-direction: column; gap: 4px; }
 .error-title { font-size: 15px; font-weight: 600; color: #ff3b30; }
 .error-msg { font-size: 13px; color: var(--color-text-secondary, #888); }
+
+/* ── MFA ── */
+.mfa-card { display: flex; flex-direction: column; gap: 6px; }
+.mfa-label { font-size: 13px; color: var(--color-text-secondary, #888); }
+.mfa-input {
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--color-border, #ddd);
+  font-size: 14px; background: var(--color-bg, #fff);
+  color: var(--color-text);
+}
+.mfa-hint { font-size: 12px; color: var(--color-text-tertiary, #aaa); margin-top: 2px; }
 </style>

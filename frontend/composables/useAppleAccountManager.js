@@ -129,6 +129,23 @@ export function useAppleAccountManager() {
     await refreshAccounts()
   }
 
+  /**
+   * Update saved credentials (dsPersonId / passwordToken / region)
+   * without changing the password. Used after a fresh Apple auth to
+   * persist updated session tokens so they can be reused later.
+   */
+  async function updateAccountCredentials(email, updates) {
+    const existing = await loadAppleAccount(email)
+    if (!existing) throw new Error('账号不存在')
+    await saveAppleAccount({
+      email,
+      password: existing.password,
+      dsPersonId: updates.dsPersonId ?? existing.dsPersonId,
+      passwordToken: updates.passwordToken ?? existing.passwordToken,
+      region: updates.region ?? existing.region,
+    })
+  }
+
   // auto-init first use
   if (!_stateInitialized) refreshState()
 
@@ -150,5 +167,6 @@ export function useAppleAccountManager() {
     verifyAndAddAccount,
     getAccountCredentials,
     removeAccount,
+    updateAccountCredentials,
   }
 }
