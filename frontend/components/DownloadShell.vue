@@ -1,291 +1,210 @@
 <template>
   <div class="page">
-    <div class="card">
-      <h2>从 App Store 下载 + 签名 + 装机</h2>
+    <!-- ─── Account Selector ─────────────────────────────────── -->
+    <AccountSelector
+      v-model="selectedAccount"
+      :accounts="accountManager.accounts.value"
+      @add-account="$emit('navigate-settings')"
+      @select="onAccountSelect"
+    />
 
-      <div v-if="!job.running && !job.result" class="form">
-        <h3>1. Apple 账号</h3>
-        <label class="field">
-          <span>Apple ID</span>
-          <input v-model="form.email" type="email" autocomplete="username" placeholder="apple@example.com">
-        </label>
-        <label class="field">
-          <span>密码</span>
-          <input v-model="form.password" type="password" autocomplete="current-password">
-        </label>
-        <label class="field">
-          <span>双重认证 6 位码（可留空）</span>
-          <input v-model="form.mfa" type="text" inputmode="numeric" maxlength="6" placeholder="123456">
-        </label>
+    <!-- ─── Search Bar ──────────────────────────────────────── -->
+    <AppSearchBar
+      :account-region="currentRegion"
+      @app-selected="onAppSelected"
+    />
 
-        <h3 style="margin-top:18px">2. 选择应用</h3>
-        <div class="search-row">
-          <input v-model="search.term" placeholder="App Store 搜索…" @keyup.enter="onSearch">
-          <select v-model="search.country">
-            <option value="US">US</option>
-            <option value="CN">CN</option>
-            <option value="JP">JP</option>
-            <option value="GB">GB</option>
-            <option value="DE">DE</option>
-          </select>
-          <button @click="onSearch" :disabled="search.loading">
-            {{ search.loading ? '搜索中…' : '搜索' }}
-          </button>
-        </div>
-        <div v-if="search.results.length" class="results">
-          <div v-for="r in search.results" :key="r.trackId"
-               class="result-row"
-               :class="{ selected: selectedApp?.trackId === r.trackId }"
-               @click="selectedApp = r">
-            <img :src="r.artworkUrl60" alt="" width="40" height="40">
-            <div class="result-meta">
-              <div class="result-title">{{ r.trackName }}</div>
-              <div class="result-sub">{{ r.bundleId }} · v{{ r.version }} · {{ r.artistName }}</div>
-            </div>
-          </div>
-        </div>
+    <!-- ─── Version Select ──────────────────────────────────── -->
+    <VersionSelectList
+      :app="selectedApp"
+      @version-change="onVersionChange"
+    />
 
-        <h3 v-if="selectedApp" style="margin-top:18px">3. 历史版本（可选）</h3>
-        <div v-if="selectedApp" class="ver-row">
-          <input v-model="form.versionId"
-                 placeholder="留空 = 最新版本（externalVersionId）">
-        </div>
+    <!-- ─── Download Button ─────────────────────────────────── -->
+    <div v-if="selectedApp" class="card download-card">
+      <button class="btn-download" :disabled="!canDownload || downloading" @click="startDownload">
+        {{ downloading ? '下载中…' : '开始下载' }}
+      </button>
+      <p v-if="!selectedAccount && accountManager.accounts.value.length === 0" class="hint">
+        请先在设置中添加 Apple 账号
+      </p>
+      <p v-else-if="!accountManager.unlocked.value" class="hint">
+        主 PIN 未解锁，请先到设置页解锁
+      </p>
+    </div>
 
-        <button class="btn-primary"
-                style="margin-top:24px"
-                :disabled="!canStart"
-                @click="onStart">
-          开始下载 + 签名 + 上传
-        </button>
+    <!-- ─── Progress ────────────────────────────────────────── -->
+    <div v-if="showProgress" class="card progress-card">
+      <div class="progress-head">
+        <span class="progress-stage">{{ progressStage }}</span>
+        <span class="progress-pct">{{ Math.round(progressPercent) }}%</span>
       </div>
-
-      <div v-else-if="job.running" class="progress">
-        <div class="bar"><div class="bar-fill" :style="{ width: `${(job.progress * 100).toFixed(1)}%` }"></div></div>
-        <div class="stage">{{ stageLabel(job.stage) }} · {{ job.message }}</div>
+      <div class="progress-track">
+        <div class="progress-fill" :style="{ width: progressPercent + '%' }" />
       </div>
+      <pre v-if="logs" class="progress-logs">{{ logs }}</pre>
+    </div>
 
-      <div v-else-if="job.result" class="result">
-        <h3>{{ job.result.title }} · v{{ job.result.version }}</h3>
-        <a class="btn-primary" :href="job.result.installUrl" target="_blank">下载安装</a>
-        <button class="btn-secondary" @click="reset" style="margin-top:16px">再下一个</button>
-      </div>
+    <!-- ─── Result ──────────────────────────────────────────── -->
+    <div v-if="downloadResult" class="card result-card">
+      <div class="result-title">✅ 下载完成</div>
+      <div class="result-line"><strong>{{ downloadResult.title }}</strong> v{{ downloadResult.version }}</div>
+      <div class="result-line">Bundle ID: <code>{{ downloadResult.bundleId }}</code></div>
+      <a class="btn-install" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
+      <div class="result-meta">Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…</div>
+    </div>
 
-      <div v-if="job.error" class="error">
-        ✗ {{ job.error.message || job.error }}
-      </div>
+    <!-- ─── Error ───────────────────────────────────────────── -->
+    <div v-if="downloadError" class="card error-card">
+      <div class="error-title">❌ 下载失败</div>
+      <div class="error-msg">{{ downloadError }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { searchApps } from '../utils/appleApi.js'
+import { ref, computed, onMounted } from 'vue'
+import AccountSelector from './AccountSelector.vue'
+import AppSearchBar from './AppSearchBar.vue'
+import VersionSelectList from './VersionSelectList.vue'
+import { useAppleAccountManager } from '../composables/useAppleAccountManager.js'
 import { runPipeline } from '../utils/ipaPipeline.js'
 
-const form = reactive({
-  email: '',
-  password: '',
-  mfa: '',
-  versionId: '',
-})
+defineEmits(['navigate-settings'])
 
-const search = reactive({
-  term: '',
-  country: 'US',
-  loading: false,
-  results: [],
-})
-
+const accountManager = useAppleAccountManager()
+const selectedAccount = ref('')
+const currentRegion = ref('US')
 const selectedApp = ref(null)
+const selectedVersionId = ref('')
+const downloading = ref(false)
+const showProgress = ref(false)
+const progressPercent = ref(0)
+const progressStage = ref('')
+const logs = ref('')
+const downloadResult = ref(null)
+const downloadError = ref('')
 
-const job = reactive({
-  running: false,
-  stage: '',
-  progress: 0,
-  message: '',
-  result: null,
-  error: null,
+const canDownload = computed(() => {
+  return selectedAccount.value && selectedApp.value && accountManager.unlocked.value && !downloading.value
 })
 
-const canStart = computed(
-  () => form.email && form.password && selectedApp.value && !job.running
-)
+onMounted(async () => {
+  await accountManager.refreshState()
+})
 
-async function onSearch() {
-  if (!search.term.trim()) return
-  search.loading = true
+async function onAccountSelect(email) {
+  selectedAccount.value = email
   try {
-    search.results = await searchApps(search.term.trim(), search.country, 20)
-  } catch (e) {
-    search.results = []
-    job.error = e
-  } finally {
-    search.loading = false
+    const creds = await accountManager.getAccountCredentials(email)
+    if (creds) currentRegion.value = creds.region || 'US'
+  } catch {
+    currentRegion.value = 'US'
   }
 }
 
-const STAGE_LABELS = {
-  'apple-auth': 'Apple 登录',
-  'apple-license': '确认 license',
-  'apple-download': '获取 CDN URL',
-  'cdn-fetch': '下载 IPA',
-  'wasm-patch': 'WASM 签名注入',
-  'inspect': '校验',
-  'upload': '上传 R2',
-  'done': '完成',
+function onAppSelected(app) {
+  selectedApp.value = app
+  downloadResult.value = null
+  downloadError.value = null
 }
-function stageLabel(s) { return STAGE_LABELS[s] || s }
 
-async function onStart() {
-  job.running = true
-  job.error = null
-  job.result = null
-  job.progress = 0
-  job.message = ''
-  job.stage = ''
+function onVersionChange(versionId) {
+  selectedVersionId.value = versionId
+}
+
+async function startDownload() {
+  if (!canDownload.value) return
+  if (!accountManager.unlocked.value) {
+    downloadError.value = '主 PIN 未解锁，请先到设置页解锁'
+    return
+  }
+  downloadError.value = null
+  downloadResult.value = null
+  downloading.value = true
+  showProgress.value = true
+  progressPercent.value = 0
+  progressStage.value = '准备中…'
+  logs.value = ''
+
   try {
+    const email = selectedAccount.value
+    const creds = await accountManager.getAccountCredentials(email)
+    if (!creds) throw new Error('无法读取账号凭据，请检查主 PIN 是否已解锁')
+    const appId = String(selectedApp.value.trackId)
+    const appVerId = selectedVersionId.value || undefined
+
     const result = await runPipeline({
-      email: form.email,
-      applePassword: form.password,
-      mfa: form.mfa || null,
-      appIdentifier: String(selectedApp.value.trackId),
-      appVerId: form.versionId || null,
+      email: creds.email,
+      applePassword: creds.password,
+      mfa: '',
+      appIdentifier: appId,
+      appVerId,
       onStage: ({ stage, progress, message }) => {
-        job.stage = stage
-        job.progress = progress
-        job.message = message
+        progressPercent.value = progress * 100
+        progressStage.value = message
+        logs.value += `[${stage}] ${message}\n`
       },
     })
-    job.result = result
-  } catch (err) {
-    console.error(err)
-    job.error = err
+    downloadResult.value = result
+    progressStage.value = '完成！'
+    progressPercent.value = 100
+  } catch (e) {
+    downloadError.value = e.message || '下载失败'
+    if (e.appleResult) {
+      const msg = e.appleResult.customerMessage || ''
+      if (msg.includes('验证码') || msg.includes('verification') || msg.includes('two-factor')) {
+        downloadError.value = 'Apple 账号需要二次验证。请到设置页重新登录该账号并提供验证码。'
+      }
+    }
   } finally {
-    job.running = false
+    downloading.value = false
   }
-}
-
-function reset() {
-  job.result = null
-  job.error = null
-  job.stage = ''
-  job.progress = 0
-  job.message = ''
 }
 </script>
 
 <style scoped>
-.page { padding: 20px; }
+.page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ── card base ── */
 .card {
   background: var(--color-surface, #fff);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  border-radius: 10px; padding: 16px 20px;
 }
-h2 { margin: 0 0 16px; font-size: 18px; }
-h3 { margin: 4px 0 8px; font-size: 15px; color: var(--color-text); }
-.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
-.field span { color: var(--color-text-secondary, #888); }
-.field input {
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #e5e5e7);
-  background: var(--color-bg, #fafafa);
-  font-size: 14px;
+
+/* ── Download button ── */
+.download-card { display: flex; flex-direction: column; gap: 8px; }
+.btn-download {
+  padding: 14px 24px; border-radius: 10px; border: none;
+  background: var(--color-primary, #0a84ff); color: #fff;
+  font-size: 16px; font-weight: 600; cursor: pointer;
 }
-.search-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+.btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
+.hint { font-size: 12px; color: var(--color-text-secondary, #888); margin: 0; }
+
+/* ── Progress ── */
+.progress-card { display: flex; flex-direction: column; gap: 8px; }
+.progress-head { display: flex; justify-content: space-between; align-items: center; }
+.progress-stage { font-size: 13px; font-weight: 500; }
+.progress-pct { font-size: 13px; color: var(--color-text-secondary, #888); }
+.progress-track { height: 6px; background: var(--color-bg-secondary, #eee); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--color-primary, #0a84ff); border-radius: 3px; transition: width 0.3s ease; }
+.progress-logs { margin: 0; font-size: 11px; color: var(--color-text-secondary, #888); max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+/* ── Result ── */
+.result-card { display: flex; flex-direction: column; gap: 6px; }
+.result-title { font-size: 15px; font-weight: 600; color: #34c759; }
+.result-line { font-size: 14px; }
+.result-line code { font-size: 12px; background: var(--color-bg-secondary, #eee); padding: 1px 4px; border-radius: 3px; }
+.btn-install {
+  display: inline-block; margin-top: 4px; padding: 10px 20px;
+  background: #34c759; color: #fff; border-radius: 8px;
+  text-decoration: none; font-size: 14px; font-weight: 500; text-align: center;
 }
-.search-row input {
-  flex: 1;
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #e5e5e7);
-  background: var(--color-bg, #fafafa);
-  font-size: 14px;
-}
-.search-row select {
-  padding: 9px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #e5e5e7);
-}
-.search-row button {
-  padding: 9px 14px;
-  border-radius: 8px;
-  background: var(--color-primary, #0a84ff);
-  color: #fff;
-  border: none;
-  font-weight: 500;
-  cursor: pointer;
-}
-.search-row button:disabled { opacity: .5; cursor: wait; }
-.results {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 280px;
-  overflow-y: auto;
-  margin-bottom: 8px;
-}
-.result-row {
-  display: flex;
-  gap: 10px;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.result-row:hover { background: var(--color-bg, #f5f5f7); }
-.result-row.selected {
-  background: var(--color-primary-soft, #e6f4ff);
-  border-color: var(--color-primary, #0a84ff);
-}
-.result-row img { border-radius: 6px; flex-shrink: 0; }
-.result-meta { flex: 1; min-width: 0; }
-.result-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.result-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
-.ver-row input {
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #e5e5e7);
-  background: var(--color-bg, #fafafa);
-  font-size: 14px;
-}
-.btn-primary {
-  display: inline-block;
-  padding: 12px 20px;
-  background: var(--color-primary, #0a84ff);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-}
-.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
-.btn-secondary {
-  padding: 8px 14px;
-  background: transparent;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.progress { padding: 24px 0; }
-.bar { width: 100%; height: 8px; background: var(--color-bg, #eee); border-radius: 4px; overflow: hidden; }
-.bar-fill { height: 100%; background: var(--color-primary, #0a84ff); transition: width .3s ease; }
-.stage { margin-top: 12px; font-size: 14px; color: var(--color-text-secondary); }
-.result h3 { font-size: 17px; margin-bottom: 12px; }
-.error {
-  margin-top: 12px;
-  padding: 10px 14px;
-  background: #fee;
-  color: #c00;
-  border-radius: 6px;
-  font-size: 13px;
-}
+.result-meta { font-size: 11px; color: var(--color-text-tertiary, #aaa); margin-top: 2px; }
+
+/* ── Error ── */
+.error-card { display: flex; flex-direction: column; gap: 4px; }
+.error-title { font-size: 15px; font-weight: 600; color: #ff3b30; }
+.error-msg { font-size: 13px; color: var(--color-text-secondary, #888); }
 </style>

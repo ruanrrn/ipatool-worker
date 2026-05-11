@@ -65,6 +65,38 @@
 
       <div v-if="unlocked" class="card">
         <h2>Apple 账号（{{ appleEmails.length }}）</h2>
+
+        <!-- Add Account Form -->
+        <div class="add-acct-section">
+          <button v-if="!showAddForm" class="btn-outline" @click="showAddForm = true">
+            + 添加 Apple 账号
+          </button>
+          <div v-else class="add-form">
+            <div class="form-field">
+              <label class="field-label">Apple ID</label>
+              <input v-model="addForm.email" type="email" placeholder="example@icloud.com" class="input">
+            </div>
+            <div class="form-field">
+              <label class="field-label">密码（App 专用密码）</label>
+              <input v-model="addForm.password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" class="input">
+            </div>
+            <div v-if="addForm.needsMfa" class="form-field">
+              <label class="field-label">二次验证码</label>
+              <input v-model="addForm.mfa" type="text" placeholder="6 位验证码" class="input">
+            </div>
+            <div class="form-actions">
+              <button class="btn-primary" :disabled="!addForm.email || !addForm.password || addForm.verifying" @click="onAddAccount">
+                {{ addForm.verifying ? '验证中…' : '验证并添加' }}
+              </button>
+              <button class="btn-secondary" @click="resetAddForm">取消</button>
+            </div>
+            <p v-if="addForm.error" class="error">{{ addForm.error }}</p>
+            <p v-if="addForm.needsMfa" class="hint">
+              请输入 Apple ID 收到的 6 位验证码，然后点击"验证并添加"
+            </p>
+          </div>
+        </div>
+
         <ul class="account-list">
           <li v-for="email in appleEmails" :key="email">
             <span>{{ email }}</span>
@@ -101,7 +133,9 @@ import {
   lockMasterPin,
   listAppleAccounts,
   deleteAppleAccount,
+  saveAppleAccount,
 } from '../utils/credentials.js'
+import { Store } from '../utils/appleApi.js'
 import MobileInput from './MobileInput.vue'
 import MobileButton from './MobileButton.vue'
 import { Toast } from './MobileToast.vue'
@@ -150,6 +184,15 @@ const newPin = ref('')
 const unlockPin = ref('')
 const pinError = ref('')
 const appleEmails = ref([])
+const showAddForm = ref(false)
+const addForm = reactive({
+  email: '',
+  password: '',
+  mfa: '',
+  needsMfa: false,
+  verifying: false,
+  error: ''
+})
 
 async function refreshAccounts() {
   try {
@@ -197,6 +240,61 @@ async function onDeleteAccount(email) {
   if (!confirm(`删除 ${email}？`)) return
   await deleteAppleAccount(email)
   await refreshAccounts()
+}
+
+function resetAddForm() {
+  showAddForm.value = false
+  addForm.email = ''
+  addForm.password = ''
+  addForm.mfa = ''
+  addForm.needsMfa = false
+  addForm.verifying = false
+  addForm.error = ''
+}
+
+async function onAddAccount() {
+  addForm.error = ''
+  addForm.verifying = true
+  try {
+    const store = new Store()
+    const result = await store.authenticate(addForm.email, addForm.password, addForm.mfa || '')
+
+    if (result._state !== 'success') {
+      const msg = result.customerMessage || ''
+      const ft = result.failureType || ''
+      if (
+        msg.includes('验证码') || msg.includes('verification') ||
+        msg.includes('two-factor') || msg.includes('two step') ||
+        ft === '-5000'
+      ) {
+        if (!addForm.needsMfa) {
+          addForm.needsMfa = true
+          addForm.error = '需要二次验证码，请输入 6 位验证码后点击"验证并添加"'
+        } else {
+          addForm.error = '验证码错误，请重试'
+        }
+      } else {
+        addForm.error = msg || `登录失败: ${ft || '未知错误'}`
+      }
+      return
+    }
+
+    await saveAppleAccount({
+      email: addForm.email,
+      password: addForm.password,
+      dsPersonId: result.dsPersonId,
+      passwordToken: result.passwordToken,
+      region: result.region || 'US',
+    })
+
+    resetAddForm()
+    await refreshAccounts()
+    Toast.success('Apple 账号已添加')
+  } catch (e) {
+    addForm.error = e.message || '验证失败'
+  } finally {
+    addForm.verifying = false
+  }
 }
 </script>
 
@@ -260,6 +358,28 @@ h2 { margin: 0 0 12px; font-size: 15px; }
 .account-list li:last-child { border-bottom: none; }
 .empty { color: var(--color-text-secondary); font-size: 13px; }
 .error { font-size: 13px; color: #c00; margin-top: 6px; }
+
+/* Add account form */
+.add-acct-section { margin: 12px 0; }
+.add-form {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px; border: 1px solid var(--color-border, #eee);
+  border-radius: 8px; background: var(--color-bg, #f8f8f8);
+}
+.form-field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 12px; color: var(--color-text-secondary, #888); }
+.input {
+  padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--color-border, #ddd);
+  font-size: 14px; background: var(--color-surface, #fff);
+}
+.form-actions { display: flex; gap: 8px; align-items: center; }
+.btn-outline {
+  padding: 6px 14px; background: transparent;
+  border: 1px dashed var(--color-primary, #0a84ff);
+  border-radius: 6px; color: var(--color-primary, #0a84ff);
+  font-size: 13px; cursor: pointer;
+}
 
 /* Re-auth form */
 .reauth-card {

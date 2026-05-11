@@ -16,7 +16,9 @@
     </header>
 
     <main class="shell-main">
-      <component :is="currentTab" />
+      <Download v-if="activeTab === 'download'" @navigate-settings="activeTab = 'settings'" />
+      <Archive v-else-if="activeTab === 'archive'" />
+      <SettingsShell v-else-if="activeTab === 'settings'" />
     </main>
   </div>
 </template>
