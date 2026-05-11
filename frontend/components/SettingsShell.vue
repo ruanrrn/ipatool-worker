@@ -80,9 +80,9 @@
               <label class="field-label">密码（App 专用密码）</label>
               <input v-model="addForm.password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" class="input">
             </div>
-            <div v-if="addForm.needsMfa" class="form-field">
-              <label class="field-label">二次验证码</label>
-              <input v-model="addForm.mfa" type="text" placeholder="6 位验证码" class="input">
+            <div class="form-field">
+              <label class="field-label">二次验证码（如已开启双重认证）</label>
+              <input v-model="addForm.mfa" type="text" placeholder="如未开启可不填；需要时填写 6 位数字" class="input">
             </div>
             <div class="form-actions">
               <button class="btn-primary" :disabled="!addForm.email || !addForm.password || addForm.verifying" @click="onAddAccount">
@@ -91,8 +91,8 @@
               <button class="btn-secondary" @click="resetAddForm">取消</button>
             </div>
             <p v-if="addForm.error" class="error">{{ addForm.error }}</p>
-            <p v-if="addForm.needsMfa" class="hint">
-              请输入 Apple ID 收到的 6 位验证码，然后点击"验证并添加"
+            <p class="hint">
+              如果账号已开启双重认证，提交后 Apple 会自动将验证码推送至您的受信任设备，届时请在上述输入框中填写验证码并重新点击"验证并添加"。
             </p>
           </div>
         </div>
@@ -259,25 +259,27 @@ async function onAddAccount() {
     const store = new Store()
     const result = await store.authenticate(addForm.email, addForm.password, addForm.mfa || '')
 
-    if (result._state !== 'success') {
-      const msg = result.customerMessage || ''
-      const ft = result.failureType || ''
-      if (
-        msg.includes('验证码') || msg.includes('verification') ||
-        msg.includes('two-factor') || msg.includes('two step') ||
-        ft === '-5000'
-      ) {
-        if (!addForm.needsMfa) {
+      if (result._state !== 'success') {
+        const msg = result.customerMessage || ''
+        const ft = result.failureType || ''
+        const isMfaRequired =
+          msg.includes('验证码') || msg.includes('verification') ||
+          msg.includes('two-factor') || msg.includes('two step') ||
+          ft === '-5000'
+
+        if (isMfaRequired) {
           addForm.needsMfa = true
-          addForm.error = '需要二次验证码，请输入 6 位验证码后点击"验证并添加"'
+          const hasMfaCode = addForm.mfa && addForm.mfa.trim() !== ''
+          if (!hasMfaCode) {
+            addForm.error = '此账号需要二次验证码。Apple 已将验证码推送至您的受信任设备，请输入后点击"验证并添加"'
+          } else {
+            addForm.error = '验证码不正确，请确认后重试'
+          }
         } else {
-          addForm.error = '验证码错误，请重试'
+          addForm.error = msg || `登录失败: ${ft || '未知错误'}`
         }
-      } else {
-        addForm.error = msg || `登录失败: ${ft || '未知错误'}`
+        return
       }
-      return
-    }
 
     await saveAppleAccount({
       email: addForm.email,
