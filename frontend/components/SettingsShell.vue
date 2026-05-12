@@ -34,27 +34,43 @@
           + 添加 Apple 账号
         </button>
         <div v-else class="p-3 border border-bdr dark:border-bdr-dark rounded-lg bg-bg dark:bg-bg-dark flex flex-col gap-2">
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-txt-secondary dark:text-txt-dark-secondary">Apple ID</label>
-            <input v-model="addForm.email" type="email" placeholder="example@icloud.com" class="text-sm px-3 py-2 rounded-lg border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark text-txt dark:text-txt-dark">
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-txt-secondary dark:text-txt-dark-secondary">密码（App 专用密码）</label>
-            <input v-model="addForm.password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" class="text-sm px-3 py-2 rounded-lg border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark text-txt dark:text-txt-dark">
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-txt-secondary dark:text-txt-dark-secondary">二次验证码（如已开启双重认证）</label>
-            <input v-model="addForm.mfa" type="text" placeholder="如未开启可不填；需要时填写 6 位数字" class="text-sm px-3 py-2 rounded-lg border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark text-txt dark:text-txt-dark">
-          </div>
+          <MobileInput
+            v-model="addForm.email"
+            type="email"
+            label="Apple ID"
+            placeholder="example@icloud.com"
+          />
+          <MobileInput
+            v-model="addForm.password"
+            type="password"
+            label="密码（App 专用密码）"
+            placeholder="xxxx-xxxx-xxxx-xxxx"
+          />
+          <MobileInput
+            v-model="addForm.mfa"
+            type="text"
+            label="二次验证码（如已开启双重认证）"
+            placeholder="如未开启可不填；需要时填写 6 位数字"
+            inputmode="numeric"
+            maxlength="6"
+          />
           <div class="flex gap-2 items-center">
-            <button
-              class="bg-primary text-white rounded-lg py-1.5 px-4 text-xs font-medium disabled:opacity-50"
+            <MobileButton
+              type="primary"
+              size="small"
               :disabled="!addForm.email || !addForm.password || addForm.verifying"
+              :loading="addForm.verifying"
               @click="onAddAccount"
             >
               {{ addForm.verifying ? '验证中…' : '验证并添加' }}
-            </button>
-            <button class="text-xs border border-bdr dark:border-bdr-dark rounded-lg py-1.5 px-3" @click="resetAddForm">取消</button>
+            </MobileButton>
+            <MobileButton
+              type="default"
+              size="small"
+              @click="resetAddForm"
+            >
+              取消
+            </MobileButton>
           </div>
           <p v-if="addForm.error" class="text-sm text-danger">{{ addForm.error }}</p>
           <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary">
@@ -92,6 +108,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useAppleAccountManager } from '../composables/useAppleAccountManager.js'
+import MobileInput from './MobileInput.vue'
+import MobileButton from './MobileButton.vue'
 import {
   listAppleAccounts,
   deleteAppleAccount,

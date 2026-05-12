@@ -22,27 +22,29 @@
 
     <!-- ─── MFA Input ─────────────────────────────────────── -->
     <div v-if="selectedAccount" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <label class="text-sm text-txt-secondary dark:text-txt-dark-secondary">二次验证码（如已开启双重认证）</label>
-      <input
+      <MobileInput
         v-model="mfaCode"
         type="text"
+        label="二次验证码（如已开启双重认证）"
         placeholder="如未开启可不填；需要时填写 6 位数字"
-        class="px-3 py-2 rounded-lg border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark text-txt dark:text-txt-dark text-sm"
+        inputmode="numeric"
+        maxlength="6"
+        hint="Apple 会自动将验证码推送至您的受信任设备"
       />
-      <p class="text-xs text-txt-tertiary dark:text-txt-dark-tertiary">
-        Apple 会自动将验证码推送至您的受信任设备
-      </p>
     </div>
 
     <!-- ─── Download Button ─────────────────────────────────── -->
     <div v-if="selectedApp" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <button
-        class="bg-primary text-white rounded-xl py-3 px-6 font-semibold text-base disabled:opacity-50 w-full"
+      <MobileButton
+        type="primary"
+        size="large"
+        block
         :disabled="!canDownload || downloading"
+        :loading="downloading"
         @click="startDownload"
       >
         {{ downloading ? '下载中…' : '开始下载' }}
-      </button>
+      </MobileButton>
       <p v-if="!selectedAccount && accountManager.accounts.value.length === 0" class="text-xs text-txt-secondary dark:text-txt-dark-secondary mt-1">
         请先在设置中添加 Apple 账号
       </p>
@@ -52,12 +54,14 @@
     <div v-if="purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-3">
       <div class="text-sm font-semibold text-danger">⚠️ 需要购买</div>
       <p class="text-sm text-txt dark:text-txt-dark">{{ purchaseMessage }}</p>
-      <button
-        class="bg-primary text-white rounded-lg py-2 px-4 text-sm font-medium w-full"
+      <MobileButton
+        type="primary"
+        size="medium"
+        block
         @click="openAppStore"
       >
         前往 App Store 购买
-      </button>
+      </MobileButton>
       <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary">
         购买后请返回重新尝试下载
       </p>
@@ -97,6 +101,8 @@ import { ref, computed, onMounted } from 'vue'
 import AccountSelector from './AccountSelector.vue'
 import AppSearchBar from './AppSearchBar.vue'
 import VersionSelectList from './VersionSelectList.vue'
+import MobileInput from './MobileInput.vue'
+import MobileButton from './MobileButton.vue'
 import { useAppleAccountManager } from '../composables/useAppleAccountManager.js'
 import { runPipeline } from '../utils/ipaPipeline.js'
 

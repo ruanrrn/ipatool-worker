@@ -2,17 +2,24 @@
   <div class="sb">
     <!-- Search Input -->
     <div class="sb-row">
-      <input
+      <MobileInput
         v-model="query"
         type="text"
         class="sb-input"
         :placeholder="placeholder"
+        :clearable="true"
         @keyup.enter="onSearch"
         @input="onInput"
       />
-      <button class="sb-btn" :disabled="!query.trim() || searching" @click="onSearch">
+      <MobileButton
+        type="primary"
+        size="medium"
+        :disabled="!query.trim() || searching"
+        :loading="searching"
+        @click="onSearch"
+      >
         {{ searching ? '搜索中…' : '搜索' }}
-      </button>
+      </MobileButton>
     </div>
 
     <!-- App ID hint -->
@@ -48,6 +55,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { searchApps } from '../utils/appleApi.js'
+import MobileInput from './MobileInput.vue'
+import MobileButton from './MobileButton.vue'
 
 const props = defineProps({
   placeholder: { type: String, default: '搜索 App 名称、开发者或 Bundle ID' },
@@ -106,36 +115,8 @@ function selectApp(app) {
   padding: var(--space-3-5) var(--space-4);
   display: flex; flex-direction: column; gap: var(--space-2-5);
 }
-.sb-row { display: flex; gap: var(--space-2); }
-.sb-input {
-  flex: 1; min-width: 0;
-  padding: var(--space-2-5) var(--space-3-5);
-  border-radius: var(--radius-base);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-section);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.sb-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-search-focus);
-}
-.sb-btn {
-  padding: var(--space-2-5) var(--space-4-5);
-  border-radius: var(--radius-base);
-  border: none;
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-body);
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-.sb-btn:hover:not(:disabled) { background: var(--color-primary-hover); }
-.sb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sb-row { display: flex; gap: var(--space-2); align-items: stretch; }
+.sb-row .sb-input { flex: 1; min-width: 0; }
 .sb-hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
 .sb-status { text-align: center; padding: var(--space-3); font-size: var(--font-size-label); color: var(--color-text-muted); }
 .sb-results { display: flex; flex-direction: column; gap: var(--space-1); max-height: 320px; overflow-y: auto; }

@@ -26,11 +26,11 @@
 
     <!-- Manual version ID -->
     <div v-if="mode === 'manual'" class="vs-manual">
-      <input
+      <MobileInput
         v-model="manualId"
         type="text"
-        class="vs-id-input"
         placeholder="输入版本 external_identifier"
+        clearable
       />
     </div>
   </div>
@@ -41,6 +41,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import MobileInput from './MobileInput.vue'
 
 const props = defineProps({
   app: { type: Object, default: null },
@@ -101,19 +102,4 @@ watch(() => props.app, () => { mode.value = 'latest'; manualId.value = '' })
 }
 .vs-radio input[type="radio"] { accent-color: var(--color-primary); }
 .vs-manual { padding: 0; }
-.vs-id-input {
-  width: 100%;
-  padding: var(--space-2-5) var(--space-3-5);
-  border-radius: var(--radius-base);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-body);
-  box-sizing: border-box; outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.vs-id-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-search-focus);
-}
 </style>
