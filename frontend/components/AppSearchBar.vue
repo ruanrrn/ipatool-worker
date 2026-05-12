@@ -101,38 +101,78 @@ function selectApp(app) {
 
 <style scoped>
 .sb {
-  background: var(--color-surface, #fff);
-  border-radius: 10px; padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3-5) var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2-5);
 }
-.sb-row { display: flex; gap: 8px; }
+.sb-row { display: flex; gap: var(--space-2); }
 .sb-input {
-  flex: 1; min-width: 0; padding: 10px 14px; border-radius: 8px;
-  border: 1px solid var(--color-border, #ddd);
-  background: var(--color-bg, #f8f8f8); color: var(--color-text);
-  font-size: 15px; outline: none;
+  flex: 1; min-width: 0;
+  padding: var(--space-2-5) var(--space-3-5);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-section);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.sb-input:focus { border-color: var(--color-primary, #0a84ff); }
+.sb-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-search-focus);
+}
 .sb-btn {
-  padding: 10px 18px; border-radius: 8px; border: none;
-  background: var(--color-primary, #0a84ff); color: #fff;
-  font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  padding: var(--space-2-5) var(--space-4-5);
+  border-radius: var(--radius-base);
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
+.sb-btn:hover:not(:disabled) { background: var(--color-primary-hover); }
 .sb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.sb-hint { font-size: 12px; color: var(--color-text-secondary, #888); }
-.sb-status { text-align: center; padding: 12px; font-size: 13px; color: var(--color-text-secondary, #999); }
-.sb-results { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.sb-hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.sb-status { text-align: center; padding: var(--space-3); font-size: var(--font-size-label); color: var(--color-text-muted); }
+.sb-results { display: flex; flex-direction: column; gap: var(--space-1); max-height: 320px; overflow-y: auto; }
 .sb-item {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border-radius: 8px; cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-base);
+  cursor: pointer; transition: background 0.15s;
   border: 1px solid transparent;
 }
-.sb-item:hover { background: var(--color-bg-secondary, #f0f0f0); }
-.sb-item--sel { border-color: var(--color-primary, #0a84ff); background: rgba(10,132,255,0.05); }
-.sb-icon { width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0; }
-.sb-icon-ph { width: 48px; height: 48px; border-radius: 10px; background: var(--color-bg-secondary, #eee); flex-shrink: 0; }
+.sb-item:hover { background: var(--color-surface-hover); }
+.sb-item--sel {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.sb-icon {
+  width: var(--size-12); height: var(--size-12);
+  border-radius: var(--radius-lg);
+  flex-shrink: 0;
+}
+.sb-icon-ph {
+  width: var(--size-12); height: var(--size-12);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  flex-shrink: 0;
+}
 .sb-info { flex: 1; min-width: 0; }
-.sb-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sb-meta { display: flex; gap: 8px; font-size: 12px; color: var(--color-text-secondary, #888); flex-wrap: wrap; }
-.sb-free { color: #34c759; font-weight: 500; }
+.sb-name {
+  font-size: var(--font-size-body); font-weight: 600;
+  margin-bottom: var(--space-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-meta {
+  display: flex; gap: var(--space-2);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+.sb-free { color: var(--color-success); font-weight: 500; }
 </style>

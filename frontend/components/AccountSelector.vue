@@ -50,38 +50,47 @@ function onSelect() {
 
 <style scoped>
 .acct-sel {
-  background: var(--color-surface, #fff);
-  border-radius: 10px;
-  padding: 14px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3-5) var(--space-4);
 }
 .no-acct {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
-.no-acct-text { font-size: 14px; color: var(--color-text-secondary, #888); }
+.no-acct-text { font-size: var(--font-size-body); color: var(--color-text-muted); }
 .add-link {
-  background: none; border: none; color: var(--color-primary, #0a84ff);
-  font-size: 13px; cursor: pointer; font-weight: 500;
+  background: none; border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-label);
+  cursor: pointer; font-weight: 500;
 }
 .sel-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: var(--space-2-5);
 }
 .sel-label {
-  font-size: 13px; color: var(--color-text-secondary, #888);
+  font-size: var(--font-size-label); color: var(--color-text-muted);
   white-space: nowrap; flex-shrink: 0;
 }
 .acct-select {
-  flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px;
-  border: 1px solid var(--color-border, #ddd);
-  background: var(--color-bg, #fff); color: var(--color-text);
-  font-size: 14px; appearance: auto;
+  flex: 1; min-width: 0;
+  padding: var(--space-2) var(--space-2-5);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  appearance: auto;
 }
 .mgmt-btn {
-  flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
-  border: 1px solid var(--color-border, #ddd);
-  background: var(--color-bg, #fff); color: var(--color-primary, #0a84ff);
+  flex-shrink: 0;
+  width: var(--size-8); height: var(--size-8);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-primary);
   font-size: 18px; cursor: pointer; display: flex;
   align-items: center; justify-content: center; font-weight: 600;
 }

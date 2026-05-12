@@ -50,7 +50,7 @@
 
     <!-- ─── Purchase Required Prompt ────────────────────────── -->
     <div v-if="purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-3">
-      <div class="text-sm font-semibold text-red-500">⚠️ 需要购买</div>
+      <div class="text-sm font-semibold text-danger">⚠️ 需要购买</div>
       <p class="text-sm text-txt dark:text-txt-dark">{{ purchaseMessage }}</p>
       <button
         class="bg-primary text-white rounded-lg py-2 px-4 text-sm font-medium w-full"
@@ -77,16 +77,16 @@
 
     <!-- ─── Result ──────────────────────────────────────────── -->
     <div v-if="downloadResult" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <div class="text-sm font-semibold text-green-500">✅ 下载完成</div>
+      <div class="text-sm font-semibold text-success">✅ 下载完成</div>
       <div class="text-sm"><strong>{{ downloadResult.title }}</strong> v{{ downloadResult.version }}</div>
       <div class="text-sm">Bundle ID: <code class="text-xs bg-bdr dark:bg-bdr-dark px-1 py-0.5 rounded">{{ downloadResult.bundleId }}</code></div>
-      <a class="inline-block mt-1 py-2 px-5 bg-green-500 text-white rounded-lg text-sm font-medium text-center no-underline" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
+      <a class="inline-block mt-1 py-2 px-5 bg-success text-white rounded-lg text-sm font-medium text-center no-underline" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
       <div class="text-xs text-txt-tertiary dark:text-txt-dark-tertiary mt-1">Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…</div>
     </div>
 
     <!-- ─── Error ───────────────────────────────────────────── -->
     <div v-if="downloadError && !purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-1">
-      <div class="text-sm font-semibold text-red-500">❌ 下载失败</div>
+      <div class="text-sm font-semibold text-danger">❌ 下载失败</div>
       <div class="text-sm text-txt-secondary dark:text-txt-dark-secondary">{{ downloadError }}</div>
     </div>
   </div>
