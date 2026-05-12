@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="p-4 flex flex-col gap-3">
     <!-- ─── Account Selector ─────────────────────────────────── -->
     <AccountSelector
       v-model="selectedAccount"
@@ -21,57 +21,73 @@
     />
 
     <!-- ─── MFA Input ─────────────────────────────────────── -->
-    <div v-if="selectedAccount" class="card mfa-card">
-      <label class="mfa-label">二次验证码（如已开启双重认证）</label>
+    <div v-if="selectedAccount" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
+      <label class="text-sm text-txt-secondary dark:text-txt-dark-secondary">二次验证码（如已开启双重认证）</label>
       <input
         v-model="mfaCode"
         type="text"
         placeholder="如未开启可不填；需要时填写 6 位数字"
-        class="mfa-input"
+        class="px-3 py-2 rounded-lg border border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark text-txt dark:text-txt-dark text-sm"
       />
-      <p class="hint mfa-hint">
+      <p class="text-xs text-txt-tertiary dark:text-txt-dark-tertiary">
         Apple 会自动将验证码推送至您的受信任设备
       </p>
     </div>
 
     <!-- ─── Download Button ─────────────────────────────────── -->
-    <div v-if="selectedApp" class="card download-card">
-      <button class="btn-download" :disabled="!canDownload || downloading" @click="startDownload">
+    <div v-if="selectedApp" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
+      <button
+        class="bg-primary text-white rounded-xl py-3 px-6 font-semibold text-base disabled:opacity-50 w-full"
+        :disabled="!canDownload || downloading"
+        @click="startDownload"
+      >
         {{ downloading ? '下载中…' : '开始下载' }}
       </button>
-      <p v-if="!selectedAccount && accountManager.accounts.value.length === 0" class="hint">
+      <p v-if="!selectedAccount && accountManager.accounts.value.length === 0" class="text-xs text-txt-secondary dark:text-txt-dark-secondary mt-1">
         请先在设置中添加 Apple 账号
       </p>
-      <p v-else-if="!accountManager.unlocked.value" class="hint">
-        主 PIN 未解锁，请先到设置页解锁
+    </div>
+
+    <!-- ─── Purchase Required Prompt ────────────────────────── -->
+    <div v-if="purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-3">
+      <div class="text-sm font-semibold text-red-500">⚠️ 需要购买</div>
+      <p class="text-sm text-txt dark:text-txt-dark">{{ purchaseMessage }}</p>
+      <button
+        class="bg-primary text-white rounded-lg py-2 px-4 text-sm font-medium w-full"
+        @click="openAppStore"
+      >
+        前往 App Store 购买
+      </button>
+      <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary">
+        购买后请返回重新尝试下载
       </p>
     </div>
 
     <!-- ─── Progress ────────────────────────────────────────── -->
-    <div v-if="showProgress" class="card progress-card">
-      <div class="progress-head">
-        <span class="progress-stage">{{ progressStage }}</span>
-        <span class="progress-pct">{{ Math.round(progressPercent) }}%</span>
+    <div v-if="showProgress" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-medium text-txt dark:text-txt-dark">{{ progressStage }}</span>
+        <span class="text-sm text-txt-secondary dark:text-txt-dark-secondary">{{ Math.round(progressPercent) }}%</span>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" :style="{ width: progressPercent + '%' }" />
+      <div class="h-2 bg-bdr dark:bg-bdr-dark rounded-full overflow-hidden">
+        <div class="h-full bg-primary rounded-full transition-all duration-300" :style="{ width: progressPercent + '%' }" />
       </div>
-      <pre v-if="logs" class="progress-logs">{{ logs }}</pre>
+      <pre v-if="logs" class="text-xs text-txt-secondary dark:text-txt-dark-secondary max-h-32 overflow-y-auto whitespace-pre-wrap break-all mt-1 m-0">{{ logs }}</pre>
     </div>
 
     <!-- ─── Result ──────────────────────────────────────────── -->
-    <div v-if="downloadResult" class="card result-card">
-      <div class="result-title">✅ 下载完成</div>
-      <div class="result-line"><strong>{{ downloadResult.title }}</strong> v{{ downloadResult.version }}</div>
-      <div class="result-line">Bundle ID: <code>{{ downloadResult.bundleId }}</code></div>
-      <a class="btn-install" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
-      <div class="result-meta">Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…</div>
+    <div v-if="downloadResult" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
+      <div class="text-sm font-semibold text-green-500">✅ 下载完成</div>
+      <div class="text-sm"><strong>{{ downloadResult.title }}</strong> v{{ downloadResult.version }}</div>
+      <div class="text-sm">Bundle ID: <code class="text-xs bg-bdr dark:bg-bdr-dark px-1 py-0.5 rounded">{{ downloadResult.bundleId }}</code></div>
+      <a class="inline-block mt-1 py-2 px-5 bg-green-500 text-white rounded-lg text-sm font-medium text-center no-underline" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
+      <div class="text-xs text-txt-tertiary dark:text-txt-dark-tertiary mt-1">Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…</div>
     </div>
 
     <!-- ─── Error ───────────────────────────────────────────── -->
-    <div v-if="downloadError" class="card error-card">
-      <div class="error-title">❌ 下载失败</div>
-      <div class="error-msg">{{ downloadError }}</div>
+    <div v-if="downloadError && !purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-1">
+      <div class="text-sm font-semibold text-red-500">❌ 下载失败</div>
+      <div class="text-sm text-txt-secondary dark:text-txt-dark-secondary">{{ downloadError }}</div>
     </div>
   </div>
 </template>
@@ -99,6 +115,8 @@ const progressStage = ref('')
 const logs = ref('')
 const downloadResult = ref(null)
 const downloadError = ref('')
+const purchaseRequired = ref(false)
+const purchaseMessage = ref('')
 
 const canDownload = computed(() => {
   return selectedAccount.value && selectedApp.value && accountManager.unlocked.value && !downloading.value
@@ -122,20 +140,27 @@ function onAppSelected(app) {
   selectedApp.value = app
   downloadResult.value = null
   downloadError.value = null
+  purchaseRequired.value = false
+  purchaseMessage.value = ''
 }
 
 function onVersionChange(versionId) {
   selectedVersionId.value = versionId
 }
 
+function openAppStore() {
+  const trackId = selectedApp.value?.trackId
+  if (trackId) {
+    window.open(`https://apps.apple.com/app/id${trackId}`, '_blank')
+  }
+}
+
 async function startDownload() {
   if (!canDownload.value) return
-  if (!accountManager.unlocked.value) {
-    downloadError.value = '主 PIN 未解锁，请先到设置页解锁'
-    return
-  }
   downloadError.value = null
   downloadResult.value = null
+  purchaseRequired.value = false
+  purchaseMessage.value = ''
   downloading.value = true
   showProgress.value = true
   progressPercent.value = 0
@@ -145,7 +170,7 @@ async function startDownload() {
   try {
     const email = selectedAccount.value
     const creds = await accountManager.getAccountCredentials(email)
-    if (!creds) throw new Error('无法读取账号凭据，请检查主 PIN 是否已解锁')
+    if (!creds) throw new Error('无法读取账号凭据，请刷新页面重试')
     const appId = String(selectedApp.value.trackId)
     const appVerId = selectedVersionId.value || undefined
 
@@ -182,11 +207,17 @@ async function startDownload() {
     progressStage.value = '完成！'
     progressPercent.value = 100
   } catch (e) {
-    downloadError.value = e.message || '下载失败'
-    if (e.appleResult) {
-      const msg = e.appleResult.customerMessage || ''
-      if (msg.includes('验证码') || msg.includes('verification') || msg.includes('two-factor')) {
-        downloadError.value = 'Apple 账号需要二次验证。请到设置页重新登录该账号并提供验证码。'
+    if (e.purchaseRequired) {
+      purchaseRequired.value = true
+      purchaseMessage.value = e.message
+      downloadError.value = ''
+    } else {
+      downloadError.value = e.message || '下载失败'
+      if (e.appleResult) {
+        const msg = e.appleResult.customerMessage || ''
+        if (msg.includes('验证码') || msg.includes('verification') || msg.includes('two-factor')) {
+          downloadError.value = 'Apple 账号需要二次验证。请到设置页重新登录该账号并提供验证码。'
+        }
       }
     }
   } finally {
@@ -194,60 +225,3 @@ async function startDownload() {
   }
 }
 </script>
-
-<style scoped>
-.page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-/* ── card base ── */
-.card {
-  background: var(--color-surface, #fff);
-  border-radius: 10px; padding: 16px 20px;
-}
-
-/* ── Download button ── */
-.download-card { display: flex; flex-direction: column; gap: 8px; }
-.btn-download {
-  padding: 14px 24px; border-radius: 10px; border: none;
-  background: var(--color-primary, #0a84ff); color: #fff;
-  font-size: 16px; font-weight: 600; cursor: pointer;
-}
-.btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
-.hint { font-size: 12px; color: var(--color-text-secondary, #888); margin: 0; }
-
-/* ── Progress ── */
-.progress-card { display: flex; flex-direction: column; gap: 8px; }
-.progress-head { display: flex; justify-content: space-between; align-items: center; }
-.progress-stage { font-size: 13px; font-weight: 500; }
-.progress-pct { font-size: 13px; color: var(--color-text-secondary, #888); }
-.progress-track { height: 6px; background: var(--color-bg-secondary, #eee); border-radius: 3px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--color-primary, #0a84ff); border-radius: 3px; transition: width 0.3s ease; }
-.progress-logs { margin: 0; font-size: 11px; color: var(--color-text-secondary, #888); max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-
-/* ── Result ── */
-.result-card { display: flex; flex-direction: column; gap: 6px; }
-.result-title { font-size: 15px; font-weight: 600; color: #34c759; }
-.result-line { font-size: 14px; }
-.result-line code { font-size: 12px; background: var(--color-bg-secondary, #eee); padding: 1px 4px; border-radius: 3px; }
-.btn-install {
-  display: inline-block; margin-top: 4px; padding: 10px 20px;
-  background: #34c759; color: #fff; border-radius: 8px;
-  text-decoration: none; font-size: 14px; font-weight: 500; text-align: center;
-}
-.result-meta { font-size: 11px; color: var(--color-text-tertiary, #aaa); margin-top: 2px; }
-
-/* ── Error ── */
-.error-card { display: flex; flex-direction: column; gap: 4px; }
-.error-title { font-size: 15px; font-weight: 600; color: #ff3b30; }
-.error-msg { font-size: 13px; color: var(--color-text-secondary, #888); }
-
-/* ── MFA ── */
-.mfa-card { display: flex; flex-direction: column; gap: 6px; }
-.mfa-label { font-size: 13px; color: var(--color-text-secondary, #888); }
-.mfa-input {
-  padding: 10px 12px; border-radius: 8px;
-  border: 1px solid var(--color-border, #ddd);
-  font-size: 14px; background: var(--color-bg, #fff);
-  color: var(--color-text);
-}
-.mfa-hint { font-size: 12px; color: var(--color-text-tertiary, #aaa); margin-top: 2px; }
-</style>

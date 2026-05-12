@@ -108,8 +108,11 @@ export async function runPipeline({
     stage('apple-license', 0.05, '确认 license（buyProduct）…')
     const license = await store.ensureLicense(appIdentifier, appVerId, authInfo)
     if (license._state !== 'success' && license.failureType !== '2034') {
-      // 2034 = already purchased; ignore.
-      throw new Error(license.customerMessage || `buyProduct 失败: ${license.failureType || ''}`)
+      // Purchase required — structured error so UI can guide user
+      const err = new Error(license.customerMessage || '该应用可能尚未购买，请先到 App Store 完成购买')
+      err.purchaseRequired = true
+      err.appleResult = license
+      throw err
     }
   }
 

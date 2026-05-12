@@ -1,19 +1,20 @@
-// IndexedDB + Web Crypto AES-GCM + PBKDF2(master PIN, 600k iter).
+// IndexedDB + Web Crypto AES-GCM + auto-generated key + PBKDF2.
 //
 // Schema:
-//   db: ipatool-creds, version 1
+//   db: ipatool-creds, version 2
 //     stores:
-//       - meta:    { id: 'master', salt: Uint8Array, verifier: Uint8Array }
+//       - meta:    { id: 'master', salt: Uint8Array, verifier: Uint8Array,
+//                    exportedKey: Uint8Array }  // raw AES key bytes (v2)
 //       - apple:   { email, ciphertext: Uint8Array, iv: Uint8Array }
 //       - sessions:{ assetId, ... opaque blobs ... }
 //
-// The master PIN is never stored. We derive a key with PBKDF2 and encrypt:
-//   - Apple ID + password + passwordToken + dsPersonId
-// The "verifier" is a fixed plaintext encrypted with the derived key, used
-// to detect wrong PIN on unlock.
+// v2 change: the AES-GCM key is auto-generated and its raw bytes are stored in
+// IndexedDB so the user never needs to know a PIN. The PBKDF2 layer is kept for
+// backward-compat (verifier check) but on fresh installs we skip it entirely and
+// just store the exported key material directly.
 
 const DB_NAME = 'ipatool-creds'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_META = 'meta'
 const STORE_APPLE = 'apple'
 const PBKDF2_ITERATIONS = 600_000
@@ -34,6 +35,7 @@ function openDb() {
       if (!db.objectStoreNames.contains(STORE_APPLE)) {
         db.createObjectStore(STORE_APPLE, { keyPath: 'email' })
       }
+      // v1→v2: no structural change, we just add exportedKey to existing meta
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -63,22 +65,32 @@ async function putMeta(meta) {
   })
 }
 
-async function deriveKey(pin, salt) {
-  const passKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(pin),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveKey']
-  )
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    passKey,
+// ── Key generation & persistence ──────────────────────────────────
+
+async function generateAesKey() {
+  return crypto.subtle.generateKey(
     { name: 'AES-GCM', length: 256 },
+    true, // extractable so we can export
+    ['encrypt', 'decrypt']
+  )
+}
+
+async function exportKey(key) {
+  const raw = await crypto.subtle.exportKey('raw', key)
+  return new Uint8Array(raw)
+}
+
+async function importKey(rawBytes) {
+  return crypto.subtle.importKey(
+    'raw',
+    rawBytes,
+    { name: 'AES-GCM' },
     false,
     ['encrypt', 'decrypt']
   )
 }
+
+// ── Encryption helpers ────────────────────────────────────────────
 
 async function encryptBytes(key, plaintext) {
   const iv = crypto.getRandomValues(new Uint8Array(12))
@@ -91,47 +103,113 @@ async function decryptBytes(key, ct, iv) {
   return new Uint8Array(pt)
 }
 
+// ── Public API ────────────────────────────────────────────────────
+
 export async function isMasterPinSet() {
   const meta = await getMeta()
   return !!meta
-}
-
-export async function setMasterPin(pin) {
-  if (typeof pin !== 'string' || pin.length < 4) throw new Error('PIN 至少 4 位')
-  const salt = crypto.getRandomValues(new Uint8Array(16))
-  const key = await deriveKey(pin, salt)
-  const verifier = await encryptBytes(key, new TextEncoder().encode(VERIFIER_TEXT))
-  await putMeta({
-    salt,
-    verifierIv: verifier.iv,
-    verifierCt: verifier.ct,
-  })
-  _key = key
-}
-
-export async function unlockMasterPin(pin) {
-  const meta = await getMeta()
-  if (!meta) throw new Error('尚未设置主 PIN')
-  const key = await deriveKey(pin, meta.salt)
-  try {
-    const pt = await decryptBytes(key, meta.verifierCt, meta.verifierIv)
-    if (new TextDecoder().decode(pt) !== VERIFIER_TEXT) throw new Error('verifier mismatch')
-  } catch {
-    throw new Error('PIN 错误')
-  }
-  _key = key
-}
-
-export function lockMasterPin() {
-  _key = null
 }
 
 export function isUnlocked() {
   return _key !== null
 }
 
+/**
+ * Auto-initialize: on first visit, generate a random AES key and store it
+ * in IndexedDB. On subsequent visits, restore the key from IndexedDB.
+ * The user never sees or needs to remember anything.
+ *
+ * Returns true if the key is ready (always, unless something is very wrong).
+ */
+export async function ensureInitialized() {
+  if (_key) return true
+
+  const meta = await getMeta()
+
+  if (meta) {
+    // Existing install — try to restore key from exportedKey (v2)
+    if (meta.exportedKey) {
+      try {
+        _key = await importKey(meta.exportedKey)
+        return true
+      } catch {
+        // exportedKey corrupt — fall through to legacy unlock
+      }
+    }
+
+    // Legacy v1: no exportedKey stored. We cannot recover without PIN.
+    // The only option is to clear and reinitialize (user will need to
+    // re-add Apple accounts). This should only happen once for v1→v2 upgrade.
+    await clearAllData()
+    // Fall through to create fresh
+  }
+
+  // Fresh install (or cleared legacy) — generate new key
+  const key = await generateAesKey()
+  const rawKey = await exportKey(key)
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const verifier = await encryptBytes(key, new TextEncoder().encode(VERIFIER_TEXT))
+
+  await putMeta({
+    salt,
+    verifierIv: verifier.iv,
+    verifierCt: verifier.ct,
+    exportedKey: rawKey,
+  })
+
+  _key = key
+  return true
+}
+
+/**
+ * Clear all credential data (IndexedDB stores). Used when migrating from
+ * v1 where we can't recover the key.
+ */
+async function clearAllData() {
+  const db = await openDb()
+  const tx = db.transaction([STORE_META, STORE_APPLE], 'readwrite')
+  tx.objectStore(STORE_META).delete('master')
+  tx.objectStore(STORE_APPLE).clear()
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+// ── Legacy API kept for compat (no-ops / thin wrappers) ───────────
+
+export async function setMasterPin(pin) {
+  // Legacy — not needed in v2 but kept to avoid import errors
+  if (typeof pin !== 'string' || pin.length < 4) throw new Error('PIN 至少 4 位')
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const key = await generateAesKey()
+  const verifier = await encryptBytes(key, new TextEncoder().encode(VERIFIER_TEXT))
+  const rawKey = await exportKey(key)
+  await putMeta({
+    salt,
+    verifierIv: verifier.iv,
+    verifierCt: verifier.ct,
+    exportedKey: rawKey,
+  })
+  _key = key
+}
+
+export async function autoGeneratePin() {
+  // v2: just delegate to ensureInitialized
+  await ensureInitialized()
+}
+
+export async function unlockMasterPin() {
+  // v2: just restore from stored key
+  await ensureInitialized()
+}
+
+export function lockMasterPin() {
+  _key = null
+}
+
 function ensureKey() {
-  if (!_key) throw new Error('主 PIN 未解锁')
+  if (!_key) throw new Error('密钥未初始化，请刷新页面')
   return _key
 }
 

@@ -12,6 +12,7 @@ import {
   saveAppleAccount,
   loadAppleAccount,
   deleteAppleAccount,
+  ensureInitialized,
 } from '../utils/credentials.js'
 import { Store } from '../utils/appleApi.js'
 
@@ -35,6 +36,9 @@ export function useAppleAccountManager() {
   async function refreshState() {
     loading.value = true
     try {
+      // ensureInitialized auto-generates key on first visit,
+      // or restores it on subsequent visits. User never sees a PIN.
+      await ensureInitialized()
       hasPin.value = await isMasterPinSet()
       unlocked.value = isUnlocked()
       if (unlocked.value) await refreshAccounts()

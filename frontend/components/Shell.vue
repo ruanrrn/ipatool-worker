@@ -1,21 +1,20 @@
 <template>
-  <div class="shell">
-    <header class="shell-header">
-      <div class="title">ipaTool</div>
-      <div class="tabs">
+  <div class="flex flex-col h-full">
+    <header class="flex items-center gap-4 px-4 py-3 border-b border-bdr dark:border-bdr-dark bg-surface dark:bg-surface-dark">
+      <div class="text-lg font-semibold text-txt dark:text-txt-dark">ipaTool</div>
+      <div class="flex gap-2 flex-1 ml-4">
         <button
           v-for="t in tabs"
           :key="t.id"
-          :class="{ active: activeTab === t.id }"
+          :class="['px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-colors', activeTab === t.id ? 'bg-primary-soft dark:bg-primary-soft-dark text-primary border border-primary' : 'text-txt-secondary dark:text-txt-dark-secondary bg-transparent border border-transparent']"
           @click="activeTab = t.id"
         >
           {{ t.label }}
         </button>
       </div>
-      <button class="logout" @click="$emit('logout')">登出</button>
+      <button class="px-3 py-1.5 text-sm bg-transparent border border-bdr dark:border-bdr-dark rounded-md text-txt-secondary dark:text-txt-dark-secondary cursor-pointer" @click="$emit('logout')">登出</button>
     </header>
-
-    <main class="shell-main">
+    <main class="flex-1 overflow-y-auto bg-surface-page dark:bg-surface-dark-page">
       <component :is="currentTab" @navigate-settings="activeTab = 'settings'" />
     </main>
   </div>
@@ -45,58 +44,3 @@ const currentTab = computed(() => {
   }
 })
 </script>
-
-<style scoped>
-.shell {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.shell-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border, #e5e5e7);
-  background: var(--color-surface, #fff);
-}
-.title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-.tabs {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-  margin-left: 16px;
-}
-.tabs button {
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--color-text-secondary, #666);
-}
-.tabs button.active {
-  background: var(--color-primary-soft, #e6f4ee);
-  color: var(--color-primary, #0a84ff);
-  border-color: var(--color-primary, #0a84ff);
-}
-.logout {
-  padding: 6px 12px;
-  font-size: 13px;
-  background: transparent;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-}
-.shell-main {
-  flex: 1;
-  overflow-y: auto;
-  background: var(--color-bg, #f5f5f7);
-}
-</style>
