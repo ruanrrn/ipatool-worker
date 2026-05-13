@@ -245,26 +245,17 @@
                   下载中…
                 </MobileButton>
               </template>
-              <!-- 正常：下载 + 安装并排 -->
+              <!-- 正常：只显示下载按钮（安装按钮在下载完成后才出现） -->
               <template v-else>
-                <div class="download-sheet__btn-row">
-                  <MobileButton
-                    type="secondary"
-                    size="large"
-                    :disabled="!canDownload"
-                    @click="startDownload"
-                  >
-                    下载
-                  </MobileButton>
-                  <MobileButton
-                    type="primary"
-                    size="large"
-                    :disabled="!canDownload"
-                    @click="startDownload"
-                  >
-                    安装
-                  </MobileButton>
-                </div>
+                <MobileButton
+                  type="primary"
+                  size="large"
+                  block
+                  :disabled="!canDownload"
+                  @click="startDownload"
+                >
+                  下载
+                </MobileButton>
               </template>
             </div>
           </div>

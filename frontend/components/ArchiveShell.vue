@@ -1,111 +1,119 @@
 <template>
   <div class="page">
-    <!-- R2 Capacity Bar -->
-    <div
-      v-if="storage"
-      class="capacity-bar"
-    >
-      <div class="capacity-header">
-        <span class="capacity-label">R2 存储</span>
-        <span class="capacity-detail">
-          {{ formatSize(storage.usedBytes) }} / {{ formatSize(storage.totalBytes) }}
-          · {{ storage.assetCount }} 个文件
-        </span>
-      </div>
-      <div class="capacity-track">
-        <div
-          class="capacity-fill"
-          :class="capacityClass"
-          :style="{ width: capacityPercent + '%' }"
-        />
-      </div>
-      <div class="capacity-pct">
-        {{ capacityPercent.toFixed(1) }}%
-      </div>
+    <!-- Fixed header -->
+    <div class="archive-page__fixed px-5">
+      <h1 class="archive-page__title">归档</h1>
     </div>
 
-    <!-- Batch actions toolbar -->
-    <div
-      v-if="assets.length"
-      class="batch-toolbar"
-    >
-      <label class="select-all">
-        <input
-          type="checkbox"
-          :checked="allSelected"
-          @change="toggleSelectAll"
-        >
-        <span>全选</span>
-      </label>
-      <button
-        v-if="selectedIds.length"
-        class="btn batch-delete"
-        :disabled="batchDeleting"
-        @click="onBatchDelete"
-      >
-        {{ batchDeleting ? '批量删除中…' : `删除选中 (${selectedIds.length})` }}
-      </button>
-      <span
-        v-if="selectedIds.length"
-        class="selected-info"
-      >
-        已选 {{ formatSize(selectedSize) }}
-      </span>
-    </div>
-
-    <div
-      v-if="loading"
-      class="loading"
-    >
-      加载中…
-    </div>
-    <div
-      v-else-if="!assets.length"
-      class="empty"
-    >
-      还没有任何已签 IPA。先去"下载"页生成一个。
-    </div>
-    <div
-      v-else
-      class="list"
-    >
+    <!-- Scrollable content -->
+    <div class="archive-page__scroll">
+      <!-- R2 Capacity Bar -->
       <div
-        v-for="a in assets"
-        :key="a.assetId"
-        class="item"
-        :class="{ selected: isSelected(a.assetId) }"
+        v-if="storage"
+        class="capacity-bar"
       >
-        <label class="checkbox-cell">
+        <div class="capacity-header">
+          <span class="capacity-label">R2 存储</span>
+          <span class="capacity-detail">
+            {{ formatSize(storage.usedBytes) }} / {{ formatSize(storage.totalBytes) }}
+            · {{ storage.assetCount }} 个文件
+          </span>
+        </div>
+        <div class="capacity-track">
+          <div
+            class="capacity-fill"
+            :class="capacityClass"
+            :style="{ width: capacityPercent + '%' }"
+          />
+        </div>
+        <div class="capacity-pct">
+          {{ capacityPercent.toFixed(1) }}%
+        </div>
+      </div>
+
+      <!-- Batch actions toolbar -->
+      <div
+        v-if="assets.length"
+        class="batch-toolbar"
+      >
+        <label class="select-all">
           <input
             type="checkbox"
-            :checked="isSelected(a.assetId)"
-            @change="toggleSelect(a.assetId)"
+            :checked="allSelected"
+            @change="toggleSelectAll"
           >
+          <span>全选</span>
         </label>
-        <div class="info">
-          <div class="title">
-            {{ a.title }}
+        <button
+          v-if="selectedIds.length"
+          class="btn batch-delete"
+          :disabled="batchDeleting"
+          @click="onBatchDelete"
+        >
+          {{ batchDeleting ? '批量删除中…' : `删除选中 (${selectedIds.length})` }}
+        </button>
+        <span
+          v-if="selectedIds.length"
+          class="selected-info"
+        >
+          已选 {{ formatSize(selectedSize) }}
+        </span>
+      </div>
+
+      <div
+        v-if="loading"
+        class="loading"
+      >
+        加载中…
+      </div>
+      <div
+        v-else-if="!assets.length"
+        class="empty"
+      >
+        还没有任何已签 IPA。先去"下载"页生成一个。
+      </div>
+      <div
+        v-else
+        class="list"
+      >
+        <div
+          v-for="a in assets"
+          :key="a.assetId"
+          class="item"
+          :class="{ selected: isSelected(a.assetId) }"
+        >
+          <label class="checkbox-cell">
+            <input
+              type="checkbox"
+              :checked="isSelected(a.assetId)"
+              @change="toggleSelect(a.assetId)"
+            >
+          </label>
+          <div class="info">
+            <div class="title">
+              {{ a.title }}
+            </div>
+            <div class="meta">
+              版本 {{ a.version }} · {{ formatSize(a.size) }} · <code>{{ a.bundleId }}</code>
+            </div>
+            <div class="meta-tiny">
+              {{ formatDate(a.uploadedAt) }} · ID {{ a.assetId.slice(0, 8) }}
+            </div>
           </div>
-          <div class="meta">
-            版本 {{ a.version }} · {{ formatSize(a.size) }} · <code>{{ a.bundleId }}</code>
+          <div class="actions">
+            <a
+              class="btn install"
+              :href="`/i/${a.assetId}`"
+              target="_blank"
+            >装机</a>
+            <button
+              class="btn delete"
+              :disabled="deletingId === a.assetId"
+              @click="onDelete(a.assetId)"
+            >
+              {{ deletingId === a.assetId ? '删除中…' : '删除' }}
+            </button>
           </div>
-          <div class="meta-tiny">
-            {{ formatDate(a.uploadedAt) }} · ID {{ a.assetId.slice(0, 8) }}
-          </div>
-        </div>
-        <div class="actions">
-          <a
-            class="btn install"
-            :href="`/i/${a.assetId}`"
-            target="_blank"
-          >装机</a>
-          <button
-            class="btn delete"
-            :disabled="deletingId === a.assetId"
-            @click="onDelete(a.assetId)"
-          >
-            {{ deletingId === a.assetId ? '删除中…' : '删除' }}
-          </button>
         </div>
       </div>
     </div>
@@ -253,7 +261,36 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── Fixed header ── */
+.archive-page__fixed {
+  flex-shrink: 0;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
+}
+.archive-page__title {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ── Scrollable content ── */
+.archive-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 /* ── Capacity bar ── */
 .capacity-bar {

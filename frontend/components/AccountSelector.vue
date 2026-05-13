@@ -1,5 +1,5 @@
 <template>
-  <div class="acct-sel">
+  <div class="acct-sel" :class="{ 'account-select-bar--fused-bottom': accounts.length > 0 }">
     <!-- No accounts: alert -->
     <div
       v-if="accounts.length === 0"
@@ -27,36 +27,32 @@
       </div>
     </div>
 
-    <!-- Single account: static chip -->
+    <!-- Single account: static chip (no arrow) -->
     <div
       v-else-if="accounts.length === 1"
-      class="acct-chip-bar"
+      class="acct-chip"
     >
-      <div class="acct-chip">
-        <div class="acct-chip__content">
-          <span class="acct-chip__email">{{ accounts[0] }}</span>
-          <span v-if="accountRegions[accounts[0]]" class="acct-chip__region">{{ accountRegions[accounts[0]] }}</span>
-        </div>
+      <span class="acct-chip__dot" />
+      <div class="acct-chip__content">
+        <span class="acct-chip__email">{{ accounts[0] }}</span>
+        <span v-if="accountRegions[accounts[0]]" class="acct-chip__region">{{ accountRegions[accounts[0]] }}</span>
       </div>
     </div>
 
-    <!-- Multiple accounts: clickable chip → bottom sheet -->
-    <div
+    <!-- Multiple accounts: clickable chip with chevron arrow → bottom sheet -->
+    <button
       v-else
-      class="acct-chip-bar"
+      type="button"
+      class="acct-chip acct-chip--clickable"
+      @click="showPicker = true"
     >
-      <button
-        type="button"
-        class="acct-chip acct-chip--clickable"
-        @click="showPicker = true"
-      >
-        <div class="acct-chip__content">
-          <span class="acct-chip__email">{{ selectedEmail || accounts[0] }}</span>
-          <span v-if="accountRegions[selectedEmail || accounts[0]]" class="acct-chip__region">{{ accountRegions[selectedEmail || accounts[0]] }}</span>
-        </div>
-        <span class="acct-chip__arrow">▾</span>
-      </button>
-    </div>
+      <span class="acct-chip__dot" />
+      <div class="acct-chip__content">
+        <span class="acct-chip__email">{{ displayEmail }}</span>
+        <span v-if="accountRegions[displayEmail]" class="acct-chip__region">{{ accountRegions[displayEmail] }}</span>
+      </div>
+      <span class="acct-chip__arrow" v-html="chevronDownIcon" />
+    </button>
 
     <!-- Bottom Sheet Picker -->
     <Transition name="sheet-fade">
@@ -103,15 +99,17 @@
                   :class="{ 'picker-item--active': selectedEmail === email }"
                   @click="pickAccount(email)"
                 >
-                  <div class="picker-item__main">
-                    <span class="picker-item__email">{{ email }}</span>
-                    <span v-if="accountRegions[email]" class="picker-item__region">{{ accountRegions[email] }}</span>
-                  </div>
-                  <div class="picker-item__radio">
-                    <div
-                      v-if="selectedEmail === email"
-                      class="picker-item__radio-fill"
-                    />
+                  <div class="picker-item__left">
+                    <div class="picker-item__radio">
+                      <div
+                        v-if="selectedEmail === email"
+                        class="picker-item__radio-fill"
+                      />
+                    </div>
+                    <div class="picker-item__main">
+                      <span class="picker-item__email">{{ email }}</span>
+                      <span v-if="accountRegions[email]" class="picker-item__region">{{ accountRegions[email] }}</span>
+                    </div>
                   </div>
                 </button>
               </div>
@@ -124,11 +122,12 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import MobileButton from './MobileButton.vue'
 import SvgIcon from './SvgIcon.vue'
 import closeIcon from '../assets/icons/close.svg?raw'
 import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
+import chevronDownIcon from '../assets/icons/chevron-down.svg?raw'
 
 const props = defineProps({
   accounts: { type: Array, default: () => [] },
@@ -140,6 +139,8 @@ const emit = defineEmits(['update:modelValue', 'add-account', 'select'])
 
 const selectedEmail = ref(props.modelValue)
 const showPicker = ref(false)
+
+const displayEmail = computed(() => selectedEmail.value || props.accounts[0] || '')
 
 watch(() => props.modelValue, (v) => { if (v !== selectedEmail.value) selectedEmail.value = v })
 
@@ -165,76 +166,88 @@ function pickAccount(email) {
 </script>
 
 <style scoped>
-/* ─── Alert ─── */
+/* ═══════════════════════════════════════
+   Root container
+   ═══════════════════════════════════════ */
+.acct-sel {
+  width: 100%;
+}
+
+/* ─── Fused-bottom bar (sits right below search input) ─── */
+.account-select-bar--fused-bottom {
+  border-top: none;
+  margin-top: -1px;
+  border-radius: 0 0 14px 14px;
+  padding: 10px 12px;
+  background: var(--color-bg-surface, var(--color-surface));
+  border: 1px solid var(--color-border);
+}
+
+/* ═══════════════════════════════════════
+   No-account Alert
+   ═══════════════════════════════════════ */
 .acct-alert {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3-5);
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-3-5, 14px);
   background: var(--color-warning-bg);
   border: 1px solid var(--color-warning-border);
-  border-radius: var(--radius-xl);
+  border-radius: 14px;
 }
 .acct-alert__icon { flex-shrink: 0; margin-top: 2px; }
 .acct-alert__svg { width: 20px; height: 20px; color: var(--color-warning, #f59e0b); }
-.acct-alert__title { font-size: var(--font-size-body); font-weight: 600; color: var(--color-text); }
-.acct-alert__desc { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: var(--space-1); }
+.acct-alert__title { font-size: var(--font-size-body, 14px); font-weight: 600; color: var(--color-text); }
+.acct-alert__desc { font-size: var(--font-size-caption, 12px); color: var(--color-text-muted); margin-top: var(--space-1, 4px); }
 
-/* ─── Chip Bar ─── */
-.acct-chip-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
+/* ═══════════════════════════════════════
+   AccountChip (inline chip)
+   ═══════════════════════════════════════ */
 .acct-chip {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   width: 100%;
-  min-height: 46px;
-  padding: var(--space-2-5) var(--space-3-5);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  min-width: 0;
-}
-
-:deep(.account-picker-fused) .acct-chip,
-.account-picker-fused .acct-chip,
-.acct-sel.account-picker-fused .acct-chip {
-  border-top-color: var(--color-border-light);
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  padding: 5px 10px;
+  border-radius: 8px;
   background: var(--color-surface-muted);
-}
-
-:deep(.account-picker-fused) .acct-alert,
-.account-picker-fused .acct-alert,
-.acct-sel.account-picker-fused .acct-alert {
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  border: none;
+  min-width: 0;
+  text-align: left;
+  cursor: default;
 }
 
 .acct-chip--clickable {
   cursor: pointer;
-  background: var(--color-surface-muted);
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
-
 .acct-chip--clickable:hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-primary-border);
+  box-shadow: 0 0 0 1px var(--color-border);
 }
 
+/* Green dot */
+.acct-chip__dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34c759;
+}
+
+/* Email + region text group */
 .acct-chip__content {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
   min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .acct-chip__email {
-  font-size: var(--font-size-label);
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
@@ -242,28 +255,36 @@ function pickAccount(email) {
 }
 
 .acct-chip__region {
-  font-size: var(--font-size-caption);
+  font-size: 11px;
   color: var(--color-text-muted);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  padding: 1px var(--space-1-5);
-  border-radius: var(--radius-pill);
   white-space: nowrap;
-}
-
-.acct-chip__arrow {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
-/* ─── Sheet ─── */
+/* Chevron arrow for multi-account */
+.acct-chip__arrow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+.acct-chip__arrow :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+/* ═══════════════════════════════════════
+   Bottom Sheet
+   ═══════════════════════════════════════ */
 .sheet-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: var(--overlay-sheet);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -272,7 +293,7 @@ function pickAccount(email) {
   width: 100%;
   max-width: 600px;
   background: var(--color-surface);
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  border-radius: 16px 16px 0 0;
   max-height: min(70vh, 480px);
   overflow: hidden;
   display: flex;
@@ -281,35 +302,35 @@ function pickAccount(email) {
 .sheet__handle {
   width: 36px;
   height: 4px;
-  background: var(--color-border-divider);
-  border-radius: var(--radius-xs);
-  margin: var(--space-3) auto var(--space-2);
+  background: var(--color-border-divider, rgba(0,0,0,0.12));
+  border-radius: 2px;
+  margin: 12px auto 8px;
   flex-shrink: 0;
   cursor: pointer;
 }
 .sheet__header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  gap: 12px;
+  padding: 8px 16px 16px;
   flex-shrink: 0;
 }
 .sheet__header-info { flex: 1; min-width: 0; }
 .sheet__title {
-  font-size: var(--font-size-heading);
+  font-size: 17px;
   font-weight: 600;
   color: var(--color-text);
-  margin: 0 0 var(--space-0-5);
+  margin: 0 0 2px;
 }
 .sheet__subtitle {
-  font-size: var(--font-size-label);
+  font-size: 13px;
   color: var(--color-text-muted);
   margin: 0;
 }
 .sheet__close {
-  width: var(--size-8);
-  height: var(--size-8);
-  border-radius: var(--radius-full);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: none;
   background: var(--color-surface-muted);
   color: var(--color-text);
@@ -322,25 +343,25 @@ function pickAccount(email) {
 }
 .sheet__close:hover { background: var(--color-surface-hover); }
 .sheet__body {
-  padding: 0 var(--space-4) var(--space-4);
+  padding: 0 16px 16px;
   overflow-y: auto;
   flex: 1;
 }
 
-/* ─── Picker List ─── */
+/* ═══════════════════════════════════════
+   Picker List (radio-style)
+   ═══════════════════════════════════════ */
 .picker-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 .picker-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
   width: 100%;
-  padding: var(--space-3-5) var(--space-3);
-  border-radius: var(--radius-xl);
+  padding: 12px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-surface-muted);
   text-align: left;
@@ -348,41 +369,69 @@ function pickAccount(email) {
   transition: all 0.15s;
 }
 .picker-item:hover { background: var(--color-surface-hover); }
+
+/* Active / selected item — green background */
 .picker-item--active {
-  background: var(--color-success-soft);
-  border-color: var(--color-success-border);
+  background: rgba(52, 199, 89, 0.1);
+  border-color: rgba(52, 199, 89, 0.35);
 }
-.picker-item__main { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.picker-item--active:hover {
+  background: rgba(52, 199, 89, 0.16);
+}
+
+.picker-item__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Radio circle */
+.picker-item__radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-divider, rgba(0,0,0,0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.picker-item--active .picker-item__radio {
+  border-color: #34c759;
+}
+.picker-item__radio-fill {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34c759;
+}
+
+.picker-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
 .picker-item__email {
-  font-size: var(--font-size-body);
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .picker-item__region {
-  font-size: var(--font-size-caption);
+  font-size: 12px;
   color: var(--color-text-muted);
 }
-.picker-item__radio {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-border-divider);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.picker-item__radio-fill {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-}
 
-/* ─── Transitions ─── */
+/* ═══════════════════════════════════════
+   Transitions
+   ═══════════════════════════════════════ */
 .sheet-fade-enter-active,
 .sheet-fade-leave-active { transition: opacity 0.3s ease; }
 .sheet-fade-enter-from,
@@ -392,7 +441,9 @@ function pickAccount(email) {
 .sheet-slide-enter-from,
 .sheet-slide-leave-to { transform: translateY(100%); }
 
-/* ─── Dark mode ─── */
+/* ═══════════════════════════════════════
+   Dark mode tweaks
+   ═══════════════════════════════════════ */
 :root.dark .acct-alert {
   background: rgba(245, 158, 11, 0.1);
 }
@@ -401,7 +452,7 @@ function pickAccount(email) {
   border-color: var(--color-surface-muted);
 }
 :root.dark .picker-item--active {
-  background: var(--color-success-soft);
-  border-color: var(--color-success-border);
+  background: rgba(52, 199, 89, 0.12);
+  border-color: rgba(52, 199, 89, 0.3);
 }
 </style>

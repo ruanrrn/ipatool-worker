@@ -20,23 +20,70 @@ async function getWasm() {
   return mod
 }
 
+function bytesToBase64(bytes) {
+  let s = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.byteLength; i += chunk) {
+    s += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)))
+  }
+  return btoa(s)
+}
+
 async function fetchIpaToBytes(url, onProgress) {
-  const resp = await fetch(url, { mode: 'cors' })
-  if (!resp.ok) throw new Error(`download CDN failed: ${resp.status}`)
-  const total = parseInt(resp.headers.get('content-length') || '0', 10)
-  const reader = resp.body.getReader()
+  const CHUNK_SIZE = 5 * 1024 * 1024 // 5 MB per slice
+
+  // --- Helper: call /apple/proxy using the same format as appleApi.js proxyFetch ---
+  async function proxyRequest(method, extraHeaders = {}) {
+    const resp = await fetch('/apple/proxy', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, method, headers: extraHeaders }),
+    })
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '')
+      throw new Error(`proxy ${resp.status}: ${txt}`)
+    }
+    const json = await resp.json()
+    if (json.status >= 400) {
+      throw new Error(`upstream ${json.status}`)
+    }
+    // body is base64-encoded
+    const bodyBytes = json.body
+      ? Uint8Array.from(atob(json.body), c => c.charCodeAt(0))
+      : new Uint8Array()
+    return { status: json.status, headers: json.headers || {}, body: bodyBytes }
+  }
+
+  // --- Step 1: HEAD via proxy to get content-length ---
+  const head = await proxyRequest('HEAD')
+  const total = parseInt(
+    head.headers['content-length'] || head.headers['Content-Length'] || '0', 10
+  )
+  if (!total) {
+    // Fallback: download as a single request
+    const full = await proxyRequest('GET')
+    if (onProgress) onProgress({ received: full.body.byteLength, total: full.body.byteLength, fraction: 1 })
+    return full.body
+  }
+
+  // --- Step 2: Download in 5 MB chunks via proxy GET (range requests) ---
   const chunks = []
   let received = 0
-  for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
-    if (value) {
-      chunks.push(value)
-      received += value.byteLength
-      if (onProgress && total) onProgress({ received, total, fraction: received / total })
-      else if (onProgress) onProgress({ received, total: 0, fraction: 0 })
+
+  while (received < total) {
+    const end = Math.min(received + CHUNK_SIZE - 1, total - 1)
+    const slice = await proxyRequest('GET', { Range: `bytes=${received}-${end}` })
+
+    chunks.push(slice.body)
+    received += slice.body.byteLength
+
+    if (onProgress) {
+      onProgress({ received, total, fraction: received / total })
     }
   }
+
+  // --- Step 3: Merge into a single Uint8Array ---
   const out = new Uint8Array(received)
   let off = 0
   for (const c of chunks) {
