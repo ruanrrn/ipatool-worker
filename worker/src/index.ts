@@ -1,6 +1,7 @@
 import { handleLogin, handleLogout, handleWhoami, requireSession } from './auth'
 import { handleWisp } from './wisp'
 import { handleAppleProxy } from './apple'
+import { handleVersions } from './versions'
 import {
   handleUploadInit,
   handleUploadPart,
@@ -32,7 +33,7 @@ const SECURITY_HEADERS = {
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval'",
-  "connect-src 'self' https://*.itunes.apple.com https://*.phobos.apple.com https://*.apple.com",
+  "connect-src 'self' https://*.itunes.apple.com https://*.phobos.apple.com https://*.apple.com https://api.timbrd.com https://apis.bilin.eu.org",
   "img-src 'self' data: https://*.mzstatic.com",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
@@ -107,6 +108,13 @@ async function route(
   if (path === '/auth/login') return handleLogin(request, env)
   if (path === '/auth/logout') return handleLogout(request, env)
   if (path === '/auth/whoami') return handleWhoami(request, env)
+
+  // Versions lookup (requires session)
+  if (path === '/api/versions') {
+    const session = await requireSession(env, request)
+    if (session instanceof Response) return session
+    return handleVersions(request, env)
+  }
 
   // Wisp tunnel - Apple TLS relay (requires session)
   if (path === '/wisp' || path === '/wisp/') {

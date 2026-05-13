@@ -125,8 +125,8 @@ const selectedId = ref('')        // '' = latest, or externalVersionId
 const showManual = ref(false)
 const manualId = ref('')
 
-// Extra info from lookup (fileSizeBytes, currentVersionReleaseDate, etc.)
-const lookupInfo = ref(null)
+// Version list from /api/versions endpoint
+const rawVersions = ref([])
 
 // ── Helpers ────────────────────────────────────────────
 function formatBytes(bytes) {
@@ -152,38 +152,60 @@ function formatDate(dateStr) {
 const versions = computed(() => {
   if (!props.app) return []
   const app = props.app
-  const info = lookupInfo.value
+  const list = rawVersions.value
 
-  const ver = {
-    id: '',                                       // empty = latest
-    version: info?.version || app.version || '—',
-    isLatest: true,
-    date: formatDate(info?.currentVersionReleaseDate || app.currentVersionReleaseDate),
-    size: formatBytes(info?.fileSizeBytes || app.fileSizeBytes),
+  if (!list.length) {
+    // No history versions — show current as "latest"
+    return [{
+      id: '',
+      version: app.version || '—',
+      isLatest: true,
+      date: formatDate(app.currentVersionReleaseDate),
+      size: formatBytes(app.fileSizeBytes),
+    }]
   }
 
-  return [ver]
+  // Map raw versions to display items
+  const items = list.map((v, idx) => ({
+    id: String(v.external_identifier),
+    version: v.bundle_version || '—',
+    isLatest: idx === 0,
+    date: formatDate(v.created_at),
+    size: formatBytes(v.size),
+  }))
+
+  // Prepend "latest" option (no version ID = latest from Apple)
+  items.unshift({
+    id: '',
+    version: app.version || items[0]?.version || '—',
+    isLatest: true,
+    date: formatDate(app.currentVersionReleaseDate),
+    size: formatBytes(app.fileSizeBytes),
+  })
+
+  return items
 })
 
-// ── Fetch extra info via iTunes Lookup ─────────────────
+// ── Fetch version history from worker backend ──────────
 async function fetchVersionInfo() {
   if (!props.app?.trackId) return
   loading.value = true
   loadError.value = ''
-  lookupInfo.value = null
+  rawVersions.value = []
 
   try {
-    // Use the public iTunes lookup API (no auth needed, CORS-friendly)
-    const url = `https://itunes.apple.com/lookup?id=${props.app.trackId}&country=${props.accountRegion || 'US'}`
-    const resp = await fetch(url, { mode: 'cors' })
+    const appid = props.app.trackId || props.app.bundleId
+    const country = props.accountRegion || 'US'
+    const resp = await fetch(`/api/versions?appid=${encodeURIComponent(appid)}&country=${encodeURIComponent(country)}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
     if (!resp.ok) throw new Error(`查询失败 (${resp.status})`)
     const json = await resp.json()
-    const results = json.results || []
-    if (results.length > 0) {
-      lookupInfo.value = results[0]
+    if (json.ok && Array.isArray(json.data)) {
+      rawVersions.value = json.data
     }
   } catch (e) {
-    console.warn('Version lookup failed:', e)
+    console.warn('Version history fetch failed:', e)
     loadError.value = e.message || '版本查询失败'
   } finally {
     loading.value = false
@@ -217,7 +239,7 @@ watch(() => props.app, (newApp) => {
   showManual.value = false
   manualId.value = ''
   loadError.value = ''
-  lookupInfo.value = null
+  rawVersions.value = []
 
   if (newApp) {
     fetchVersionInfo()
