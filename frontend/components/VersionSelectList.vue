@@ -166,24 +166,14 @@ const versions = computed(() => {
   }
 
   // Map raw versions to display items
-  const items = list.map((v, idx) => ({
-    id: String(v.external_identifier),
-    version: v.bundle_version || '—',
+  // First item = latest, id='' means "use Apple's latest"
+  return list.map((v, idx) => ({
+    id: idx === 0 ? '' : String(v.external_identifier),
+    version: v.bundle_version || app.version || '—',
     isLatest: idx === 0,
     date: formatDate(v.created_at),
-    size: formatBytes(v.size),
+    size: idx === 0 ? formatBytes(app.fileSizeBytes || v.size) : formatBytes(v.size),
   }))
-
-  // Prepend "latest" option (no version ID = latest from Apple)
-  items.unshift({
-    id: '',
-    version: app.version || items[0]?.version || '—',
-    isLatest: true,
-    date: formatDate(app.currentVersionReleaseDate),
-    size: formatBytes(app.fileSizeBytes),
-  })
-
-  return items
 })
 
 // ── Fetch version history from worker backend ──────────
