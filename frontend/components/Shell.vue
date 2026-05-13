@@ -31,14 +31,27 @@
       class="shell-main"
       :class="{ 'with-mobile-tabs': isMobile }"
     >
-      <div class="tab-host">
-        <KeepAlive>
-          <component
-            :is="currentTab"
-            :key="activeTab"
-            @navigate-settings="selectTab('settings')"
-          />
-        </KeepAlive>
+      <div class="subpage-host">
+        <AppearanceShell
+          v-if="subPage === 'appearance'"
+          key="appearance"
+          @back="subPage = null"
+        />
+
+        <div
+          v-else
+          key="tabs"
+          class="tab-host"
+        >
+          <KeepAlive>
+            <component
+              :is="currentTab"
+              :key="activeTab"
+              @navigate-settings="selectTab('settings')"
+              @navigate-to-appearance="subPage = 'appearance'"
+            />
+          </KeepAlive>
+        </div>
       </div>
     </main>
 
@@ -78,6 +91,7 @@ const emit = defineEmits(['logout'])
 const Download = defineAsyncComponent(() => import('./DownloadShell.vue'))
 const Archive = defineAsyncComponent(() => import('./ArchiveShell.vue'))
 const SettingsShell = defineAsyncComponent(() => import('./SettingsShell.vue'))
+const AppearanceShell = defineAsyncComponent(() => import('./AppearanceShell.vue'))
 
 const tabs = [
   { id: 'download', label: '首页', icon: homeIcon },
@@ -87,6 +101,7 @@ const tabs = [
 
 const activeTab = ref('download')
 const isMobile = ref(false)
+const subPage = ref(null)
 
 const currentTab = computed(() => {
   switch (activeTab.value) {
@@ -97,6 +112,7 @@ const currentTab = computed(() => {
 })
 
 function selectTab(tabId) {
+  subPage.value = null
   activeTab.value = tabId
 }
 
@@ -217,6 +233,7 @@ onUnmounted(() => {
   background: var(--color-bg, #f5f5f7);
 }
 
+.subpage-host,
 .tab-host {
   flex: 1;
   min-height: 0;
