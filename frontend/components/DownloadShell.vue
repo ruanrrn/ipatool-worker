@@ -1,17 +1,25 @@
 <template>
-  <div class="download-page page-shell">
-    <div class="download-page__fixed px-5">
-      <h1 class="download-page__title">
+  <div class="home-page page-shell">
+    <div class="home-page__fixed px-5">
+      <h1 class="home-page__title">
         首页
       </h1>
-      <div class="download-page__search-wrap">
-        <AppSearchBar
-          :account-region="currentRegion"
-          @app-selected="onAppSelected"
-          @results-change="onSearchResults"
-          @searching-change="onSearchingChange"
-          @query-change="onQueryChange"
-        />
+      <div class="home-page__search-wrap">
+        <MobileInput
+          v-model="searchQuery"
+          placeholder="搜索应用名称或输入 App ID..."
+          :loading="searching"
+          :disabled="accountManager.accounts.value.length === 0"
+          clearable
+          size="large"
+          class="search-input search-input--fused-top"
+          @input="handleSearch"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <Search class="search-input__icon" />
+          </template>
+        </MobileInput>
         <AccountSelector
           v-model="selectedAccount"
           class="account-picker-fused"
@@ -23,8 +31,8 @@
       </div>
     </div>
 
-    <div class="download-page__scroll">
-      <div class="download-page__scroll-inner px-5">
+    <div class="home-page__results">
+      <div class="home-page__results-inner px-5">
         <!-- 搜索结果计数 -->
         <p
           v-if="searchResults.length > 0 && !searching"
@@ -35,23 +43,28 @@
 
         <!-- 搜索结果卡片列表 -->
         <div
-          v-for="app in searchResults"
-          :key="app.trackId"
-          class="result-item"
-          @click="selectApp(app)"
+          v-if="searchResults.length > 0"
+          class="search-results-list"
         >
-          <img
-            :src="app.artworkUrl100 || app.artworkUrl60"
-            class="result-item__icon"
+          <div
+            v-for="app in searchResults"
+            :key="app.trackId"
+            class="result-item"
+            @click="selectApp(app)"
           >
-          <div class="result-item__info">
-            <h3 class="result-item__name">{{ app.trackName }}</h3>
-            <p class="result-item__dev">{{ app.artistName }}</p>
-            <div class="result-item__meta">
-              <span class="result-item__tag">{{ getCategory(app) }}</span>
-              <span class="result-item__tag">v{{ app.version }}</span>
-              <span class="result-item__tag">{{ getSizeLabel(app) }}</span>
-              <span class="result-item__tag result-item__tag--price">{{ getPriceLabel(app) }}</span>
+            <img
+              :src="app.artworkUrl100 || app.artworkUrl60"
+              class="result-item__icon"
+            >
+            <div class="result-item__info">
+              <h3 class="result-item__name">{{ app.trackName }}</h3>
+              <p class="result-item__dev">{{ app.artistName }}</p>
+              <div class="result-item__meta">
+                <span class="result-item__tag">{{ getCategory(app) }}</span>
+                <span class="result-item__tag">v{{ app.version }}</span>
+                <span class="result-item__tag">{{ getSizeLabel(app) }}</span>
+                <span class="result-item__tag result-item__tag--price">{{ getPriceLabel(app) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -69,30 +82,9 @@
           </p>
         </div>
 
-        <!-- 直接 App ID 确认面板 -->
-        <div
-          v-if="isAppIdInput && searchQuery && searchResults.length === 0 && !searching && !selectedApp"
-          class="status-panel"
-        >
-          <div class="status-panel__title">
-            📱 直接通过 App ID 下载
-          </div>
-          <p class="status-panel__text">
-            将使用 App ID: <code>{{ searchQuery.trim() }}</code> 直接获取应用信息
-          </p>
-          <MobileButton
-            type="primary"
-            size="medium"
-            block
-            @click="confirmDirectAppId"
-          >
-            确认并搜索
-          </MobileButton>
-        </div>
-
         <!-- 空状态 -->
         <div
-          v-if="searchResults.length === 0 && !selectedApp && !searching && !isAppIdInput"
+          v-if="searchResults.length === 0 && !selectedApp && !searching && !searchQuery.trim()"
           class="empty-state-home"
         >
           <div class="empty-state-home__icon">
@@ -108,6 +100,7 @@
       </div>
     </div>
 
+    <!-- Version Sheet — 与自托管版一致，selectedApp 非 null 即打开 -->
     <Transition name="sheet-fade">
       <div
         v-if="selectedApp"
@@ -143,25 +136,11 @@
             </div>
 
             <div class="download-sheet__body">
+              <!-- 版本选择 — 与自托管版一致 -->
               <VersionSelectList
                 :app="selectedApp"
                 @version-change="onVersionChange"
               />
-
-              <div
-                v-if="selectedAccount"
-                class="mfa-card"
-              >
-                <MobileInput
-                  v-model="mfaCode"
-                  type="text"
-                  label="二次验证码（如已开启双重认证）"
-                  placeholder="如未开启可不填；需要时填写 6 位数字"
-                  inputmode="numeric"
-                  maxlength="6"
-                  hint="Apple 会自动将验证码推送至您的受信任设备"
-                />
-              </div>
 
               <p
                 v-if="!selectedAccount && accountManager.accounts.value.length === 0"
@@ -170,7 +149,7 @@
                 请先在设置中添加 Apple 账号
               </p>
 
-              <!-- 购买提示面板（从首页移入） -->
+              <!-- 购买提示 -->
               <div
                 v-if="purchaseRequired"
                 class="status-panel status-panel--warning"
@@ -194,7 +173,7 @@
                 </p>
               </div>
 
-              <!-- 进度面板（从首页移入） -->
+              <!-- 进度面板 -->
               <div
                 v-if="showProgress"
                 class="status-panel"
@@ -210,7 +189,7 @@
                 >{{ logs }}</pre>
               </div>
 
-              <!-- 下载结果面板（从首页移入） -->
+              <!-- 下载结果面板 -->
               <div
                 v-if="downloadResult"
                 class="status-panel status-panel--success"
@@ -224,17 +203,12 @@
                 <div class="result-meta">
                   Bundle ID: <code>{{ downloadResult.bundleId }}</code>
                 </div>
-                <a
-                  class="install-link"
-                  :href="downloadResult.installUrl"
-                  target="_blank"
-                >📲 点击安装</a>
                 <div class="status-panel__hint">
                   Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…
                 </div>
               </div>
 
-              <!-- 错误面板（从首页移入） -->
+              <!-- 错误面板 -->
               <div
                 v-if="downloadError && !purchaseRequired"
                 class="status-panel status-panel--danger"
@@ -248,28 +222,50 @@
               </div>
             </div>
 
+            <!-- Sheet Actions — 下载 + 安装并排，与自托管版一致 -->
             <div class="download-sheet__actions">
-              <!-- 安装按钮（如有下载结果） -->
-              <a
-                v-if="downloadResult && downloadResult.installUrl"
-                class="install-link install-link--action"
-                :href="downloadResult.installUrl"
-                target="_blank"
-              >
-                📲 安装应用
-              </a>
-              <!-- 下载按钮 -->
-              <MobileButton
-                v-else
-                type="primary"
-                size="large"
-                block
-                :disabled="!canDownload || downloading"
-                :loading="downloading"
-                @click="startDownload"
-              >
-                {{ downloading ? '下载中…' : '开始下载' }}
-              </MobileButton>
+              <!-- 下载完成后：只显示安装按钮 -->
+              <template v-if="downloadResult && downloadResult.installUrl">
+                <a
+                  class="install-link install-link--action"
+                  :href="downloadResult.itmsServicesUrl || downloadResult.installUrl"
+                >
+                  📲 安装应用
+                </a>
+              </template>
+              <!-- 下载中：禁用状态按钮 -->
+              <template v-else-if="downloading">
+                <MobileButton
+                  type="primary"
+                  size="large"
+                  block
+                  disabled
+                  loading
+                >
+                  下载中…
+                </MobileButton>
+              </template>
+              <!-- 正常：下载 + 安装并排 -->
+              <template v-else>
+                <div class="download-sheet__btn-row">
+                  <MobileButton
+                    type="secondary"
+                    size="large"
+                    :disabled="!canDownload"
+                    @click="startDownload"
+                  >
+                    下载
+                  </MobileButton>
+                  <MobileButton
+                    type="primary"
+                    size="large"
+                    :disabled="!canDownload"
+                    @click="startDownload"
+                  >
+                    安装
+                  </MobileButton>
+                </div>
+              </template>
             </div>
           </div>
         </Transition>
@@ -279,15 +275,16 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import AccountSelector from './AccountSelector.vue'
-import AppSearchBar from './AppSearchBar.vue'
 import VersionSelectList from './VersionSelectList.vue'
 import MobileInput from './MobileInput.vue'
 import MobileButton from './MobileButton.vue'
 import ProgressBar from './ProgressBar.vue'
 import { useAppleAccountManager } from '../composables/useAppleAccountManager.js'
 import { runPipeline } from '../utils/ipaPipeline.js'
+import { searchApps } from '../utils/appleApi.js'
+import { Search } from './icons.js'
 
 defineEmits(['navigate-settings'])
 
@@ -297,7 +294,6 @@ const currentRegion = ref('US')
 const selectedApp = ref(null)
 const selectedVersionId = ref('')
 const downloading = ref(false)
-const mfaCode = ref('')
 const showProgress = ref(false)
 const progressPercent = ref(0)
 const progressStage = ref('')
@@ -307,10 +303,10 @@ const downloadError = ref('')
 const purchaseRequired = ref(false)
 const purchaseMessage = ref('')
 
-// 新增 refs
-const searchResults = ref([])
-const searching = ref(false)
+// 搜索状态
 const searchQuery = ref('')
+const searching = ref(false)
+const searchResults = ref([])
 
 // 构建 accountRegions 供 AccountSelector 显示
 const accountRegionsMap = reactive({})
@@ -327,8 +323,6 @@ const canDownload = computed(() => {
   return selectedAccount.value && selectedApp.value && accountManager.unlocked.value && !downloading.value
 })
 
-const isAppIdInput = computed(() => /^\d+$/.test(searchQuery.value.trim()))
-
 onMounted(async () => {
   await accountManager.refreshState()
   await loadAllAccountRegions()
@@ -344,12 +338,57 @@ async function onAccountSelect(email) {
   }
 }
 
-function onAppSelected(app) {
+// 自动选择第一个账号
+watch(() => accountManager.accounts.value, (accounts) => {
+  if (accounts.length > 0 && !selectedAccount.value) {
+    selectedAccount.value = accounts[0]
+    onAccountSelect(accounts[0])
+  }
+}, { immediate: true })
+
+// ===== 搜索逻辑 — 内联，与自托管版一致 =====
+let searchDebounce = null
+
+function handleSearch() {
+  clearTimeout(searchDebounce)
+  const term = searchQuery.value.trim()
+  if (!term) {
+    searchResults.value = []
+    return
+  }
+  if (/^\d+$/.test(term)) {
+    doSearch(term)
+    return
+  }
+  searchDebounce = setTimeout(() => doSearch(term), 400)
+}
+
+async function doSearch(term) {
+  searching.value = true
+  searchResults.value = []
+  try {
+    if (/^\d+$/.test(term)) {
+      const resp = await fetch(`https://itunes.apple.com/lookup?id=${term}&country=${currentRegion.value}`)
+      const json = await resp.json()
+      searchResults.value = json.results || []
+    } else {
+      searchResults.value = await searchApps(term, currentRegion.value, 12)
+    }
+  } catch (e) {
+    console.error('Search failed:', e)
+    searchResults.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+function selectApp(app) {
   selectedApp.value = app
   downloadResult.value = null
-  downloadError.value = null
+  downloadError.value = ''
   purchaseRequired.value = false
   purchaseMessage.value = ''
+  showProgress.value = false
 }
 
 function clearSelectedApp() {
@@ -365,32 +404,6 @@ function openAppStore() {
   const trackId = selectedApp.value?.trackId
   if (trackId) {
     window.open(`https://apps.apple.com/app/id${trackId}`, '_blank')
-  }
-}
-
-// 新增方法：从 AppSearchBar 接收事件
-function onSearchResults(results) {
-  searchResults.value = results
-}
-
-function onSearchingChange(val) {
-  searching.value = val
-}
-
-function onQueryChange(val) {
-  searchQuery.value = val
-}
-
-function selectApp(app) {
-  onAppSelected(app)
-}
-
-function confirmDirectAppId() {
-  const appid = searchQuery.value.trim()
-  if (appid) {
-    // 触发 AppSearchBar 的 app-selected 事件，
-    // 直接构造一个最小的 app 对象以触发 sheet 打开
-    onAppSelected({ trackId: Number(appid), trackName: `App #${appid}`, artistName: '' })
   }
 }
 
@@ -413,7 +426,7 @@ function getPriceLabel(app) {
 
 async function startDownload() {
   if (!canDownload.value) return
-  downloadError.value = null
+  downloadError.value = ''
   downloadResult.value = null
   purchaseRequired.value = false
   purchaseMessage.value = ''
@@ -430,12 +443,10 @@ async function startDownload() {
     const appId = String(selectedApp.value.trackId)
     const appVerId = selectedVersionId.value || undefined
 
-    const currentMfa = mfaCode.value.trim()
-
     const result = await runPipeline({
       email: creds.email,
       applePassword: creds.password,
-      mfa: currentMfa,
+      mfa: '',
       appIdentifier: appId,
       appVerId,
       savedAuth: creds.dsPersonId && creds.passwordToken ? {
@@ -483,7 +494,7 @@ async function startDownload() {
 </script>
 
 <style scoped>
-.download-page {
+.home-page {
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -491,13 +502,13 @@ async function startDownload() {
   flex-direction: column;
 }
 
-.download-page__fixed {
+.home-page__fixed {
   flex-shrink: 0;
   padding-top: max(var(--space-5), env(safe-area-inset-top));
   background: var(--color-bg);
 }
 
-.download-page__title {
+.home-page__title {
   margin: 0 0 var(--space-4);
   color: var(--color-text);
   font-size: var(--font-size-title);
@@ -505,21 +516,41 @@ async function startDownload() {
   line-height: 1.2;
 }
 
-.download-page__search-wrap {
+.home-page__search-wrap {
   margin-bottom: var(--space-3);
+}
+
+/* 搜索框融合样式 — 与自托管版一致 */
+.search-input--fused-top :deep(.mobile-input__wrapper) {
+  border-radius: 14px 14px 0 0;
+}
+
+.search-input :deep(.mobile-input__wrapper.is-focused) {
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-search-focus);
+}
+
+.search-input :deep(.mobile-input__prefix svg),
+.search-input :deep(.mobile-input__prefix i) {
+  width: 18px;
+  height: 18px;
+}
+
+.search-input__icon {
+  color: var(--color-text-muted);
 }
 
 .account-picker-fused {
   margin-top: -1px;
 }
 
-.download-page__scroll {
+.home-page__results {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
-.download-page__scroll-inner {
+.home-page__results-inner {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -534,17 +565,25 @@ async function startDownload() {
   color: var(--color-text-muted);
 }
 
+/* 搜索结果列表 */
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
 /* 搜索结果卡片 */
 .result-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
   background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.2s ease;
 }
 
 .result-item:active {
@@ -562,16 +601,14 @@ async function startDownload() {
 .result-item__info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .result-item__name {
   margin: 0;
-  font-size: var(--font-size-body);
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text);
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -579,8 +616,9 @@ async function startDownload() {
 
 .result-item__dev {
   margin: 0;
-  font-size: var(--font-size-caption);
+  font-size: 12px;
   color: var(--color-text-muted);
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -589,7 +627,7 @@ async function startDownload() {
 .result-item__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  gap: 6px;
   margin-top: 2px;
 }
 
@@ -744,7 +782,7 @@ async function startDownload() {
 .download-sheet {
   width: 100%;
   max-width: 600px;
-  max-height: min(86vh, 720px);
+  max-height: min(82vh, 720px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -772,9 +810,9 @@ async function startDownload() {
 }
 
 .download-sheet__icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   flex-shrink: 0;
 }
 
@@ -824,13 +862,6 @@ async function startDownload() {
   gap: var(--space-3);
 }
 
-.mfa-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-muted);
-  padding: var(--space-3);
-}
-
 .sheet-hint {
   margin: 0;
   color: var(--color-text-muted);
@@ -844,32 +875,49 @@ async function startDownload() {
   background: var(--color-surface);
 }
 
+/* 下载 + 安装并排按钮行 */
+.download-sheet__btn-row {
+  display: flex;
+  gap: var(--space-3);
+}
+.download-sheet__btn-row > * {
+  flex: 1;
+}
+
 .sheet-fade-enter-active,
 .sheet-fade-leave-active {
   transition: opacity 0.2s ease;
 }
-
 .sheet-fade-enter-from,
 .sheet-fade-leave-to {
   opacity: 0;
 }
-
 .sheet-slide-enter-active,
 .sheet-slide-leave-active {
-  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
-
 .sheet-slide-enter-from,
 .sheet-slide-leave-to {
   transform: translateY(100%);
 }
 
-.dark .download-page__fixed {
+/* ===== Dark mode ===== */
+.dark .home-page__fixed {
   background: var(--color-bg);
 }
-
 .dark .download-sheet,
 .dark .download-sheet__actions {
   background: var(--color-surface);
+}
+.dark .result-item {
+  background: var(--color-surface);
+  border-color: var(--color-surface-muted);
+}
+.dark .result-item:active {
+  background: var(--color-surface-muted);
+}
+.dark .result-item__tag {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 </style>
