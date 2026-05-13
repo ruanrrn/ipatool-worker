@@ -1,19 +1,37 @@
 <template>
   <div class="acct-sel">
     <!-- No accounts: alert -->
-    <div v-if="accounts.length === 0" class="acct-alert">
-      <div class="acct-alert__icon">⚠️</div>
+    <div
+      v-if="accounts.length === 0"
+      class="acct-alert"
+    >
+      <div class="acct-alert__icon">
+        ⚠️
+      </div>
       <div class="acct-alert__content">
-        <div class="acct-alert__title">暂无已保存的 Apple 账号</div>
-        <p class="acct-alert__desc">请先在设置中添加 Apple ID，然后才能下载应用。</p>
-        <MobileButton type="primary" size="small" plain class="mt-2" @click="$emit('add-account')">
+        <div class="acct-alert__title">
+          暂无已保存的 Apple 账号
+        </div>
+        <p class="acct-alert__desc">
+          请先在设置中添加 Apple ID，然后才能下载应用。
+        </p>
+        <MobileButton
+          type="primary"
+          size="small"
+          plain
+          class="mt-2"
+          @click="$emit('add-account')"
+        >
           前往设置添加
         </MobileButton>
       </div>
     </div>
 
     <!-- Single account: static chip -->
-    <div v-else-if="accounts.length === 1" class="acct-chip-bar">
+    <div
+      v-else-if="accounts.length === 1"
+      class="acct-chip-bar"
+    >
       <div class="acct-chip">
         <span class="acct-chip__icon">👤</span>
         <span class="acct-chip__email">{{ accounts[0] }}</span>
@@ -21,8 +39,15 @@
     </div>
 
     <!-- Multiple accounts: clickable chip → bottom sheet -->
-    <div v-else class="acct-chip-bar">
-      <button type="button" class="acct-chip acct-chip--clickable" @click="showPicker = true">
+    <div
+      v-else
+      class="acct-chip-bar"
+    >
+      <button
+        type="button"
+        class="acct-chip acct-chip--clickable"
+        @click="showPicker = true"
+      >
         <span class="acct-chip__icon">👤</span>
         <span class="acct-chip__email">{{ selectedEmail || accounts[0] }}</span>
         <span class="acct-chip__arrow">▾</span>
@@ -31,17 +56,37 @@
 
     <!-- Bottom Sheet Picker -->
     <Transition name="sheet-fade">
-      <div v-if="showPicker" class="sheet-overlay" @click.self="showPicker = false">
+      <div
+        v-if="showPicker"
+        class="sheet-overlay"
+        @click.self="showPicker = false"
+      >
         <Transition name="sheet-slide">
-          <div v-if="showPicker" class="sheet">
-            <div class="sheet__handle" @click="showPicker = false" />
+          <div
+            v-if="showPicker"
+            class="sheet"
+          >
+            <div
+              class="sheet__handle"
+              @click="showPicker = false"
+            />
             <div class="sheet__header">
               <div class="sheet__header-info">
-                <h3 class="sheet__title">选择账号</h3>
-                <p class="sheet__subtitle">切换下载使用的 Apple ID</p>
+                <h3 class="sheet__title">
+                  选择账号
+                </h3>
+                <p class="sheet__subtitle">
+                  切换下载使用的 Apple ID
+                </p>
               </div>
-              <button class="sheet__close" @click="showPicker = false">
-                <SvgIcon class="w-5 h-5" :icon="closeIcon" />
+              <button
+                class="sheet__close"
+                @click="showPicker = false"
+              >
+                <SvgIcon
+                  class="w-5 h-5"
+                  :icon="closeIcon"
+                />
               </button>
             </div>
             <div class="sheet__body">
@@ -58,7 +103,10 @@
                     <span class="picker-item__email">{{ email }}</span>
                   </div>
                   <div class="picker-item__radio">
-                    <div v-if="selectedEmail === email" class="picker-item__radio-fill" />
+                    <div
+                      v-if="selectedEmail === email"
+                      class="picker-item__radio-fill"
+                    />
                   </div>
                 </button>
               </div>
@@ -130,33 +178,61 @@ function pickAccount(email) {
   align-items: center;
   gap: var(--space-2);
 }
+
 .acct-chip {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-soft);
-  border: 1px solid var(--color-primary-border);
+  width: 100%;
+  min-height: 46px;
+  padding: var(--space-2-5) var(--space-3-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   min-width: 0;
 }
+
+:deep(.account-picker-fused) .acct-chip,
+.account-picker-fused .acct-chip,
+.acct-sel.account-picker-fused .acct-chip {
+  border-top-color: var(--color-border-light);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  background: var(--color-surface-muted);
+}
+
+:deep(.account-picker-fused) .acct-alert,
+.account-picker-fused .acct-alert,
+.acct-sel.account-picker-fused .acct-alert {
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
 .acct-chip--clickable {
   cursor: pointer;
-  border: none;
-  background: var(--color-primary-soft);
-  transition: background 0.15s;
+  background: var(--color-surface-muted);
+  transition: background 0.15s, border-color 0.15s;
 }
-.acct-chip--clickable:hover { background: var(--color-surface-hover); }
-.acct-chip__icon { font-size: 14px; flex-shrink: 0; }
+
+.acct-chip--clickable:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary-border);
+}
+
+.acct-chip__icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
 .acct-chip__email {
   font-size: var(--font-size-label);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .acct-chip__arrow {
+  margin-left: auto;
   font-size: 12px;
   color: var(--color-text-muted);
   flex-shrink: 0;

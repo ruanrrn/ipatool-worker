@@ -27,9 +27,10 @@ export default defineConfig({
       '/auth': workerProxy,
       '/wisp': workerProxy,
       '/r2': workerProxy,
-      '/m': workerProxy,
-      '/d': workerProxy,
-      '/i': workerProxy,
+      '/apple': workerProxy,
+      '/m/': workerProxy,
+      '/d/': workerProxy,
+      '/i/': workerProxy,
       '/healthz': workerProxy,
     }
   },

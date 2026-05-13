@@ -1,98 +1,195 @@
 <template>
-  <div class="p-4 flex flex-col gap-3">
-    <!-- ─── Account Selector ─────────────────────────────────── -->
-    <AccountSelector
-      v-model="selectedAccount"
-      :accounts="accountManager.accounts.value"
-      @add-account="$emit('navigate-settings')"
-      @select="onAccountSelect"
-    />
-
-    <!-- ─── Search Bar ──────────────────────────────────────── -->
-    <AppSearchBar
-      :account-region="currentRegion"
-      @app-selected="onAppSelected"
-    />
-
-    <!-- ─── Version Select ──────────────────────────────────── -->
-    <VersionSelectList
-      :app="selectedApp"
-      @version-change="onVersionChange"
-    />
-
-    <!-- ─── MFA Input ─────────────────────────────────────── -->
-    <div v-if="selectedAccount" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <MobileInput
-        v-model="mfaCode"
-        type="text"
-        label="二次验证码（如已开启双重认证）"
-        placeholder="如未开启可不填；需要时填写 6 位数字"
-        inputmode="numeric"
-        maxlength="6"
-        hint="Apple 会自动将验证码推送至您的受信任设备"
-      />
-    </div>
-
-    <!-- ─── Download Button ─────────────────────────────────── -->
-    <div v-if="selectedApp" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <MobileButton
-        type="primary"
-        size="large"
-        block
-        :disabled="!canDownload || downloading"
-        :loading="downloading"
-        @click="startDownload"
-      >
-        {{ downloading ? '下载中…' : '开始下载' }}
-      </MobileButton>
-      <p v-if="!selectedAccount && accountManager.accounts.value.length === 0" class="text-xs text-txt-secondary dark:text-txt-dark-secondary mt-1">
-        请先在设置中添加 Apple 账号
-      </p>
-    </div>
-
-    <!-- ─── Purchase Required Prompt ────────────────────────── -->
-    <div v-if="purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-3">
-      <div class="text-sm font-semibold text-danger">⚠️ 需要购买</div>
-      <p class="text-sm text-txt dark:text-txt-dark">{{ purchaseMessage }}</p>
-      <MobileButton
-        type="primary"
-        size="medium"
-        block
-        @click="openAppStore"
-      >
-        前往 App Store 购买
-      </MobileButton>
-      <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary">
-        购买后请返回重新尝试下载
-      </p>
-    </div>
-
-    <!-- ─── Progress ────────────────────────────────────────── -->
-    <div v-if="showProgress" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <div class="flex justify-between items-center">
-        <span class="text-sm font-medium text-txt dark:text-txt-dark">{{ progressStage }}</span>
-        <span class="text-sm text-txt-secondary dark:text-txt-dark-secondary">{{ Math.round(progressPercent) }}%</span>
+  <div class="download-page page-shell">
+    <div class="download-page__fixed px-5">
+      <h1 class="download-page__title">
+        首页
+      </h1>
+      <div class="download-page__search-wrap">
+        <AppSearchBar
+          :account-region="currentRegion"
+          @app-selected="onAppSelected"
+        />
+        <AccountSelector
+          v-model="selectedAccount"
+          class="account-picker-fused"
+          :accounts="accountManager.accounts.value"
+          @add-account="$emit('navigate-settings')"
+          @select="onAccountSelect"
+        />
       </div>
-      <div class="h-2 bg-bdr dark:bg-bdr-dark rounded-full overflow-hidden">
-        <div class="h-full bg-primary rounded-full transition-all duration-300" :style="{ width: progressPercent + '%' }" />
+    </div>
+
+    <div class="download-page__scroll">
+      <div class="download-page__scroll-inner px-5">
+        <div
+          v-if="!selectedApp && !showProgress && !downloadResult && !downloadError"
+          class="empty-state-home"
+        >
+          <div class="empty-state-home__icon">
+            📋
+          </div>
+          <p class="empty-state-home__title">
+            暂无进行中的任务
+          </p>
+          <p class="empty-state-home__desc">
+            搜索应用开始使用
+          </p>
+        </div>
+
+        <div
+          v-if="purchaseRequired"
+          class="status-panel status-panel--warning"
+        >
+          <div class="status-panel__title">
+            ⚠️ 需要购买
+          </div>
+          <p class="status-panel__text">
+            {{ purchaseMessage }}
+          </p>
+          <MobileButton
+            type="primary"
+            size="medium"
+            block
+            @click="openAppStore"
+          >
+            前往 App Store 购买
+          </MobileButton>
+          <p class="status-panel__hint">
+            购买后请返回重新尝试下载
+          </p>
+        </div>
+
+        <div
+          v-if="showProgress"
+          class="status-panel"
+        >
+          <div class="progress-head">
+            <span class="progress-head__stage">{{ progressStage }}</span>
+            <span class="progress-head__percent">{{ Math.round(progressPercent) }}%</span>
+          </div>
+          <ProgressBar :value="progressPercent" />
+          <pre
+            v-if="logs"
+            class="progress-log"
+          >{{ logs }}</pre>
+        </div>
+
+        <div
+          v-if="downloadResult"
+          class="status-panel status-panel--success"
+        >
+          <div class="status-panel__title">
+            ✅ 下载完成
+          </div>
+          <div class="result-title">
+            {{ downloadResult.title }} v{{ downloadResult.version }}
+          </div>
+          <div class="result-meta">
+            Bundle ID: <code>{{ downloadResult.bundleId }}</code>
+          </div>
+          <a
+            class="install-link"
+            :href="downloadResult.installUrl"
+            target="_blank"
+          >📲 点击安装</a>
+          <div class="status-panel__hint">
+            Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…
+          </div>
+        </div>
+
+        <div
+          v-if="downloadError && !purchaseRequired"
+          class="status-panel status-panel--danger"
+        >
+          <div class="status-panel__title">
+            ❌ 下载失败
+          </div>
+          <div class="status-panel__text">
+            {{ downloadError }}
+          </div>
+        </div>
       </div>
-      <pre v-if="logs" class="text-xs text-txt-secondary dark:text-txt-dark-secondary max-h-32 overflow-y-auto whitespace-pre-wrap break-all mt-1 m-0">{{ logs }}</pre>
     </div>
 
-    <!-- ─── Result ──────────────────────────────────────────── -->
-    <div v-if="downloadResult" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-2">
-      <div class="text-sm font-semibold text-success">✅ 下载完成</div>
-      <div class="text-sm"><strong>{{ downloadResult.title }}</strong> v{{ downloadResult.version }}</div>
-      <div class="text-sm">Bundle ID: <code class="text-xs bg-bdr dark:bg-bdr-dark px-1 py-0.5 rounded">{{ downloadResult.bundleId }}</code></div>
-      <a class="inline-block mt-1 py-2 px-5 bg-success text-white rounded-lg text-sm font-medium text-center no-underline" :href="downloadResult.installUrl" target="_blank">📲 点击安装</a>
-      <div class="text-xs text-txt-tertiary dark:text-txt-dark-tertiary mt-1">Asset ID: {{ downloadResult.assetId.slice(0, 8) }}…</div>
-    </div>
+    <Transition name="sheet-fade">
+      <div
+        v-if="selectedApp"
+        class="download-sheet-overlay"
+        @click.self="clearSelectedApp"
+      >
+        <Transition name="sheet-slide">
+          <div
+            v-if="selectedApp"
+            class="download-sheet"
+          >
+            <div
+              class="download-sheet__handle"
+              @click="clearSelectedApp"
+            />
+            <div class="download-sheet__header">
+              <img
+                v-if="selectedApp.artworkUrl100 || selectedApp.artworkUrl60"
+                :src="selectedApp.artworkUrl100 || selectedApp.artworkUrl60"
+                :alt="selectedApp.trackName"
+                class="download-sheet__icon"
+              >
+              <div class="download-sheet__app">
+                <h2>{{ selectedApp.trackName }}</h2>
+                <p>{{ selectedApp.artistName }}</p>
+              </div>
+              <button
+                class="download-sheet__close"
+                @click="clearSelectedApp"
+              >
+                ×
+              </button>
+            </div>
 
-    <!-- ─── Error ───────────────────────────────────────────── -->
-    <div v-if="downloadError && !purchaseRequired" class="bg-surface dark:bg-surface-dark rounded-xl p-4 flex flex-col gap-1">
-      <div class="text-sm font-semibold text-danger">❌ 下载失败</div>
-      <div class="text-sm text-txt-secondary dark:text-txt-dark-secondary">{{ downloadError }}</div>
-    </div>
+            <div class="download-sheet__body">
+              <VersionSelectList
+                :app="selectedApp"
+                @version-change="onVersionChange"
+              />
+
+              <div
+                v-if="selectedAccount"
+                class="mfa-card"
+              >
+                <MobileInput
+                  v-model="mfaCode"
+                  type="text"
+                  label="二次验证码（如已开启双重认证）"
+                  placeholder="如未开启可不填；需要时填写 6 位数字"
+                  inputmode="numeric"
+                  maxlength="6"
+                  hint="Apple 会自动将验证码推送至您的受信任设备"
+                />
+              </div>
+
+              <p
+                v-if="!selectedAccount && accountManager.accounts.value.length === 0"
+                class="sheet-hint"
+              >
+                请先在设置中添加 Apple 账号
+              </p>
+            </div>
+
+            <div class="download-sheet__actions">
+              <MobileButton
+                type="primary"
+                size="large"
+                block
+                :disabled="!canDownload || downloading"
+                :loading="downloading"
+                @click="startDownload"
+              >
+                {{ downloading ? '下载中…' : '开始下载' }}
+              </MobileButton>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -103,6 +200,7 @@ import AppSearchBar from './AppSearchBar.vue'
 import VersionSelectList from './VersionSelectList.vue'
 import MobileInput from './MobileInput.vue'
 import MobileButton from './MobileButton.vue'
+import ProgressBar from './ProgressBar.vue'
 import { useAppleAccountManager } from '../composables/useAppleAccountManager.js'
 import { runPipeline } from '../utils/ipaPipeline.js'
 
@@ -148,6 +246,11 @@ function onAppSelected(app) {
   downloadError.value = null
   purchaseRequired.value = false
   purchaseMessage.value = ''
+}
+
+function clearSelectedApp() {
+  if (downloading.value) return
+  selectedApp.value = null
 }
 
 function onVersionChange(versionId) {
@@ -210,6 +313,7 @@ async function startDownload() {
       },
     })
     downloadResult.value = result
+    selectedApp.value = null
     progressStage.value = '完成！'
     progressPercent.value = 100
   } catch (e) {
@@ -231,3 +335,302 @@ async function startDownload() {
   }
 }
 </script>
+
+<style scoped>
+.download-page {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.download-page__fixed {
+  flex-shrink: 0;
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
+  background: var(--color-bg);
+}
+
+.download-page__title {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+  font-size: var(--font-size-title);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.download-page__search-wrap {
+  margin-bottom: var(--space-3);
+}
+
+.account-picker-fused {
+  margin-top: -1px;
+}
+
+.download-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.download-page__scroll-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  padding-bottom: 24px;
+}
+
+.empty-state-home {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state-home__icon {
+  font-size: 32px;
+  margin-bottom: var(--space-2);
+}
+
+.empty-state-home__title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.empty-state-home__desc {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.status-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-muted);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2-5);
+}
+
+.status-panel--success {
+  border-color: var(--color-success-border);
+}
+
+.status-panel--warning {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+
+.status-panel--danger {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.status-panel__title,
+.result-title {
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.status-panel__text,
+.result-meta {
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+}
+
+.status-panel__hint {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.progress-head__stage {
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.progress-head__percent {
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+}
+
+.progress-log {
+  max-height: 128px;
+  overflow-y: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.install-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--color-success);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.download-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: var(--overlay-sheet);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.download-sheet {
+  width: 100%;
+  max-width: 600px;
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sheet);
+}
+
+.download-sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: var(--space-3) auto var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-border-divider);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.download-sheet__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  flex-shrink: 0;
+}
+
+.download-sheet__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+
+.download-sheet__app {
+  flex: 1;
+  min-width: 0;
+}
+
+.download-sheet__app h2 {
+  margin: 0;
+  font-size: var(--font-size-section);
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.download-sheet__app p {
+  margin: var(--space-0-5) 0 0;
+  font-size: var(--font-size-label);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.download-sheet__close {
+  width: var(--size-8);
+  height: var(--size-8);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.download-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mfa-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-muted);
+  padding: var(--space-3);
+}
+
+.sheet-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+}
+
+.download-sheet__actions {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
+.sheet-fade-enter-active,
+.sheet-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.sheet-fade-enter-from,
+.sheet-fade-leave-to {
+  opacity: 0;
+}
+
+.sheet-slide-enter-active,
+.sheet-slide-leave-active {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sheet-slide-enter-from,
+.sheet-slide-leave-to {
+  transform: translateY(100%);
+}
+
+.dark .download-page__fixed {
+  background: var(--color-bg);
+}
+
+.dark .download-sheet,
+.dark .download-sheet__actions {
+  background: var(--color-surface);
+}
+</style>

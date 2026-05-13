@@ -2,7 +2,9 @@
   <div class="p-4 flex flex-col gap-3">
     <!-- ─── Account Info ─────────────────────── -->
     <div class="bg-surface dark:bg-surface-dark rounded-xl p-4">
-      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">账户</h2>
+      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">
+        账户
+      </h2>
       <p class="flex justify-between items-center text-sm">
         <span class="text-txt-secondary dark:text-txt-dark-secondary">登录用户名</span>
         <span class="text-txt dark:text-txt-dark font-medium">{{ appStore.authState.user?.username || '—' }}</span>
@@ -11,19 +13,32 @@
 
     <!-- ─── Encryption Status ────────────────── -->
     <div class="bg-surface dark:bg-surface-dark rounded-xl p-4">
-      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">凭据加密</h2>
+      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">
+        凭据加密
+      </h2>
       <p class="text-sm text-txt-secondary dark:text-txt-dark-secondary">
         Apple 账号凭据以 AES-256-GCM 加密存储在本地浏览器中，密钥自动管理，无需手动操作。
       </p>
       <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary mt-1">
-        <span v-if="encryptionReady" class="text-success">✓ 加密已就绪</span>
-        <span v-else class="text-warning">⏳ 初始化中…</span>
+        <span
+          v-if="encryptionReady"
+          class="text-success"
+        >✓ 加密已就绪</span>
+        <span
+          v-else
+          class="text-warning"
+        >⏳ 初始化中…</span>
       </p>
     </div>
 
     <!-- ─── Apple Accounts ───────────────────── -->
-    <div v-if="encryptionReady" class="bg-surface dark:bg-surface-dark rounded-xl p-4">
-      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">Apple 账号（{{ appleEmails.length }}）</h2>
+    <div
+      v-if="encryptionReady"
+      class="bg-surface dark:bg-surface-dark rounded-xl p-4"
+    >
+      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">
+        Apple 账号（{{ appleEmails.length }}）
+      </h2>
 
       <div class="mb-3">
         <button
@@ -33,7 +48,10 @@
         >
           + 添加 Apple 账号
         </button>
-        <div v-else class="p-3 border border-bdr dark:border-bdr-dark rounded-lg bg-bg dark:bg-bg-dark flex flex-col gap-2">
+        <div
+          v-else
+          class="p-3 border border-bdr dark:border-bdr-dark rounded-lg bg-bg dark:bg-bg-dark flex flex-col gap-2"
+        >
           <MobileInput
             v-model="addForm.email"
             type="email"
@@ -72,7 +90,12 @@
               取消
             </MobileButton>
           </div>
-          <p v-if="addForm.error" class="text-sm text-danger">{{ addForm.error }}</p>
+          <p
+            v-if="addForm.error"
+            class="text-sm text-danger"
+          >
+            {{ addForm.error }}
+          </p>
           <p class="text-xs text-txt-secondary dark:text-txt-dark-secondary">
             如果账号已开启双重认证，提交后 Apple 会自动将验证码推送至您的受信任设备，届时请在上述输入框中填写验证码并重新点击"验证并添加"。
           </p>
@@ -80,17 +103,33 @@
       </div>
 
       <ul class="list-none m-0 p-0">
-        <li v-for="email in appleEmails" :key="email" class="flex justify-between items-center py-2 border-b border-bdr dark:border-bdr-dark last:border-b-0 text-sm">
+        <li
+          v-for="email in appleEmails"
+          :key="email"
+          class="flex justify-between items-center py-2 border-b border-bdr dark:border-bdr-dark last:border-b-0 text-sm"
+        >
           <span>{{ email }}</span>
-          <button class="text-xs border border-bdr dark:border-bdr-dark rounded px-2 py-1" @click="onDeleteAccount(email)">删除</button>
+          <button
+            class="text-xs border border-bdr dark:border-bdr-dark rounded px-2 py-1"
+            @click="onDeleteAccount(email)"
+          >
+            删除
+          </button>
         </li>
-        <li v-if="!appleEmails.length" class="text-sm text-txt-secondary dark:text-txt-dark-secondary py-2">还没有保存任何 Apple 账号</li>
+        <li
+          v-if="!appleEmails.length"
+          class="text-sm text-txt-secondary dark:text-txt-dark-secondary py-2"
+        >
+          还没有保存任何 Apple 账号
+        </li>
       </ul>
     </div>
 
     <!-- ─── About ────────────────────────────── -->
     <div class="bg-surface dark:bg-surface-dark rounded-xl p-4">
-      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">关于</h2>
+      <h2 class="text-base font-semibold text-txt dark:text-txt-dark mb-3">
+        关于
+      </h2>
       <p class="flex justify-between text-sm mb-1">
         <span class="text-txt-secondary dark:text-txt-dark-secondary">版本</span>
         <span class="text-txt dark:text-txt-dark font-medium">v{{ appVersion }}</span>

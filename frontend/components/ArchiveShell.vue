@@ -1,7 +1,10 @@
 <template>
   <div class="page">
     <!-- R2 Capacity Bar -->
-    <div v-if="storage" class="capacity-bar">
+    <div
+      v-if="storage"
+      class="capacity-bar"
+    >
       <div class="capacity-header">
         <span class="capacity-label">R2 存储</span>
         <span class="capacity-detail">
@@ -16,13 +19,22 @@
           :style="{ width: capacityPercent + '%' }"
         />
       </div>
-      <div class="capacity-pct">{{ capacityPercent.toFixed(1) }}%</div>
+      <div class="capacity-pct">
+        {{ capacityPercent.toFixed(1) }}%
+      </div>
     </div>
 
     <!-- Batch actions toolbar -->
-    <div v-if="assets.length" class="batch-toolbar">
+    <div
+      v-if="assets.length"
+      class="batch-toolbar"
+    >
       <label class="select-all">
-        <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
+        <input
+          type="checkbox"
+          :checked="allSelected"
+          @change="toggleSelectAll"
+        >
         <span>全选</span>
       </label>
       <button
@@ -33,14 +45,30 @@
       >
         {{ batchDeleting ? '批量删除中…' : `删除选中 (${selectedIds.length})` }}
       </button>
-      <span v-if="selectedIds.length" class="selected-info">
+      <span
+        v-if="selectedIds.length"
+        class="selected-info"
+      >
         已选 {{ formatSize(selectedSize) }}
       </span>
     </div>
 
-    <div v-if="loading" class="loading">加载中…</div>
-    <div v-else-if="!assets.length" class="empty">还没有任何已签 IPA。先去"下载"页生成一个。</div>
-    <div v-else class="list">
+    <div
+      v-if="loading"
+      class="loading"
+    >
+      加载中…
+    </div>
+    <div
+      v-else-if="!assets.length"
+      class="empty"
+    >
+      还没有任何已签 IPA。先去"下载"页生成一个。
+    </div>
+    <div
+      v-else
+      class="list"
+    >
       <div
         v-for="a in assets"
         :key="a.assetId"
@@ -52,17 +80,25 @@
             type="checkbox"
             :checked="isSelected(a.assetId)"
             @change="toggleSelect(a.assetId)"
-          />
+          >
         </label>
         <div class="info">
-          <div class="title">{{ a.title }}</div>
+          <div class="title">
+            {{ a.title }}
+          </div>
           <div class="meta">
             版本 {{ a.version }} · {{ formatSize(a.size) }} · <code>{{ a.bundleId }}</code>
           </div>
-          <div class="meta-tiny">{{ formatDate(a.uploadedAt) }} · ID {{ a.assetId.slice(0, 8) }}</div>
+          <div class="meta-tiny">
+            {{ formatDate(a.uploadedAt) }} · ID {{ a.assetId.slice(0, 8) }}
+          </div>
         </div>
         <div class="actions">
-          <a class="btn install" :href="`/i/${a.assetId}`" target="_blank">装机</a>
+          <a
+            class="btn install"
+            :href="`/i/${a.assetId}`"
+            target="_blank"
+          >装机</a>
           <button
             class="btn delete"
             :disabled="deletingId === a.assetId"
