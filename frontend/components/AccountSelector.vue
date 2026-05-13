@@ -6,7 +6,7 @@
       class="acct-alert"
     >
       <div class="acct-alert__icon">
-        ⚠️
+        <SvgIcon class="acct-alert__svg" :icon="alertTriangleIcon" />
       </div>
       <div class="acct-alert__content">
         <div class="acct-alert__title">
@@ -33,8 +33,10 @@
       class="acct-chip-bar"
     >
       <div class="acct-chip">
-        <span class="acct-chip__icon">👤</span>
-        <span class="acct-chip__email">{{ accounts[0] }}</span>
+        <div class="acct-chip__content">
+          <span class="acct-chip__email">{{ accounts[0] }}</span>
+          <span v-if="accountRegions[accounts[0]]" class="acct-chip__region">{{ accountRegions[accounts[0]] }}</span>
+        </div>
       </div>
     </div>
 
@@ -48,8 +50,10 @@
         class="acct-chip acct-chip--clickable"
         @click="showPicker = true"
       >
-        <span class="acct-chip__icon">👤</span>
-        <span class="acct-chip__email">{{ selectedEmail || accounts[0] }}</span>
+        <div class="acct-chip__content">
+          <span class="acct-chip__email">{{ selectedEmail || accounts[0] }}</span>
+          <span v-if="accountRegions[selectedEmail || accounts[0]]" class="acct-chip__region">{{ accountRegions[selectedEmail || accounts[0]] }}</span>
+        </div>
         <span class="acct-chip__arrow">▾</span>
       </button>
     </div>
@@ -101,6 +105,7 @@
                 >
                   <div class="picker-item__main">
                     <span class="picker-item__email">{{ email }}</span>
+                    <span v-if="accountRegions[email]" class="picker-item__region">{{ accountRegions[email] }}</span>
                   </div>
                   <div class="picker-item__radio">
                     <div
@@ -123,10 +128,12 @@ import { ref, watch } from 'vue'
 import MobileButton from './MobileButton.vue'
 import SvgIcon from './SvgIcon.vue'
 import closeIcon from '../assets/icons/close.svg?raw'
+import alertTriangleIcon from '../assets/icons/alert-triangle.svg?raw'
 
 const props = defineProps({
   accounts: { type: Array, default: () => [] },
   modelValue: { type: String, default: '' },
+  accountRegions: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['update:modelValue', 'add-account', 'select'])
@@ -168,7 +175,8 @@ function pickAccount(email) {
   border: 1px solid var(--color-warning-border);
   border-radius: var(--radius-xl);
 }
-.acct-alert__icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+.acct-alert__icon { flex-shrink: 0; margin-top: 2px; }
+.acct-alert__svg { width: 20px; height: 20px; color: var(--color-warning, #f59e0b); }
 .acct-alert__title { font-size: var(--font-size-body); font-weight: 600; color: var(--color-text); }
 .acct-alert__desc { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: var(--space-1); }
 
@@ -217,9 +225,11 @@ function pickAccount(email) {
   border-color: var(--color-primary-border);
 }
 
-.acct-chip__icon {
-  font-size: 14px;
-  flex-shrink: 0;
+.acct-chip__content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .acct-chip__email {
@@ -229,6 +239,16 @@ function pickAccount(email) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.acct-chip__region {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  padding: 1px var(--space-1-5);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
 }
 
 .acct-chip__arrow {
@@ -340,6 +360,10 @@ function pickAccount(email) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.picker-item__region {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
 }
 .picker-item__radio {
   width: 20px;

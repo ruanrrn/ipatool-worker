@@ -10,7 +10,7 @@
           ipaTool
         </h1>
         <p class="text-[14px] text-txt-secondary dark:text-txt-dark-secondary">
-          私有部署 · 单用户独享
+          IPA 下载 · 签名 · 管理
         </p>
       </div>
 
@@ -57,7 +57,7 @@
 
       <div class="mt-6 text-center">
         <p class="mb-2 text-[12px] text-txt-tertiary dark:text-txt-dark-tertiary">
-          密码由部署者用 wrangler secret put PASSWORD_BCRYPT 注入
+          首次登录需要修改初始密码
         </p>
         <p class="text-[12px] text-txt-tertiary dark:text-txt-dark-tertiary">
           v{{ appVersion }}
