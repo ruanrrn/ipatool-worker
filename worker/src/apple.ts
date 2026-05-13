@@ -96,13 +96,17 @@ export async function handleAppleProxy(req: Request, env: Env): Promise<Response
     )
   }
 
+  // For HEAD/GET requests to CDN, follow redirects automatically.
+  // POST/PUT keep manual redirect to let caller handle auth redirects.
+  const redirectMode = (method === 'GET' || method === 'HEAD') ? 'follow' : 'manual'
+
   let upstream: Response
   try {
     upstream = await fetch(target.toString(), {
       method,
       headers,
       body: upstreamBody,
-      redirect: 'manual',
+      redirect: redirectMode,
     })
   } catch (err) {
     return jsonResponse(
