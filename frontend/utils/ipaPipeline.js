@@ -17,74 +17,137 @@ async function getWasm() {
   return mod
 }
 
-// CDN download via /apple/proxy with range-GET chunking.
-// Apple CDN does not allow browser CORS, so we proxy through the Worker.
-// We use 5 MB chunks to avoid Worker memory limits.
+const CDN_CHUNK_SIZE = 8 * 1024 * 1024 // 8 MB
+
+function getHeader(headers, name) {
+  return headers.get(name) || headers.get(name.toLowerCase()) || headers.get(name.toUpperCase())
+}
+
+function parseTotalSize(resp) {
+  const contentRange = getHeader(resp.headers, 'content-range')
+  if (contentRange) {
+    const m = contentRange.match(/\/([0-9]+)$/)
+    if (m) return Number.parseInt(m[1], 10)
+  }
+  const contentLength = getHeader(resp.headers, 'content-length')
+  if (contentLength) return Number.parseInt(contentLength, 10)
+  return 0
+}
+
+function cdnProxyUrl(cdnUrl) {
+  return `/apple/cdn?url=${encodeURIComponent(cdnUrl)}`
+}
+
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+async function probeBrowserCdn(cdnUrl) {
+  try {
+    const resp = await fetchWithTimeout(
+      cdnUrl,
+      {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        headers: { Range: 'bytes=0-0' },
+      },
+      8000
+    )
+    if (resp.status !== 206 && resp.status !== 200) return null
+    const buf = new Uint8Array(await resp.arrayBuffer())
+    const total = parseTotalSize(resp)
+    if (!total || !buf.byteLength) return null
+    return { mode: 'direct', total, firstChunk: buf, firstRange: getHeader(resp.headers, 'content-range') || '' }
+  } catch {
+    return null
+  }
+}
+
+async function probeProxyCdn(cdnUrl) {
+  const url = cdnProxyUrl(cdnUrl)
+  const resp = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { Range: 'bytes=0-0' },
+  })
+  if (!resp.ok && resp.status !== 206) {
+    const text = await resp.text().catch(() => '')
+    throw new Error(`CDN 探测失败: ${resp.status}${text ? ` ${text}` : ''}`)
+  }
+  const buf = new Uint8Array(await resp.arrayBuffer())
+  const total = parseTotalSize(resp)
+  if (!total || !buf.byteLength) {
+    throw new Error('CDN 未返回可用的 Content-Length/Content-Range，已拒绝全量下载以避免 Worker OOM')
+  }
+  return { mode: 'proxy', total, firstChunk: buf, firstRange: getHeader(resp.headers, 'content-range') || '' }
+}
+
+function rangeStartFromProbe(probe) {
+  if (!probe.firstRange) return 0
+  const m = probe.firstRange.match(/^bytes\s+(\d+)-(\d+)\//i)
+  if (!m) return 0
+  return Number.parseInt(m[1], 10)
+}
+
+function rangeEndFromProbe(probe) {
+  if (!probe.firstRange) return probe.firstChunk.byteLength - 1
+  const m = probe.firstRange.match(/^bytes\s+(\d+)-(\d+)\//i)
+  if (!m) return probe.firstChunk.byteLength - 1
+  return Number.parseInt(m[2], 10)
+}
+
+async function fetchRange(cdnUrl, mode, start, end) {
+  const url = mode === 'direct' ? cdnUrl : cdnProxyUrl(cdnUrl)
+  const resp = await fetch(url, {
+    method: 'GET',
+    mode: mode === 'direct' ? 'cors' : 'same-origin',
+    credentials: mode === 'direct' ? 'omit' : 'include',
+    cache: 'no-store',
+    headers: { Range: `bytes=${start}-${end}` },
+  })
+  if (resp.status !== 206 && resp.status !== 200) {
+    const text = await resp.text().catch(() => '')
+    throw new Error(`CDN range ${start}-${end} failed: ${resp.status}${text ? ` ${text}` : ''}`)
+  }
+  const buf = new Uint8Array(await resp.arrayBuffer())
+  const expected = end - start + 1
+  if (buf.byteLength !== expected) {
+    throw new Error(`CDN range ${start}-${end} length mismatch: got ${buf.byteLength}, expected ${expected}`)
+  }
+  return buf
+}
+
 async function fetchIpaToBytes(cdnUrl, onProgress) {
-  const CHUNK = 5 * 1024 * 1024 // 5 MB
+  const directProbe = await probeBrowserCdn(cdnUrl)
+  const probe = directProbe || (await probeProxyCdn(cdnUrl))
+  const { mode, total } = probe
+  const out = new Uint8Array(total)
 
-  // --- Helper: call /apple/proxy ---
-  async function proxyFetch(method, extraHeaders = {}) {
-    const resp = await fetch('/apple/proxy', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: cdnUrl, method, headers: extraHeaders }),
-    })
-    if (!resp.ok) {
-      const txt = await resp.text().catch(() => '')
-      throw new Error(`proxy ${resp.status}: ${txt}`)
-    }
-    const json = await resp.json()
-    if (json.status >= 400) {
-      throw new Error(`CDN responded ${json.status}`)
-    }
-    // Decode base64 body
-    const b64 = json.body || ''
-    if (!b64) return { headers: json.headers || {}, body: new Uint8Array() }
-    const bin = atob(b64)
-    const arr = new Uint8Array(bin.length)
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
-    return { headers: json.headers || {}, body: arr }
+  const firstStart = rangeStartFromProbe(probe)
+  const firstEnd = rangeEndFromProbe(probe)
+  out.set(probe.firstChunk, firstStart)
+  let received = probe.firstChunk.byteLength
+  if (onProgress) onProgress({ received, total, fraction: received / total, mode })
+
+  let offset = firstEnd + 1
+  while (offset < total) {
+    const end = Math.min(offset + CDN_CHUNK_SIZE - 1, total - 1)
+    const chunk = await fetchRange(cdnUrl, mode, offset, end)
+    out.set(chunk, offset)
+    received += chunk.byteLength
+    offset = end + 1
+    if (onProgress) onProgress({ received, total, fraction: received / total, mode })
   }
 
-  // Step 1: HEAD to get content-length
-  const head = await proxyFetch('HEAD')
-  const total = parseInt(
-    head.headers['content-length'] || head.headers['Content-Length'] || '0',
-    10
-  )
-
-  // If no content-length, download as single request
-  if (!total) {
-    const full = await proxyFetch('GET')
-    if (onProgress) onProgress({ received: full.body.byteLength, total: full.body.byteLength, fraction: 1 })
-    return full.body
-  }
-
-  // Step 2: Download in 5 MB chunks via range GET
-  const chunks = []
-  let received = 0
-
-  while (received < total) {
-    const end = Math.min(received + CHUNK - 1, total - 1)
-    const slice = await proxyFetch('GET', { Range: `bytes=${received}-${end}` })
-
-    chunks.push(slice.body)
-    received += slice.body.byteLength
-
-    if (onProgress) {
-      onProgress({ received, total, fraction: received / total })
-    }
-  }
-
-  // Merge chunks
-  const out = new Uint8Array(received)
-  let off = 0
-  for (const c of chunks) {
-    out.set(c, off)
-    off += c.byteLength
-  }
   return out
 }
 
@@ -164,9 +227,12 @@ export async function runPipeline({
   const cdnUrl = songList0.URL || songList0.url
   if (!cdnUrl) throw new Error('songList[0] missing URL')
 
-  stage('cdn-fetch', 0.15, '从 Apple CDN 下载 IPA…')
-  const ipaBytes = await fetchIpaToBytes(cdnUrl, ({ fraction, received, total }) => {
-    stage('cdn-fetch', 0.15 + fraction * 0.40, `下载中 ${Math.round(received / 1024 / 1024)} / ${Math.round((total || received) / 1024 / 1024)} MB`)
+  stage('cdn-fetch', 0.15, '探测 Apple CDN 下载方式…')
+  let downloadMode = 'proxy'
+  const ipaBytes = await fetchIpaToBytes(cdnUrl, ({ fraction, received, total, mode }) => {
+    downloadMode = mode
+    const modeLabel = mode === 'direct' ? '直连' : '代理'
+    stage('cdn-fetch', 0.15 + fraction * 0.40, `${modeLabel}下载中 ${Math.round(received / 1024 / 1024)} / ${Math.round(total / 1024 / 1024)} MB`)
   })
 
   stage('wasm-patch', 0.55, 'WASM 注入 sinf + iTunesMetadata…')
@@ -203,6 +269,7 @@ export async function runPipeline({
     version,
     title,
     inspection,
+    downloadMode,
     installUrl: `${location.origin}/i/${assetId}`,
     manifestUrl: `${location.origin}/m/${assetId}.plist`,
     itmsServicesUrl: `itms-services://?action=download-manifest&url=${encodeURIComponent(`${location.origin}/m/${assetId}.plist`)}`,

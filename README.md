@@ -55,8 +55,8 @@ iPhone Safari (PWA)                    Cloudflare Worker
   │   登录 / buyProduct  │               │  (TLS to Apple)          │
   │   downloadProduct    │               │                          │
   │                      │               │                          │
-  │ fetch CDN (CORS)     ├═══直连═════════════════════►Apple CDN     │
-  │ (IPA 字节不经 Worker)│               │                          │
+  │ fetch CDN            ├═══优先直连═════════════════►Apple CDN     │
+  │ (Range chunks)       ├──/apple/cdn fallback───────►Apple CDN     │
   │                      │               │                          │
   │ WASM patch (in-page) │               │                          │
   │   sinf inject        │               │                          │
@@ -102,6 +102,16 @@ npm run build:wasm    # → frontend/public/wasm/
 ```
 
 测试：`npm run worker:test`（Worker 18 测试）、`npm run test:wasm`（WASM 11 测试）
+
+---
+
+## IPA Download Path
+
+1. 前端每次下载先调用 `volumeStoreDownloadProduct` 获取新的 Apple CDN signed URL；URL 短期有效，不持久化复用。
+2. 先用浏览器 `GET Range: bytes=0-0` + CORS 探测直连；可读到 `Content-Range`/`Content-Length` 时，后续 IPA 分片直接从 Apple CDN 下载，字节不经 Worker。
+3. 直连不可用时 fallback 到同源 `/apple/cdn?url=...`。该端点只允许已登录会话、只接受 `GET/HEAD`、只转发 allowlist 内 Apple HTTPS host，并直接 stream 二进制 upstream body，不使用 `/apple/proxy` 的 JSON/base64 包装。
+4. `/apple/proxy` 只保留给登录、buyProduct、downloadProduct 等小型 Apple API 请求；不再用于 IPA 大文件分片，避免 base64 膨胀和 Worker 内存压力。
+5. 前端必须拿到总大小后预分配 `Uint8Array(total)` 并按 offset 写入，禁止在未知大小时退化为全量 GET。
 
 ---
 

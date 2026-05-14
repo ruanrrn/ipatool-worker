@@ -1,6 +1,7 @@
 import { handleLogin, handleLogout, handleWhoami, requireSession } from './auth'
 import { handleWisp } from './wisp'
 import { handleAppleProxy } from './apple'
+import { handleAppleCdn } from './apple-cdn'
 import { handleVersions } from './versions'
 import {
   handleUploadInit,
@@ -24,12 +25,11 @@ const SECURITY_HEADERS = {
 
 // Strict CSP. Notes:
 // - 'wasm-unsafe-eval' is required to instantiate the ipa-wasm bundle.
-// - connect-src 'self' covers /auth, /apple/proxy, /r2, /wisp on the Worker
-//   origin (wss: at the same origin counts as 'self').
+// - connect-src 'self' covers /auth, /apple/proxy, /apple/cdn, /r2, /wisp on
+//   the Worker origin (wss: at the same origin counts as 'self').
 // - img-src allows Apple's mzstatic.com (App Store artwork) and data: URIs.
-// - Apple's IPA CDN (*.itunes.apple.com / *.phobos.apple.com) is needed for
-//   `fetch(signed_cdn_url)` from ipaPipeline.js — but those are reached
-//   directly from the browser with mode:'cors', so we whitelist them here.
+// - Apple/iTunes hosts are kept for Apple API calls and optional browser-side
+//   probes; large IPA bytes are fetched through /apple/cdn.
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval'",
@@ -128,6 +128,14 @@ async function route(
     const session = await requireSession(env, request)
     if (session instanceof Response) return session
     return handleAppleProxy(request, env)
+  }
+
+  // Apple CDN binary range proxy. Unlike /apple/proxy, this streams bytes
+  // directly and is intended only for signed IPA CDN HEAD/range GET requests.
+  if (path === '/apple/cdn') {
+    const session = await requireSession(env, request)
+    if (session instanceof Response) return session
+    return handleAppleCdn(request, env)
   }
 
   // R2 upload (multipart) - requires session
